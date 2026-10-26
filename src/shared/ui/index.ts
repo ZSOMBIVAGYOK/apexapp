@@ -29,3 +29,5 @@ export * from "./NotFoundPage";
 export * from "./OfflineIndicator";
 export * from "./PwaInstallBanner";
 export * from "./PwaUpdateToast";
+export * from "./SyncStatusBadge";
+export * from "./SorenessBodyMap";

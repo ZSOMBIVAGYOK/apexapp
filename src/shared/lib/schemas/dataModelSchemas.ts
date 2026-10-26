@@ -126,37 +126,58 @@ export const AthleteProfileDocumentSchema = StandardRecordMetadataSchema.extend(
   competitions: z.array(AthleteCompetitionSchema)
 });
 
+export const ReadinessDriverSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  impact: z.enum(["positive", "negative"]),
+  category: z.enum(["sleep", "hrv", "rhr", "wellness", "load"])
+});
+
 export const DailyAggregateDocumentSchema = StandardRecordMetadataSchema.extend({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   athleteId: z.string().min(1),
   sleep: z.object({
     durationMinutes: z.number().min(0),
     qualityScore: z.number().min(1).max(10),
+    bedTime: z.string().optional(),
+    wakeTime: z.string().optional(),
     deepMinutes: z.number().optional(),
     remMinutes: z.number().optional(),
     awakeMinutes: z.number().optional()
   }),
-  hrv: z.object({
-    rmssd: z.number().min(0),
-    score: z.number().min(0).max(100),
-    status: z.enum(["low", "balanced", "high"])
-  }),
-  restingHeartRate: z.number().positive(),
+  hrv: z
+    .object({
+      rmssd: z.number().min(0),
+      score: z.number().min(0).max(100).optional(),
+      status: z.enum(["low", "balanced", "high"]).optional()
+    })
+    .optional(),
+  restingHeartRate: z.number().positive().optional(),
   weightKg: z.number().positive().optional(),
   subjective: z.object({
+    fatigue: z.number().min(1).max(10).optional(),
     soreness: z.number().min(1).max(10),
     stress: z.number().min(1).max(10),
-    energy: z.number().min(1).max(10),
+    energy: z.number().min(1).max(10).optional(),
     mood: z.number().min(1).max(10).optional(),
-    sleepQuality: z.number().min(1).max(10)
+    motivation: z.number().min(1).max(10).optional(),
+    appetite: z.number().min(1).max(10).optional(),
+    illness: z.boolean().optional(),
+    soreAreas: z.array(z.string()).optional(),
+    sleepQuality: z.number().min(1).max(10).optional()
   }),
   readinessScore: z.number().min(0).max(100),
   readinessStatus: z.enum(["ready", "caution", "rest"]),
+  readinessConfidence: z.number().min(0).max(100).optional(),
+  readinessDrivers: z.array(ReadinessDriverSchema).optional(),
+  isCalibrating: z.boolean().optional(),
+  calibrationDays: z.number().optional(),
   sourceFlags: z
     .object({
       sleepSource: DataSourceOriginSchema.optional(),
       hrvSource: DataSourceOriginSchema.optional(),
-      rhrSource: DataSourceOriginSchema.optional()
+      rhrSource: DataSourceOriginSchema.optional(),
+      wellnessSource: DataSourceOriginSchema.optional()
     })
     .optional(),
   notes: z.string().optional()
@@ -168,10 +189,10 @@ export const CompletedSessionDocumentSchema = StandardRecordMetadataSchema.exten
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   sport: z.string().min(1),
   title: z.string().min(1),
-  startTime: z.string().datetime(),
+  startTime: z.string(),
   durationMinutes: z.number().positive(),
   rpe: z.number().min(1).max(10),
-  targetIntensityRpe: z.number().min(1).max(10),
+  targetIntensityRpe: z.number().min(1).max(10).optional(),
   trainingLoad: z.number().optional(),
   metrics: z
     .object({
@@ -197,6 +218,7 @@ export const CompletedSessionDocumentSchema = StandardRecordMetadataSchema.exten
     )
     .optional(),
   coachFeedback: z.string().optional(),
+  notes: z.string().optional(),
   completed: z.boolean()
 });
 

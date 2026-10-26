@@ -124,6 +124,14 @@ export const router = createBrowserRouter([
         )
       },
       {
+        path: "sleep",
+        element: <Navigate to="/insights?tab=sleep" replace />
+      },
+      {
+        path: "recovery",
+        element: <Navigate to="/insights" replace />
+      },
+      {
         path: "settings",
         element: (
           <Suspense fallback={<SuspenseFallback />}>

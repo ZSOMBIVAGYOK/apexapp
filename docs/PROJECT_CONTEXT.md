@@ -261,4 +261,74 @@ Every screen is required to support three states:
   - Audit Log drawer displaying immutable history of permission modifications
   - Multi-discipline invite modal with automatic presets (Coach, Dietitian, Physio, Strength, Psychologist, Physician)
 
+---
+
+## 9. Stage 5 Implementation Details: Manual Logging, Daily Check-in & Readiness Engine
+
+### A. Pure Readiness Engine (`src/shared/lib/readiness/`)
+- Zero UI dependencies, pure TypeScript module.
+- **Config-Driven Architecture (`readinessConfig.ts`):**
+  - Tunable weights and thresholds for sports scientists.
+  - Dual scoring paths:
+    - **(a) Biometric Path:** HRV rMSSD z-score from 28-day rolling baseline, resting HR delta from baseline, sleep duration vs target, sleep quality.
+    - **(b) Manual Path:** Hooper-Mackinnon subjective wellness (fatigue, muscle soreness, stress, mood, motivation) combined with sleep duration and quality.
+    - **(c) Hybrid Path:** Blended weighted score (60% biometric, 40% subjective).
+- **Readiness Bands:**
+  - `green` (Score >= 67): Optimal readiness for key high-intensity work.
+  - `amber` (Score 34–66): Moderate readiness, prioritize controlled aerobic volume.
+  - `red` (Score < 34): Recovery required, focus on sleep, mobility, and light active recovery.
+- **Confidence Scoring (0–100%):** Evaluates data completeness based on presence of sleep metrics, full Hooper index, HRV, resting HR, and baseline history.
+- **Cold-Start Calibration:**
+  - Flags `isCalibrating = true` for athletes with < 14 recorded days.
+  - Soft guidance message and progress indicator (`daysCollected / 14`).
+- **Primary Driver Diagnostics (Top 3):** Automatically extracts and ranks the top 3 physiological and subjective drivers by absolute impact weight (e.g., sleep deficit, HRV suppression, resting HR elevation, acute load spike, acute illness).
+- **Acute Illness Penalty:** Active illness triggers a 35-point deduction, caps maximum readiness score at 40, and ranks illness as the top driver.
+- **Unit Test Suite:** 13 unit tests in `src/shared/lib/readiness/readinessEngine.test.ts` verifying all scoring paths, cold-start calibration, confidence calculation, and driver rankings.
+
+### B. Daily Check-in (`src/features/checkin/pages/CheckinPage.tsx`)
+- Target: Under 30 seconds completion time with touch-friendly controls.
+- **Sleep Module:**
+  - Dual input: Duration slider/stepper vs. Bed & Wake time inputs with live duration calculation.
+  - Hooper 1–5 sleep quality touch chips.
+  - Device prefill support with `SourceBadge` (Garmin / WHOOP) and single-tap override.
+- **Hooper Subjective Wellness Index (1–5 Sliders):**
+  - Fatigue, Muscle Soreness, Stress, Mood, Motivation with clearly labelled endpoints.
+- **Interactive Anatomical Body Map (`SorenessBodyMap.tsx`):**
+  - Front and back view silhouette toggle.
+  - Tappable muscle groups: neck, shoulders, chest, biceps, abs, quads, knees, shins, traps, lower back, glutes, hamstrings, calves, achilles.
+  - Visual pulse indicators and active sore region badges.
+- **Optional Morning Biometrics:**
+  - Resting HR (bpm), HRV rMSSD (ms), body weight (kg) with device source badges.
+  - Appetite rating (1–5) and active illness toggle.
+
+### C. Manual Session Log (`ManualSessionModal.tsx` & `TrainingPage.tsx`)
+- Zero-device workout tracking.
+- Sport selection (Running, Cycling, Swimming, Strength, Rowing, Mobility, Other).
+- Start time, duration (min), notes.
+- **Borg CR10 Perceived Exertion Scale:** RPE 1–10 with descriptive plain-language labels.
+- **Foster Session-RPE Load Calculation:** Real-time display of `duration (min) × RPE` AU (Arbitrary Units).
+- **Quick-Add Templates:** Pre-configured workouts (Z2 Base Run, Strength Block A, Threshold Swim, Recovery Spin).
+- **"Tegnapi edzés másolása":** One-click duplication of yesterday's workout.
+- Full edit and delete with confirmation dialog.
+
+### D. Sleep & Recovery Overview Screens (`src/features/insights/pages/InsightsPage.tsx`)
+- **Sleep Analysis:**
+  - Last night sleep details (duration, quality, bed/wake times, device source badge).
+  - In-place editable athlete sleep target (default 8.0h).
+  - 7-day accumulated sleep debt calculation (`sum(max(0, target - actual))`).
+  - 7-day & 30-day interactive Recharts bar chart with target reference line.
+- **Recovery Overview:**
+  - Large Readiness gauge ring (`ProgressRing`) with color status.
+  - Confidence meter (`ConfidenceMeter`) showing data completeness.
+  - Cold-start calibration progress bar.
+  - Top 3 primary drivers with positive/negative pill indicators.
+  - 14-day Readiness & Confidence trend area chart.
+  - ACWR (1.14 optimal) and weekly training volume tiles.
+
+### E. Offline-First Architecture (`src/shared/lib/offline/offlineStorage.ts`)
+- Immediate local synchronous caching for check-ins and sessions.
+- Background queue for mutations when offline with automatic flush upon reconnection (`window.ononline`).
+- `SyncStatusBadge` component showing live state: "Szinkronizálva", "Offline mentve", "Szinkronra vár (N)", "Szinkronizálás...".
+
 > **Requirement:** At the completion of each subsequent stage, this document must be updated with the stage's achievements, architectural decisions, and updated status.
+

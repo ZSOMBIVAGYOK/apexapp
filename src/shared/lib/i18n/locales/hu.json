@@ -402,6 +402,23 @@
     "copyCode": "Kód másolása",
     "copied": "Kód kimásolva a vágólapra!"
   },
+  "sync": {
+    "synced": "Szinkronizálva",
+    "syncedTitle": "Minden adat a felhőbe szinkronizálva",
+    "syncing": "Szinkronizálás...",
+    "pending": "Szinkronra vár",
+    "pendingTooltip": "Kattints a kézi szinkronizáláshoz",
+    "offline": "Offline mentve",
+    "offlineTitle": "Offline üzemmód: a módosítások a készüléken tárolódnak"
+  },
+  "sleep": {
+    "title": "Alváselemzés",
+    "target": "Alváscél",
+    "debt": "Alvásadósság",
+    "lastNight": "Múlt éjszaka",
+    "hours": "óra",
+    "minutes": "perc"
+  },
   "notFound": {
     "title": "Az oldal nem található (404)",
     "desc": "A keresett útvonal nem létezik az Apex platformon.",

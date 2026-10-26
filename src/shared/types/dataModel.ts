@@ -134,6 +134,16 @@ export interface AthleteProfileDocument extends StandardRecordMetadata {
 }
 
 /**
+ * Physiological readiness driver entry
+ */
+export interface ReadinessDriver {
+  id: string;
+  label: string;
+  impact: "positive" | "negative";
+  category: "sleep" | "hrv" | "rhr" | "wellness" | "load";
+}
+
+/**
  * Daily aggregate in athletes/{id}/days/{yyyy-MM-dd}
  */
 export interface DailyAggregateDocument extends StandardRecordMetadata {
@@ -141,31 +151,43 @@ export interface DailyAggregateDocument extends StandardRecordMetadata {
   athleteId: string;
   sleep: {
     durationMinutes: number;
-    qualityScore: number; // 1-10
+    qualityScore: number; // 1-5 or 1-10
+    bedTime?: string;
+    wakeTime?: string;
     deepMinutes?: number;
     remMinutes?: number;
     awakeMinutes?: number;
   };
-  hrv: {
+  hrv?: {
     rmssd: number;
-    score: number; // 0-100
-    status: "low" | "balanced" | "high";
+    score?: number; // 0-100
+    status?: "low" | "balanced" | "high";
   };
-  restingHeartRate: number;
+  restingHeartRate?: number;
   weightKg?: number;
   subjective: {
-    soreness: number; // 1-10
-    stress: number; // 1-10
-    energy: number; // 1-10
-    mood?: number; // 1-10
-    sleepQuality: number; // 1-10
+    fatigue?: number; // 1-5 (Hooper)
+    soreness: number; // 1-5 (Hooper) or 1-10
+    stress: number; // 1-5 (Hooper) or 1-10
+    energy?: number; // 1-10
+    mood?: number; // 1-5 (Hooper) or 1-10
+    motivation?: number; // 1-5 (Hooper)
+    appetite?: number; // 1-5 (Hooper)
+    illness?: boolean;
+    soreAreas?: string[]; // Anatomical areas marked on body map
+    sleepQuality?: number; // 1-5 or 1-10
   };
   readinessScore: number; // 0-100
   readinessStatus: "ready" | "caution" | "rest";
+  readinessConfidence?: number; // 0-100
+  readinessDrivers?: ReadinessDriver[];
+  isCalibrating?: boolean;
+  calibrationDays?: number;
   sourceFlags?: {
     sleepSource?: DataSourceOrigin;
     hrvSource?: DataSourceOrigin;
     rhrSource?: DataSourceOrigin;
+    wellnessSource?: DataSourceOrigin;
   };
   notes?: string;
 }
@@ -202,6 +224,7 @@ export interface CompletedSessionDocument extends StandardRecordMetadata {
     actualValue?: string;
   }>;
   coachFeedback?: string;
+  notes?: string;
   completed: boolean;
 }
 

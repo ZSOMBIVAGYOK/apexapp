@@ -402,6 +402,23 @@
     "copyCode": "Copy Code",
     "copied": "Copied to clipboard!"
   },
+  "sync": {
+    "synced": "Synced",
+    "syncedTitle": "All data synced to cloud",
+    "syncing": "Syncing...",
+    "pending": "Pending sync",
+    "pendingTooltip": "Click to sync offline changes",
+    "offline": "Saved offline",
+    "offlineTitle": "Offline mode: changes stored locally"
+  },
+  "sleep": {
+    "title": "Sleep Analysis",
+    "target": "Sleep Target",
+    "debt": "Sleep Debt",
+    "lastNight": "Last Night",
+    "hours": "hours",
+    "minutes": "min"
+  },
   "notFound": {
     "title": "Page Not Found (404)",
     "desc": "The requested route does not exist on the Apex platform.",
