@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConnectedDevice } from "@shared/types";
+import { useAppMode } from "@shared/hooks/useAppMode";
 import {
   Card,
   Button,
@@ -9,10 +10,11 @@ import {
   SourceBadge,
   showToast
 } from "@shared/ui";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Info } from "lucide-react";
 
 export const DevicesPage: React.FC = () => {
   const { t } = useTranslation();
+  const { isManualOnly, setDataMode } = useAppMode();
 
   const [devices, setDevices] = useState<ConnectedDevice[]>([
     {
@@ -96,6 +98,22 @@ export const DevicesPage: React.FC = () => {
         title={t("devices.title")}
         description={t("devices.subtitle")}
       />
+
+      {isManualOnly && (
+        <Card
+          variant="surface"
+          radius="20"
+          className="p-4 border border-brand/20 bg-brand/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+        >
+          <div className="flex items-center gap-3">
+            <Info className="h-5 w-5 text-brand shrink-0" />
+            <p className="text-12 text-text-secondary">{t("devices.manualNotice")}</p>
+          </div>
+          <Button variant="secondary" size="sm" onClick={() => setDataMode("hybrid")}>
+            Váltás Hibrid módra
+          </Button>
+        </Card>
+      )}
 
       {/* Devices Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -2,6 +2,7 @@ import React from "react";
 import { X } from "lucide-react";
 
 export interface ChipProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  label?: string;
   selected?: boolean;
   onRemove?: () => void;
   size?: "sm" | "md";
@@ -10,6 +11,7 @@ export interface ChipProps extends React.ButtonHTMLAttributes<HTMLButtonElement>
 
 export const Chip: React.FC<ChipProps> = ({
   children,
+  label,
   selected = false,
   onRemove,
   size = "md",
@@ -37,7 +39,7 @@ export const Chip: React.FC<ChipProps> = ({
       {...props}
     >
       {icon && <span className="shrink-0">{icon}</span>}
-      <span className="truncate">{children}</span>
+      <span className="truncate">{label || children}</span>
       {onRemove && (
         <span
           role="button"

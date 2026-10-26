@@ -9,6 +9,7 @@ import i18n from "@shared/lib/i18n";
 // Lazy-loaded routes for all features
 const AuthPage = lazy(() => import("@features/auth/pages/AuthPage"));
 const OnboardingPage = lazy(() => import("@features/onboarding/pages/OnboardingPage"));
+const PrivacyPolicyPage = lazy(() => import("@features/settings/pages/PrivacyPolicyPage"));
 const TodayPage = lazy(() => import("@features/today/pages/TodayPage"));
 const CheckinPage = lazy(() => import("@features/checkin/pages/CheckinPage"));
 const TrainingPage = lazy(() => import("@features/training/pages/TrainingPage"));
@@ -40,6 +41,24 @@ export const router = createBrowserRouter([
     )
   },
   {
+    path: "/privacy",
+    element: (
+      <Suspense fallback={<SuspenseFallback />}>
+        <PrivacyPolicyPage />
+      </Suspense>
+    )
+  },
+  {
+    path: "/onboarding",
+    element: (
+      <ProtectedRoute allowIncompleteOnboarding>
+        <Suspense fallback={<SuspenseFallback />}>
+          <OnboardingPage />
+        </Suspense>
+      </ProtectedRoute>
+    )
+  },
+  {
     path: "/",
     element: (
       <ProtectedRoute>
@@ -52,14 +71,6 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <TodayPage />
-          </Suspense>
-        )
-      },
-      {
-        path: "onboarding",
-        element: (
-          <Suspense fallback={<SuspenseFallback />}>
-            <OnboardingPage />
           </Suspense>
         )
       },

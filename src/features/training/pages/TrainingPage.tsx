@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { TrainingSession } from "@shared/types";
+import { useAppMode } from "@shared/hooks/useAppMode";
 import {
   Card,
   Button,
@@ -13,10 +14,11 @@ import {
   WeekStrip,
   showToast
 } from "@shared/ui";
-import { Plus, CheckCircle2, Clock, Zap, Play } from "lucide-react";
+import { Plus, CheckCircle2, Clock, Zap, Play, Sparkles, ShieldCheck } from "lucide-react";
 
 export const TrainingPage: React.FC = () => {
   const { t } = useTranslation();
+  const { hasCoach, isSolo } = useAppMode();
 
   const [selectedDate, setSelectedDate] = useState("2026-10-26");
   const [sessions, setSessions] = useState<TrainingSession[]>([
@@ -155,6 +157,18 @@ export const TrainingPage: React.FC = () => {
                   {session.type.toUpperCase()}
                 </Badge>
                 <span className="text-12 text-text-secondary">{session.date}</span>
+                {hasCoach && (
+                  <Badge variant="brand" size="sm" className="hidden sm:inline-flex items-center gap-1">
+                    <ShieldCheck className="h-3 w-3" />
+                    {t("training.coachPlanBadge")}
+                  </Badge>
+                )}
+                {isSolo && (
+                  <Badge variant="outline" size="sm" className="hidden sm:inline-flex items-center gap-1">
+                    <Sparkles className="h-3 w-3 text-brand" />
+                    AI Terv
+                  </Badge>
+                )}
                 {session.completed && (
                   <Badge variant="ready" dot size="sm">
                     Elvégezve

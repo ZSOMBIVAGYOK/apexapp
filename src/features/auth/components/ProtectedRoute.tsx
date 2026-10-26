@@ -6,9 +6,13 @@ import { Loader2 } from "lucide-react";
 
 interface ProtectedRouteProps {
   children: React.ReactElement;
+  allowIncompleteOnboarding?: boolean;
 }
 
-export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
+  children,
+  allowIncompleteOnboarding = false
+}) => {
   const { user, isLoading } = useAuthStore();
   const location = useLocation();
   const { t } = useTranslation();
@@ -28,6 +32,16 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   if (!user) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
+  }
+
+  // If user has not completed onboarding and this route requires it, redirect to /onboarding
+  if (
+    !user.onboardingCompleted &&
+    !allowIncompleteOnboarding &&
+    location.pathname !== "/onboarding" &&
+    location.pathname !== "/privacy"
+  ) {
+    return <Navigate to="/onboarding" replace />;
   }
 
   return children;

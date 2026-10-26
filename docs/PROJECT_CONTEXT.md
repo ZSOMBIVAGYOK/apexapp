@@ -169,8 +169,8 @@ Every screen is required to support three states:
 | Stage | Name | Description | Status |
 |---|---|---|---|
 | **Stage 1** | **Foundation & Scaffold** | Project scaffold, ESLint, Prettier, path aliases, Firebase config & emulators, PWA manifest, service worker caching, offline fallback, lazy routing shell, Hungarian/English i18n, and WCAG AA mobile-first UI shell. | **Completed** |
-| **Stage 2** | **Design System & Cockpit App Shell** | Complete design tokens (Dark `#0B0C0F` default, Light `#F5F6F8`), 26 accessible components, Apple-clean cockpit layout, mobile 5-tab bar with collapsing header, desktop sidebar (>=1024px) with search & notifications, role-aware navigation (Athlete vs Coach/Specialist), dev-only `/design` styleguide. | **Completed (Current)** |
-| **Stage 3** | **Firebase Auth & Multi-Role Profiles** | Production Firebase Auth lifecycle, persistent athlete/coach profiles in Firestore, role-based claims, onboarding completion logic. | Upcoming |
+| **Stage 2** | **Design System & Cockpit App Shell** | Complete design tokens (Dark `#0B0C0F` default, Light `#F5F6F8`), 26 accessible components, Apple-clean cockpit layout, mobile 5-tab bar with collapsing header, desktop sidebar (>=1024px) with search & notifications, role-aware navigation (Athlete vs Coach/Specialist), dev-only `/design` styleguide. | **Completed** |
+| **Stage 3** | **Authentication, Multi-Role Profiles & Onboarding** | Firebase Auth (Email/Pass, Google, Apple), session persistence, localized error codes, multi-role user profile in Firestore (`users/{uid}`), 7-step resumable onboarding state machine with Vitest unit tests, mandatory GDPR Art. 9 health-data consent, adaptive UI via `useAppMode()`, extended settings with units, live mode changers, JSON data export, and Cloud Function `deleteUserData` account erasure. | **Completed (Current)** |
 | **Stage 4** | **Morning Check-in & Readiness Engine** | Recovery score calculation engine, HRV and resting HR integration, daily subjective fatigue markers, persistent Firestore check-in collection. | Upcoming |
 | **Stage 5** | **Training Engine & Periodization** | Structured training blocks, interval timer, mechanical volume calculation, session completion logs, RPE-based load adjustment. | Upcoming |
 | **Stage 6** | **Nutrition & Hydration Tracking** | Macronutrient distribution, pre/post workout nutrient timing, hydration progress logger with custom water volume increments. | Upcoming |
@@ -178,5 +178,47 @@ Every screen is required to support three states:
 | **Stage 8** | **Coaching Staff & Specialist Hub** | Multi-user collaboration for dietitians, physiotherapists, strength coaches, psychologists, and physicians; athlete note sharing and invitation workflows. | Upcoming |
 | **Stage 9** | **Performance Analytics & ACWR Engine** | Acute:Chronic Workload Ratio (ACWR) safety index calculation, injury risk forecasting models, advanced Recharts trend graphs. | Upcoming |
 | **Stage 10** | **Push Notifications, Hardening & Deployment** | Firebase Cloud Messaging (FCM) web push notifications, automated daily check-in reminders, scheduled weekly digests via Cloud Functions, security auditing, and production deployment. | Upcoming |
+
+---
+
+## 7. Stage 3 Implementation Details & Architectural Decisions
+
+### A. Authentication & User Model
+- **Firebase Auth Providers:** Email + Password, Google Sign-in (`signInWithPopup`), Apple Sign-in (`OAuthProvider("apple.com")`), password reset (`triggerPasswordReset`), email verification reminder banner (`triggerEmailVerification`), and `browserLocalPersistence` session persistence.
+- **Error Code Translation:** Clean mapper `getAuthErrorMessageKey` translates raw Firebase codes (`auth/invalid-credential`, `auth/email-already-in-use`, `auth/weak-password`, `auth/popup-closed-by-user`, etc.) into localized Hungarian and English notices.
+- **Firestore Schema (`users/{uid}`):**
+  - Identity & Locale: `uid`, `email`, `displayName`, `photoURL`, `locale` ('hu' | 'en'), `units` ('metric' | 'imperial'), `timezone`.
+  - Roles & Multi-Role Support: `roles` (`('athlete' | 'coach' | 'specialist')[]`), `role` (primary/view), `specialties` (`SpecialistDiscipline[]`).
+  - Modes: `dataMode` ('device' | 'manual' | 'hybrid'), `supportMode` (`('solo' | 'coach' | 'specialist')[]`).
+  - Compliance: `onboardingCompleted` (boolean), `consent: { healthData: { accepted: boolean, version: string, timestamp: string } }`.
+  - Biometric & Athlete Profile: `sports`, `sport`, `level` ('hobby' | 'competitive_amateur' | 'national' | 'national_team' | 'olympic'), `birthDate`, `sex`, `heightCm`, `weightKg`, `goals`, `targetCompetition`, `targetCompetitionDate`.
+  - Baseline & Nutrition: `sleepHoursBaseline`, `trainingDaysPerWeek`, `restingHeartRateBaseline`, `currentInjuries`, `dietaryPreferences`, `allergiesIntolerances`, `nutritionGoal`, `plateBasedViewOnly`.
+
+### B. 7-Step Onboarding Wizard & Pure State Machine
+- **State Machine (`onboardingMachine.ts`):** Pure reducer handling `NEXT_STEP`, `PREV_STEP`, `GO_TO_STEP`, `UPDATE_DATA`, `SKIP_STEP`, `RESET`, `LOAD_DRAFT`.
+- **Steps:**
+  1. *Role:* Sportoló, Edző, Szakember (multi-role enabled; specialist chooses discipline).
+  2. *Athlete Profile:* Main sports, competition level, birthdate, optional sex, height/weight, goals, target competition (skippable).
+  3. *Data Source:* 3 interactive cards (Wearables / Manual / Hybrid).
+  4. *Support Mode:* Solo / Coach / Specialist multi-select with coach invite input (skippable).
+  5. *Baseline:* Sleep hours slider, training days stepper, resting HR, injury notes (skippable).
+  6. *Nutrition Basics:* Diet chips, allergy chips, goal, plate-based view toggle (skippable).
+  7. *GDPR Art. 9 Consent:* Explicit health & biometric data consent checkbox, link to `/privacy`, consent versioning. **Non-skippable and blocking**.
+- **Draft Persistence:** Auto-saved and resumable via `localStorage` draft key `apex_onboarding_draft_${uid}`.
+- **Unit Tests:** 8 pure Vitest unit tests in `src/features/onboarding/onboardingMachine.test.ts` covering initial state, navigation, step skipping, validation, consent blocking, and deserialization.
+
+### C. Adaptive UI (`useAppMode`)
+- `useAppMode()` exposes boolean flags (`isManualOnly`, `isDeviceOnly`, `isHybrid`, `isSolo`, `hasCoach`, `hasSpecialist`, `plateBasedViewOnly`) and live mode mutators (`setDataMode`, `setSupportMode`, `toggleRole`).
+- UI automatically adapts:
+  - In `manual` mode, manual-entry forms are prioritized; device sync displays informative guidance.
+  - In `device` mode, automated wearable status is highlighted.
+  - In `solo` mode, the app functions as the virtual AI coach.
+  - With a coach (`hasCoach`), workouts display head-coach approval badges.
+  - With `plateBasedViewOnly`, numerical calories are hidden in favor of visual macronutrient plate proportions.
+
+### D. Settings, Portability & Cloud Function Deletion
+- **Settings:** Live theme switch (Dark / Light / System), language switch (HU / EN), measurement units (Metric / Imperial), live data/support mode toggles, and notification preferences.
+- **GDPR Art. 20 Data Portability:** Downloadable JSON export containing full profile, settings, and telemetry history.
+- **GDPR Art. 17 Right to Erasure:** Dangerous zone confirmation dialog calls `deleteUserData` Cloud Function, recursively wiping Firestore documents, subcollections, collaborations, and Firebase Auth record.
 
 > **Requirement:** At the completion of each subsequent stage, this document must be updated with the stage's achievements, architectural decisions, and updated status.

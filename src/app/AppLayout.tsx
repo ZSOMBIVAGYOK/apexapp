@@ -16,6 +16,7 @@ import {
 import { useAuthStore } from "@features/auth/authStore";
 import { useThemeStore, ThemeMode } from "@shared/lib/theme/themeStore";
 import { getNavItemsForRole } from "./navigation";
+import { UserRole } from "@shared/types";
 import { Avatar } from "@shared/ui/Avatar";
 import { Badge } from "@shared/ui/Badge";
 import { ToastContainer } from "@shared/ui/Toast";
@@ -56,7 +57,7 @@ export const AppLayout: React.FC = () => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  const navItems = getNavItemsForRole(user?.role || "athlete", true);
+  const navItems = getNavItemsForRole(user?.roles || (user?.role ? [user.role] : ["athlete"]), true);
 
   const toggleLanguage = () => {
     const nextLang = i18n.language.startsWith("hu") ? "en" : "hu";
@@ -76,9 +77,12 @@ export const AppLayout: React.FC = () => {
   // Switch athlete/coach mode for role-aware demo
   const toggleRoleMode = () => {
     if (!user) return;
-    const newRole = user.role === "athlete" ? "coach" : "athlete";
+    const currentIsCoach = user.roles?.includes("coach") || user.role === "coach";
+    const newRoles: UserRole[] = currentIsCoach ? ["athlete"] : ["athlete", "coach"];
+    const newRole: UserRole = currentIsCoach ? "athlete" : "coach";
     setUserProfile({
       ...user,
+      roles: newRoles,
       role: newRole,
       updatedAt: new Date().toISOString()
     });

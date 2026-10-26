@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuthStore } from "@features/auth/authStore";
+import { useAppMode } from "@shared/hooks/useAppMode";
 import {
   Card,
   StatTile,
@@ -19,13 +20,17 @@ import {
   Play,
   CheckCircle2,
   Clock,
-  Plus
+  Plus,
+  Sparkles,
+  ShieldCheck,
+  FileEdit
 } from "lucide-react";
 
 export const TodayPage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const { isManualOnly, isSolo, hasCoach, plateBasedViewOnly } = useAppMode();
 
   const [waterLiters, setWaterLiters] = useState(2.5);
   const [workoutStarted, setWorkoutStarted] = useState(false);
@@ -78,6 +83,42 @@ export const TodayPage: React.FC = () => {
           {t("today.quickCheckinBtn")}
         </Button>
       </div>
+
+      {/* Adaptive Mode Notice Banners */}
+      {isManualOnly && (
+        <div className="flex items-center gap-3 p-3.5 rounded-16 border border-border-hairline bg-bg-surface text-12 text-text-secondary">
+          <FileEdit className="h-4 w-4 text-brand shrink-0" />
+          <span>{t("today.adaptiveManualNotice")}</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate("/training")}
+            className="ml-auto text-12"
+          >
+            {t("training.logSession")}
+          </Button>
+        </div>
+      )}
+
+      {isSolo && !isManualOnly && (
+        <div className="flex items-center gap-3 p-3.5 rounded-16 border border-brand/20 bg-brand/5 text-12 text-text-primary">
+          <Sparkles className="h-4 w-4 text-brand shrink-0" />
+          <span>{t("today.adaptiveSoloCoach")}</span>
+          <Badge variant="brand" size="sm" className="ml-auto shrink-0">
+            AI Virtual Coach
+          </Badge>
+        </div>
+      )}
+
+      {hasCoach && (
+        <div className="flex items-center gap-3 p-3.5 rounded-16 border border-status-ready/20 bg-status-ready/5 text-12 text-text-primary">
+          <ShieldCheck className="h-4 w-4 text-status-ready shrink-0" />
+          <span>{t("today.adaptiveCoachSupervised")}</span>
+          <Badge variant="ready" size="sm" className="ml-auto shrink-0">
+            Edzői felügyelet
+          </Badge>
+        </div>
+      )}
 
       {/* Hero Readiness Overview Card */}
       <Card variant="surface" radius="28" className="p-6 sm:p-8">
@@ -250,42 +291,73 @@ export const TodayPage: React.FC = () => {
                   {t("nutrition.title")}
                 </h3>
               </div>
-              <span className="text-14 font-bold text-text-primary tabular-nums">
-                2 850 / 3 450 kcal
-              </span>
+              {plateBasedViewOnly ? (
+                <Badge variant="brand" size="sm">
+                  {t("nutrition.plateViewActive")}
+                </Badge>
+              ) : (
+                <span className="text-14 font-bold text-text-primary tabular-nums">
+                  2 850 / 3 450 kcal
+                </span>
+              )}
             </div>
 
-            <div className="space-y-3">
-              <div>
-                <div className="flex justify-between text-12 text-text-secondary mb-1">
-                  <span>{t("nutrition.protein")}</span>
-                  <span className="tabular-nums font-medium text-text-primary">155g / 185g (84%)</span>
+            {plateBasedViewOnly ? (
+              <div className="space-y-3">
+                <p className="text-12 text-text-secondary">
+                  {t("nutrition.plateRatio")}
+                </p>
+                {/* Visual plate ratio distribution */}
+                <div className="flex h-3 w-full overflow-hidden rounded-full border border-border-hairline">
+                  <div className="bg-brand h-full" style={{ width: "30%" }} title="Fehérje 30%" />
+                  <div className="bg-status-ready h-full" style={{ width: "40%" }} title="Zöldség & Rost 40%" />
+                  <div className="bg-status-caution h-full" style={{ width: "30%" }} title="Minőségi szénhidrát 30%" />
                 </div>
-                <div className="w-full bg-border-hairline rounded-full h-1.5 overflow-hidden">
-                  <div className="bg-brand h-1.5 rounded-full" style={{ width: "84%" }} />
+                <div className="flex justify-between text-11 text-text-tertiary">
+                  <span className="flex items-center gap-1">
+                    <span className="h-2 w-2 rounded-full bg-brand" /> 30% Fehérje
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="h-2 w-2 rounded-full bg-status-ready" /> 40% Rost / Zöldség
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="h-2 w-2 rounded-full bg-status-caution" /> 30% Szénhidrát
+                  </span>
                 </div>
               </div>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <div className="flex justify-between text-12 text-text-secondary mb-1">
+                    <span>{t("nutrition.protein")}</span>
+                    <span className="tabular-nums font-medium text-text-primary">155g / 185g (84%)</span>
+                  </div>
+                  <div className="w-full bg-border-hairline rounded-full h-1.5 overflow-hidden">
+                    <div className="bg-brand h-1.5 rounded-full" style={{ width: "84%" }} />
+                  </div>
+                </div>
 
-              <div>
-                <div className="flex justify-between text-12 text-text-secondary mb-1">
-                  <span>{t("nutrition.carbs")}</span>
-                  <span className="tabular-nums font-medium text-text-primary">340g / 450g (75%)</span>
+                <div>
+                  <div className="flex justify-between text-12 text-text-secondary mb-1">
+                    <span>{t("nutrition.carbs")}</span>
+                    <span className="tabular-nums font-medium text-text-primary">340g / 450g (75%)</span>
+                  </div>
+                  <div className="w-full bg-border-hairline rounded-full h-1.5 overflow-hidden">
+                    <div className="bg-brand h-1.5 rounded-full" style={{ width: "75%" }} />
+                  </div>
                 </div>
-                <div className="w-full bg-border-hairline rounded-full h-1.5 overflow-hidden">
-                  <div className="bg-brand h-1.5 rounded-full" style={{ width: "75%" }} />
-                </div>
-              </div>
 
-              <div>
-                <div className="flex justify-between text-12 text-text-secondary mb-1">
-                  <span>{t("nutrition.fats")}</span>
-                  <span className="tabular-nums font-medium text-text-primary">58g / 75g (77%)</span>
-                </div>
-                <div className="w-full bg-border-hairline rounded-full h-1.5 overflow-hidden">
-                  <div className="bg-brand h-1.5 rounded-full" style={{ width: "77%" }} />
+                <div>
+                  <div className="flex justify-between text-12 text-text-secondary mb-1">
+                    <span>{t("nutrition.fats")}</span>
+                    <span className="tabular-nums font-medium text-text-primary">58g / 75g (77%)</span>
+                  </div>
+                  <div className="w-full bg-border-hairline rounded-full h-1.5 overflow-hidden">
+                    <div className="bg-brand h-1.5 rounded-full" style={{ width: "77%" }} />
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
 
           <div className="flex items-center justify-between pt-3 border-t border-border-hairline">

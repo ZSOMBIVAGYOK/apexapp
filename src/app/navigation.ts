@@ -77,17 +77,20 @@ export const ALL_NAV_ITEMS: NavItemConfig[] = [
 ];
 
 export const getNavItemsForRole = (
-  role: UserRole = "athlete",
+  roleOrRoles: UserRole | UserRole[] = "athlete",
   isDev: boolean = process.env.NODE_ENV !== "production"
 ): NavItemConfig[] => {
+  const roles = Array.isArray(roleOrRoles) ? roleOrRoles : [roleOrRoles];
+  const hasStaffRole = roles.includes("coach") || roles.includes("specialist");
+
   return ALL_NAV_ITEMS.filter((item) => {
     // If devOnly, check isDev
     if (item.devOnly) {
       return isDev;
     }
-    // If requires specialist role, check if user is coach or specialist
+    // If requires specialist role, check if user has coach or specialist role
     if (item.requiresSpecialist) {
-      return role === "coach" || role === "specialist";
+      return hasStaffRole;
     }
     return true;
   });
