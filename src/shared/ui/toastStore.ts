@@ -6,6 +6,7 @@ export interface ToastItem {
   id: string;
   title: string;
   message?: string;
+  description?: string;
   type?: ToastType;
   durationMs?: number;
 }

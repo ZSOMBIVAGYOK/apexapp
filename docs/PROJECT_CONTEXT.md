@@ -330,5 +330,92 @@ Every screen is required to support three states:
 - Background queue for mutations when offline with automatic flush upon reconnection (`window.ononline`).
 - `SyncStatusBadge` component showing live state: "Szinkronizálva", "Offline mentve", "Szinkronra vár (N)", "Szinkronizálás...".
 
+---
+
+## 10. Stage 6 Implementation Details: Training Calendar, Season Planning, Workout Builder & Load Analytics
+
+### A. Load Analytics Engine (`src/shared/lib/load/loadCalculator.ts`)
+- Pure TypeScript module with zero UI dependencies.
+- **Session Load Calculation:**
+  - **Power TSS (Coggan method):** $TSS = \frac{t_{sec} \times NP \times IF}{FTP \times 3600} \times 100$ when power data and FTP are available.
+  - **hrTSS (Heart Rate method):** $hrTSS = t_{hours} \times \left(\frac{avgHR}{LTHR}\right)^2 \times 100$ when HR data and LTHR are available.
+  - **Foster Session-RPE:** $AU = \text{duration (min)} \times \text{RPE (1-10)}$ (clamped to $[1, 10]$ Borg CR10 scale).
+- **Bannister Impulse-Response Performance Management:**
+  - Chronic Training Load (CTL / Fitness): 42-day exponentially weighted moving average ($\lambda_{CTL} = 1 - e^{-1/42} \approx 0.0235$).
+  - Acute Training Load (ATL / Fatigue): 7-day exponentially weighted moving average ($\lambda_{ATL} = 1 - e^{-1/7} \approx 0.1331$).
+  - Training Stress Balance (TSB / Form): $TSB = CTL_{t-1} - ATL_{t-1}$ (morning freshness balance prior to today's training).
+  - Multi-day series calculation with past historical load and projected future planned workouts (rendered as dashed lines).
+- **Load Metrics & Ratios:**
+  - **Weekly Ramp Rate:** $CTL_{today} - CTL_{today-7d}$ (safe progression $+3$ to $+7$/week; $>+8$ flags rapid ramp).
+  - **Acute:Chronic Workload Ratio (ACWR):** 7-day rolling acute load mean divided by 28-day chronic load mean. Safe/Sweet-Spot zone is $0.8 - 1.3$; $>1.5$ indicates high injury risk.
+  - **Foster Monotony & Strain:** Monotony is the ratio of daily mean load to standard deviation over 7 days ($\frac{\bar{x}_7}{\sigma_7}$, capped at 4.0). Strain is weekly total load multiplied by monotony. Values $>2.0$ indicate lack of recovery variation.
+  - **Weekly Compliance:** $\frac{\text{Completed Load}}{\text{Planned Load}} \times 100\%$ with color status badge ($85\%+$ optimal, $70-84\%$ caution, $<70\%$ low).
+- **Unit Tests:** 13 unit tests in `src/shared/lib/load/loadCalculator.test.ts` verifying all formulas, time constants, projections, and metric explanations.
+
+### B. Season Planner & Backward Periodization Engine (`src/shared/lib/periodization/periodizationEngine.ts`)
+- **Backward Periodization (`generateBackwardPeriodization`):**
+  - Calculates backward in time from the target A-race date:
+    - *Race:* 1 week (ends on race date, $30\%$ peak volume, race-day execution).
+    - *Taper:* 2 weeks prior ($55\%$ volume, race intensity maintained, supercompensation).
+    - *Peak:* 2 weeks prior ($100\%$ peak volume, simulation workouts, nutrition rehearsal).
+    - *Build:* 6 weeks prior ($95\%$ volume, threshold intervals, VO2max development).
+    - *Base:* 8 weeks prior ($85\%$ volume, aerobic Z2 foundation, mitochondrial density).
+    - *Transition:* 2+ weeks prior ($40\%$ volume, active recovery, cross-training).
+- **Tapering Helper Curve (`calculateTaperSchedule`):**
+  - 14-day progressive exponential volume reduction ($V(t) = preTaper \times (0.35 + 0.55 e^{-0.12 t})$) based on Mujika & Padilla (2003).
+  - 4 scientific core principles: Volume drops $40-60\%$, intensity maintained at race pace, frequency maintained at $\ge 80\%$, sleep and carbohydrate loading maximized.
+- **A-Race Countdown:** Daily and weekly remaining countdown calculator with status formatting.
+- **Unit Tests:** 6 unit tests in `src/shared/lib/periodization/periodizationEngine.test.ts`.
+
+### C. 5-Zone Thresholds & Zone Models (`src/shared/lib/zones/zoneCalculator.ts`)
+- **Heart Rate Zones (5-Zone):** Joe Friel model based on LTHR ($Z1 <85\%$, $Z2\ 85-89\%$, $Z3\ 90-94\%$, $Z4\ 95-100\%$, $Z5 >100\%$), with fallback to Max HR percentage model ($50-60\%, 60-70\%, 70-80\%, 80-90\%, 90-100\%$).
+- **Power Zones (5-Zone):** Andy Coggan standard (% of FTP: $Z1 <55\%$, $Z2\ 56-75\%$, $Z3\ 76-90\%$, $Z4\ 91-105\%$, $Z5 >105\%$).
+- **Running Pace Zones (5-Zone):** Jack Daniels / Joe Friel standard (% of Threshold Pace in seconds/km).
+- **Critical Swim Speed (CSS):** Pace offsets per 100m.
+- **Unit Tests:** 7 unit tests in `src/shared/lib/zones/zoneCalculator.test.ts`.
+
+### D. Solo Mode Plan Generator (`src/shared/lib/planner/soloPlanGenerator.ts`)
+- **Pluggable Architecture:** Implements `IPlanGenerator` interface ready for future AI planner integration.
+- **`RuleBasedPlanGenerator`:** Generates full periodized calendar with structured blocks (Warmup, Main, Interval with repeats and rest, Cooldown) mapped to the athlete's training days per week ($3-6$ days) and weekly available hours ($4-18$ hours).
+- **Unit Tests:** 2 unit tests in `src/shared/lib/planner/soloPlanGenerator.test.ts`.
+
+### E. Training User Interface Components (`src/features/training/`)
+1. **`SeasonPlannerTimeline.tsx`:**
+   - Visual periodization timeline strip displaying active phases with colors and status.
+   - A-race countdown banner with distance, date, and target time.
+   - A/B/C competition chips with priority markers.
+   - Interactive Tapering Helper bottom sheet with the 14-day decay curve.
+   - Phase detail modal showing physiological targets.
+2. **`PerformanceManagementChart.tsx`:**
+   - Interactive Recharts composed chart showing CTL (Blue), ATL (Red), TSB (Green), and Daily Load bars.
+   - Dashed projection lines for future planned workouts.
+   - 4-week, 8-week, and Full Season range toggles.
+   - Top metrics strip: Today's CTL, ATL, TSB, Weekly Ramp Rate, ACWR, and Foster Monotony.
+   - "Hogyan működik?" bottom sheet with plain-language explanations.
+3. **`TrainingCalendar.tsx`:**
+   - Week, Month, and Day views with fluid navigation.
+   - Distinct styles for Completed (solid, checkmark, actual duration & load), Planned (dashed border, clock, target duration & load), Modified (amber badge), and Skipped (strikethrough, rose badge).
+   - Sport color coding (Running: Emerald, Cycling: Blue, Swimming: Cyan, Strength: Purple, Triathlon: Amber).
+   - HTML5 drag-and-drop rescheduling on desktop and mobile long-press/touch move sheet.
+   - Daily load badges and weekly summary row (Volume, Completed vs. Planned Load, Compliance %).
+4. **`WorkoutBuilderModal.tsx`:**
+   - Structured blocks builder (Warmup, Main, Interval with repeats & rest, Cooldown) with RPE, HR zone, Power, and Pace targets.
+   - Strength session builder with exercises, sets, reps, load (kg), RPE, and rest seconds.
+   - Pre-built Template Library quick loader.
+   - "Hét másolása" (Copy week) duplication tool.
+5. **`WorkoutFeedbackModal.tsx`:**
+   - Coach provenance badge ("Edző: Kiss Péter tervezte").
+   - Completed, Modified, or Skipped status selector.
+   - Borg CR10 RPE slider with descriptive text, actual duration, and athlete feedback comments.
+   - Structured skip reasons (fatigue, illness, injury, time, weather, other) and modification reasons.
+6. **`ThresholdsAndZonesModal.tsx`:**
+   - Physiological inputs (Max HR, LTHR, FTP, Threshold Pace, CSS).
+   - Interactive 5-zone tables with automatic recalculation.
+7. **`SoloPlanGeneratorWizard.tsx`:**
+   - Wizard to generate rule-based periodized training plans from race goals.
+
+---
+
 > **Requirement:** At the completion of each subsequent stage, this document must be updated with the stage's achievements, architectural decisions, and updated status.
+
 

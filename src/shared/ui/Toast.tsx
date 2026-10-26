@@ -53,9 +53,9 @@ const ToastCard: React.FC<ToastCardProps> = ({ toast, onDismiss }) => {
         <h4 className="text-14 font-semibold text-text-primary leading-tight">
           {toast.title}
         </h4>
-        {toast.message && (
+        {(toast.description || toast.message) && (
           <p className="text-12 text-text-secondary mt-1 leading-normal">
-            {toast.message}
+            {toast.description || toast.message}
           </p>
         )}
       </div>

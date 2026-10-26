@@ -28,6 +28,7 @@ import {
 export interface ManualSessionModalProps {
   isOpen: boolean;
   onClose: () => void;
+  defaultDate?: string;
   sessionToEdit?: CompletedSessionDocument | null;
   onSessionSaved?: (session: CompletedSessionDocument) => void;
   onSessionDeleted?: (sessionId: string) => void;
@@ -94,6 +95,7 @@ const TEMPLATES = [
 export const ManualSessionModal: React.FC<ManualSessionModalProps> = ({
   isOpen,
   onClose,
+  defaultDate,
   sessionToEdit,
   onSessionSaved,
   onSessionDeleted
@@ -103,7 +105,7 @@ export const ManualSessionModal: React.FC<ManualSessionModalProps> = ({
   const isHu = i18n.language.startsWith("hu");
   const athleteId = user?.uid || "demo-athlete-001";
 
-  const todayStr = new Date().toISOString().split("T")[0] as string;
+  const todayStr = defaultDate || new Date().toISOString().split("T")[0] as string;
 
   // Form Fields
   const [sport, setSport] = useState("running");
