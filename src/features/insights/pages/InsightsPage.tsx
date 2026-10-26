@@ -1,15 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuthStore } from "@features/auth/authStore";
 import {
   Card,
   StatTile,
-  ProgressRing,
-  ConfidenceMeter,
-  SourceBadge,
   Badge,
-  Button,
   SectionHeader,
   SegmentedControl,
   SyncStatusBadge,
@@ -24,9 +20,11 @@ import {
 } from "@shared/lib/offline/offlineStorage";
 import {
   calculateReadiness,
-  ReadinessResult,
-  bandToStatus
+  ReadinessResult
 } from "@shared/lib/readiness";
+import {
+  generateWeeklyReview
+} from "@shared/lib/insights/weeklyReviewEngine";
 import {
   ResponsiveContainer,
   XAxis,
@@ -37,20 +35,26 @@ import {
   Bar,
   ReferenceLine,
   AreaChart,
-  Area
+  Area,
+  LineChart,
+  Line,
+  ScatterChart,
+  Scatter
 } from "recharts";
 import {
-  Moon,
   Clock,
   Sparkles,
-  ArrowRight,
-  AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  Trophy,
+  Flame,
+  Dumbbell,
+  Scale,
+  TrendingUp,
+  Target
 } from "lucide-react";
 
 export const InsightsPage: React.FC = () => {
   const { i18n } = useTranslation();
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuthStore();
   const { resolvedTheme } = useThemeStore();
@@ -59,26 +63,27 @@ export const InsightsPage: React.FC = () => {
   const athleteId = user?.uid || "demo-athlete-001";
   const todayStr = new Date().toISOString().split("T")[0] as string;
 
-  // Active Tab: "recovery" (Overview) vs "sleep" (Sleep Analysis)
-  const initialTab = searchParams.get("tab") === "sleep" ? "sleep" : "recovery";
-  const [activeTab, setActiveTab] = useState<"recovery" | "sleep">(initialTab);
+  // Tabs: "weekly" (Heti összegzés) | "recovery" (Regeneráció & Alvás) | "correlations" (Korrelációk) | "tests" (Tesztek & Rekordok) | "goals" (Célverseny A)
+  type TabKey = "weekly" | "recovery" | "correlations" | "tests" | "goals";
+  const urlTab = searchParams.get("tab") as TabKey | null;
+  const initialTab: TabKey = urlTab && ["weekly", "recovery", "correlations", "tests", "goals"].includes(urlTab)
+    ? urlTab
+    : "weekly";
 
-  // Time range selector for charts: 7D vs 30D
-  const [sleepRange, setSleepRange] = useState<"7D" | "30D">("7D");
+  const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
 
   // Editable Sleep Target
   const [targetSleepHours, setTargetSleepHours] = useState(8.0);
 
   // Today's Checkin & Readiness
   const [todayReadiness, setTodayReadiness] = useState<ReadinessResult | null>(null);
-  const [hasCheckedInToday, setHasCheckedInToday] = useState(false);
   const [lastNightSleepMinutes, setLastNightSleepMinutes] = useState(450); // 7.5h
   const [lastNightSleepQuality, setLastNightSleepQuality] = useState(4);
 
   // Sync tab with URL
-  const handleTabChange = (tab: "recovery" | "sleep") => {
+  const handleTabChange = (tab: TabKey) => {
     setActiveTab(tab);
-    setSearchParams(tab === "sleep" ? { tab: "sleep" } : {});
+    setSearchParams(tab === "weekly" ? {} : { tab });
   };
 
   useEffect(() => {
@@ -91,7 +96,6 @@ export const InsightsPage: React.FC = () => {
     const historicalCount = getAllLocalDailies(athleteId).length;
 
     if (todayDoc) {
-      setHasCheckedInToday(true);
       setLastNightSleepMinutes(todayDoc.sleep.durationMinutes);
       setLastNightSleepQuality(todayDoc.sleep.qualityScore);
 
@@ -99,8 +103,7 @@ export const InsightsPage: React.FC = () => {
         date: todayDoc.date,
         sleep: {
           durationMinutes: todayDoc.sleep.durationMinutes,
-          qualityScore: todayDoc.sleep.qualityScore,
-          targetMinutes: target * 60
+          qualityScore: todayDoc.sleep.qualityScore
         },
         wellness: {
           fatigue: todayDoc.subjective.fatigue || 2,
@@ -122,30 +125,12 @@ export const InsightsPage: React.FC = () => {
       });
       setTodayReadiness(res);
     } else {
-      setHasCheckedInToday(false);
-      // Fallback demo readiness calculation
       const demoRes = calculateReadiness({
         date: todayStr,
-        sleep: {
-          durationMinutes: 465,
-          qualityScore: 4,
-          targetMinutes: target * 60
-        },
-        wellness: {
-          fatigue: 2,
-          soreness: 2,
-          stress: 2,
-          mood: 4,
-          motivation: 4
-        },
-        biometrics: {
-          hrvRmssd: 82,
-          restingHr: 49,
-          baselineHrvMean: 78,
-          baselineHrvSd: 7,
-          baselineRhrMean: 50
-        },
-        historicalDaysCount: 16
+        sleep: { durationMinutes: 480, qualityScore: 4 },
+        wellness: { fatigue: 2, soreness: 2, stress: 2, mood: 4, motivation: 4 },
+        biometrics: { hrvRmssd: 82, restingHr: 48, baselineHrvMean: 80, baselineHrvSd: 7, baselineRhrMean: 50 },
+        historicalDaysCount: historicalCount
       });
       setTodayReadiness(demoRes);
     }
@@ -161,6 +146,22 @@ export const InsightsPage: React.FC = () => {
       type: "info"
     });
   };
+
+  // Rule-based Weekly Review generation
+  const weeklyReview = generateWeeklyReview({
+    weekStartDate: "2026-10-19",
+    currentWeekLoadAu: 2450,
+    previousWeekLoadAu: 2100,
+    averageSleepHours: 7.8,
+    sleepTargetHours: targetSleepHours,
+    readinessCounts: { green: 5, amber: 2, red: 0 },
+    nutritionDaysAdherent: 6,
+    nutritionTotalDays: 7,
+    workoutsPlanned: 6,
+    workoutsCompleted: 6,
+    averageHrvMs: 82,
+    baselineHrvMs: 78
+  });
 
   // 14-day simulated historical readiness trend data
   const readinessHistoryData = [
@@ -180,7 +181,7 @@ export const InsightsPage: React.FC = () => {
     { day: "Ma", score: todayReadiness?.score || 85, confidence: todayReadiness?.confidence || 90, hrv: 82, rhr: 49, status: todayReadiness?.band || "ready" }
   ];
 
-  // 7-day and 30-day sleep history data
+  // 7-day sleep history data
   const sleep7dData = [
     { day: isHu ? "Kedd" : "Tue", hours: 7.8, quality: 4, date: "10-20" },
     { day: isHu ? "Szerda" : "Wed", hours: 8.2, quality: 5, date: "10-21" },
@@ -191,14 +192,37 @@ export const InsightsPage: React.FC = () => {
     { day: isHu ? "Ma" : "Today", hours: +(lastNightSleepMinutes / 60).toFixed(1), quality: lastNightSleepQuality, date: todayStr }
   ];
 
-  // Calculate 7-day sleep debt: sum of deficits vs target
-  const sevenDayDeficitMinutes = sleep7dData.reduce((acc, curr) => {
-    const deficitHours = Math.max(0, targetSleepHours - curr.hours);
-    return acc + deficitHours * 60;
-  }, 0);
+  // Correlation: Sleep vs Next-Day Readiness
+  const sleepVsReadinessData = [
+    { sleepHours: 6.0, readiness: 52, label: "Péntek" },
+    { sleepHours: 6.4, readiness: 58, label: "Csüt" },
+    { sleepHours: 7.0, readiness: 68, label: "Hétfő" },
+    { sleepHours: 7.5, readiness: 74, label: "Kedd" },
+    { sleepHours: 7.8, readiness: 82, label: "Vasárnap" },
+    { sleepHours: 8.2, readiness: 89, label: "Szombat" },
+    { sleepHours: 8.5, readiness: 93, label: "Szerda" }
+  ];
 
-  const sleepDebtHours = Math.floor(sevenDayDeficitMinutes / 60);
-  const sleepDebtRemMinutes = Math.round(sevenDayDeficitMinutes % 60);
+  // Correlation: Training Load (AU) vs Next-Day Soreness (1-5)
+  const loadVsSorenessData = [
+    { day: "H", load: 350, soreness: 1.5 },
+    { day: "K", load: 720, soreness: 2.0 },
+    { day: "Sze", load: 250, soreness: 3.8 }, // DOMS lag
+    { day: "Cs", load: 600, soreness: 2.2 },
+    { day: "P", load: 150, soreness: 3.5 },
+    { day: "Szo", load: 850, soreness: 2.0 },
+    { day: "V", load: 0, soreness: 3.9 }
+  ];
+
+  // Body Composition 90-day progress data
+  const bodyCompData = [
+    { date: "Aug 01", weightKg: 74.2, fatPercent: 12.1, muscleKg: 60.5 },
+    { date: "Aug 15", weightKg: 73.8, fatPercent: 11.8, muscleKg: 60.7 },
+    { date: "Szep 01", weightKg: 73.2, fatPercent: 11.4, muscleKg: 60.9 },
+    { date: "Szep 15", weightKg: 72.8, fatPercent: 11.0, muscleKg: 61.1 },
+    { date: "Okt 01", weightKg: 72.5, fatPercent: 10.7, muscleKg: 61.3 },
+    { date: "Okt 15", weightKg: 72.2, fatPercent: 10.4, muscleKg: 61.5 }
+  ];
 
   // Theme colors for charts
   const isDark = resolvedTheme === "dark";
@@ -208,219 +232,181 @@ export const InsightsPage: React.FC = () => {
   const tooltipBorder = isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(0, 0, 0, 0.1)";
 
   return (
-    <div className="space-y-6 pb-16">
-      {/* Top Header & Tab Control */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-6 pb-20">
+      {/* Top Header & Tab Navigation */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <SectionHeader
-          title={isHu ? "Regeneráció & Alváselemzés" : "Recovery & Sleep Analysis"}
+          title={isHu ? "Élettani Elemzések & Betekintések" : "Physiological Insights & Trends"}
           description={
             isHu
-              ? "Autonóm idegrendszeri készenlét, alváshiány és élettani adaptáció."
-              : "Autonomic nervous system readiness, sleep debt, and physiological trends."
+              ? "Automatikus heti összegző, korrelációk, mérési csúcsok és célverseny visszaszámláló."
+              : "Rule-based weekly reviews, correlations, performance records, and A-race timeline."
           }
         />
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex items-center gap-2 self-start lg:self-auto overflow-x-auto max-w-full pb-1">
           <SyncStatusBadge />
-          <div className="w-56">
+          <div className="w-full sm:w-auto">
             <SegmentedControl
               options={[
-                { value: "recovery", label: isHu ? "Regeneráció" : "Recovery" },
-                { value: "sleep", label: isHu ? "Alvás" : "Sleep" }
+                { value: "weekly", label: isHu ? "Heti Összegző" : "Weekly Review" },
+                { value: "recovery", label: isHu ? "Regeneráció & Alvás" : "Recovery & Sleep" },
+                { value: "correlations", label: isHu ? "Korrelációk" : "Correlations" },
+                { value: "tests", label: isHu ? "Tesztek & Csúcsok" : "Tests & Records" },
+                { value: "goals", label: isHu ? "Célverseny (A)" : "A-Race" }
               ]}
               value={activeTab}
-              onChange={(val) => handleTabChange(val as "recovery" | "sleep")}
-              fullWidth
+              onChange={(val) => handleTabChange(val as TabKey)}
             />
           </div>
         </div>
       </div>
 
-      {/* VIEW A: RECOVERY OVERVIEW */}
-      {activeTab === "recovery" && (
+      {/* ========================================================================= */}
+      {/* TAB 1: WEEKLY REVIEW (Rule-based Textual Synthesis) */}
+      {/* ========================================================================= */}
+      {activeTab === "weekly" && (
         <div className="space-y-6">
-          {/* Main Cockpit Banner Card */}
-          <Card
-            variant="elevated"
-            radius="20"
-            className={`p-6 border transition-all ${
-              todayReadiness?.band === "green"
-                ? "border-status-ready/30 bg-status-ready/5"
-                : todayReadiness?.band === "amber"
-                  ? "border-status-caution/30 bg-status-caution/5"
-                  : "border-status-rest/30 bg-status-rest/5"
-            }`}
-          >
-            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-              {/* Readiness Progress Ring */}
-              <div className="flex items-center gap-6">
-                <ProgressRing
-                  value={todayReadiness?.score || 85}
-                  size={120}
-                  strokeWidth={10}
-                  label="Index"
-                  unit=""
-                  status={bandToStatus(todayReadiness?.band)}
-                />
-
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant={bandToStatus(todayReadiness?.band)} dot size="sm">
-                      {todayReadiness?.band === "green"
-                        ? isHu ? "OPTIMÁLIS KÉSZENLÉT" : "OPTIMAL READY"
-                        : todayReadiness?.band === "amber"
-                          ? isHu ? "MÉRSÉKELT TERHELHETŐSÉG" : "MODERATE LOAD"
-                          : isHu ? "REGENERÁCIÓ SZÜKSÉGES" : "REST REQUIRED"}
-                    </Badge>
-                    <ConfidenceMeter confidence={todayReadiness?.confidence || 90} size="sm" />
-                  </div>
-
-                  <h2 className="text-24 font-bold text-text-primary tracking-tight">
-                    {todayReadiness?.score || 85}/100 {isHu ? "Készenléti szint" : "Readiness Score"}
-                  </h2>
-
-                  <p className="text-12 text-text-secondary max-w-md">
-                    {isHu ? todayReadiness?.softMessageHu : todayReadiness?.softMessageEn}
-                  </p>
+          {/* Hero Rule-Based Synthesis Card */}
+          <Card variant="surface" radius="20" className="p-6 sm:p-8 space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="h-9 w-9 rounded-12 bg-brand/15 text-brand flex items-center justify-center">
+                  <Sparkles className="h-5 w-5" />
                 </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row md:flex-col gap-2 w-full md:w-auto shrink-0">
-                {!hasCheckedInToday ? (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    rightIcon={<ArrowRight className="h-4 w-4" />}
-                    onClick={() => navigate("/checkin")}
-                  >
-                    {isHu ? "Reggeli check-in kitöltése" : "Complete Daily Check-in"}
-                  </Button>
-                ) : (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    leftIcon={<CheckCircle2 className="h-4 w-4 text-status-ready" />}
-                    onClick={() => navigate("/checkin")}
-                  >
-                    {isHu ? "Check-in megtekintése" : "View Check-in"}
-                  </Button>
-                )}
-
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleTabChange("sleep")}
-                >
-                  {isHu ? "Alváselemzés megnyitása" : "Open Sleep Analysis"}
-                </Button>
-              </div>
-            </div>
-
-            {/* Cold Start Calibration Progress Banner */}
-            {todayReadiness?.isCalibrating && (
-              <div className="mt-5 p-3 rounded-12 bg-bg-surface border border-border-hairline flex flex-col sm:flex-row items-center justify-between gap-3 text-12">
-                <div className="flex items-center gap-2 text-text-secondary">
-                  <Sparkles className="h-4 w-4 text-brand shrink-0" />
-                  <span>
-                    <strong>{isHu ? "Személyes bázis kalibrálás:" : "Baseline Calibration:"}</strong>{" "}
-                    {todayReadiness.calibrationProgress.daysCollected}/
-                    {todayReadiness.calibrationProgress.daysRequired} {isHu ? "nap rögzítve" : "days logged"}
+                <div>
+                  <h3 className="text-18 font-bold text-text-primary">
+                    {isHu ? "Automatikus Heti Élettani Értékelés" : "Automated Weekly Review"}
+                  </h3>
+                  <span className="text-12 text-text-secondary font-mono">
+                    2026. október 19. - 25. • 42. Hét
                   </span>
                 </div>
-                <div className="w-full sm:w-40 h-2 rounded-full bg-border-hairline overflow-hidden">
-                  <div
-                    className="h-full bg-brand transition-all duration-300"
-                    style={{ width: `${todayReadiness.calibrationProgress.percentage}%` }}
-                  />
-                </div>
               </div>
-            )}
+              <Badge variant="brand" size="sm">
+                Rule-Based Engine v1.0
+              </Badge>
+            </div>
 
-            {/* Top 3 Drivers Pill List */}
-            {todayReadiness?.drivers && todayReadiness.drivers.length > 0 && (
-              <div className="mt-5 pt-4 border-t border-border-hairline/80">
-                <span className="text-11 font-bold uppercase tracking-wider text-text-tertiary block mb-2">
-                  {isHu ? "Vezető élettani tényezők (Top 3 Drivers)" : "Primary Recovery Drivers"}
-                </span>
-                <div className="flex flex-wrap gap-2">
-                  {todayReadiness.drivers.map((driver) => (
-                    <div
-                      key={driver.id}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-10 text-12 font-medium border ${
-                        driver.impact === "positive"
-                          ? "bg-status-ready/10 text-status-ready border-status-ready/20"
-                          : "bg-status-rest/10 text-status-rest border-status-rest/20"
-                      }`}
-                    >
-                      <span>{driver.impact === "positive" ? "▲" : "▼"}</span>
-                      <span>{isHu ? driver.labelHu : driver.labelEn}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Synthesized Text Paragraph */}
+            <div className="p-4 rounded-16 bg-surface-elevated border border-border-hairline text-14 leading-relaxed text-text-secondary space-y-3">
+              <p className="text-text-primary font-medium">
+                {isHu ? weeklyReview.summaryHu : weeklyReview.summaryEn}
+              </p>
+            </div>
+
+            {/* Highlights Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+              {(isHu ? weeklyReview.keyHighlightsHu : weeklyReview.keyHighlightsEn).map(
+                (highlight, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center gap-2.5 p-3 rounded-12 bg-surface border border-border-hairline text-12 font-medium text-text-primary"
+                  >
+                    <CheckCircle2 className="h-4 w-4 text-status-ready shrink-0" />
+                    <span>{highlight}</span>
+                  </div>
+                )
+              )}
+            </div>
           </Card>
 
-          {/* 3 Metric Tiles (ACWR, Weekly Load, HRV) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* 4 Quantitative Metric Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <StatTile
-              label="ACWR (Akut : Krónikus Terhelés)"
-              value="1.14"
-              status="ready"
-              trend={{ direction: "up", value: "0.8 - 1.3 optimális", isGood: true }}
-              subtext={isHu ? "Kiváló adaptáció, alacsony sérülési kockázat" : "Optimal adaptation, low injury risk"}
-            />
-            <StatTile
-              label={isHu ? "Heti terhelési volumen" : "Weekly Training Load"}
-              value="840"
+              label={isHu ? "Heti Összterhelés" : "Weekly Load"}
+              value="2 450"
               unit="AU"
-              status="neutral"
-              trend={{ direction: "up", value: "+5.2%", isGood: true }}
-              subtext={isHu ? "Foster módszer (Perc × RPE)" : "Foster session-RPE method"}
+              status="ready"
+              trend={{ direction: "up", value: `+${weeklyReview.loadChangePercent}%`, isGood: weeklyReview.isLoadSafe }}
+              subtext="Előző hét: 2 100 AU"
             />
             <StatTile
-              label="HRV 28-napos átlag"
-              value="81"
-              unit="ms"
+              label={isHu ? "Átlagos Alvás" : "Average Sleep"}
+              value="7.8"
+              unit="h"
               status="ready"
-              trend={{ direction: "up", value: "+3 ms a bázishoz", isGood: true }}
-              subtext={isHu ? "Vegetatív tónus stabil" : "Autonomic tone balanced"}
+              trend={{ direction: "up", value: "Cél: 8.0h", isGood: true }}
+              subtext={`Alvásadósság: ${weeklyReview.sleepDebtHours} óra`}
+            />
+            <StatTile
+              label={isHu ? "Edzésterv Megfelelés" : "Compliance"}
+              value={`${weeklyReview.compliancePercent}%`}
+              unit=""
+              status="ready"
+              subtext="6/6 elvégzett edzés"
+            />
+            <StatTile
+              label={isHu ? "Makró Megfelelés" : "Nutrition Adherence"}
+              value={`${weeklyReview.nutritionAdherencePercent}%`}
+              unit=""
+              status="ready"
+              subtext="6/7 sikeres nap"
             />
           </div>
 
-          {/* 14-Day Readiness & Confidence Trend Area Chart */}
+          {/* Readiness Distribution Bar Card */}
+          <Card variant="surface" radius="20" className="p-6 space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-14 font-bold text-text-primary">
+                {isHu ? "Heti Készenléti Megoszlás (7 nap)" : "Weekly Readiness Distribution"}
+              </h4>
+              <span className="text-12 font-mono text-text-secondary">
+                {weeklyReview.readinessGreenPercent}% Ready nap
+              </span>
+            </div>
+            <div className="flex h-3 w-full overflow-hidden rounded-full border border-border-hairline">
+              <div className="bg-status-ready h-full" style={{ width: "71%" }} title="Ready (5 nap)" />
+              <div className="bg-status-caution h-full" style={{ width: "29%" }} title="Caution (2 nap)" />
+              <div className="bg-status-rest h-full" style={{ width: "0%" }} title="Rest (0 nap)" />
+            </div>
+            <div className="flex justify-between text-11 text-text-tertiary">
+              <span className="flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-status-ready" /> 5 nap Kész (71%)
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-status-caution" /> 2 nap Mérsékelt (29%)
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-status-rest" /> 0 nap Pihenő (0%)
+              </span>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 2: RECOVERY & SLEEP (Existing In-Depth Biometrics) */}
+      {/* ========================================================================= */}
+      {activeTab === "recovery" && (
+        <div className="space-y-6">
+          {/* 14-Day Readiness Historical Curve */}
           <Card variant="surface" radius="20" className="p-6">
-            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-16 font-bold text-text-primary">
-                  {isHu ? "14 napos Készenléti Trend & Konfidencia Sáv" : "14-Day Readiness & Confidence Trend"}
+                  {isHu ? "14 Napos Készenléti Trend" : "14-Day Readiness Curve"}
                 </h3>
                 <p className="text-12 text-text-secondary">
-                  {isHu
-                    ? "Zöld vonal: Készenléti index (0-100) | Zöld >= 67, Borostyán 34-66, Piros < 34"
-                    : "Green curve: Readiness index (0-100) | Band cutoffs at 67 and 34"}
+                  {isHu ? "Autonóm idegrendszeri regeneráció (HRV + Nyugalmi pulzus)" : "Autonomic nervous system recovery"}
                 </p>
               </div>
-
-              <div className="flex items-center gap-2">
-                <Badge variant="ready" size="sm">Zöld: Kész</Badge>
-                <Badge variant="caution" size="sm">Sárga: Óvatosan</Badge>
-                <Badge variant="rest" size="sm">Piros: Pihenő</Badge>
-              </div>
+              <Badge variant="brand" size="sm">
+                14 napos mozgóátlag
+              </Badge>
             </div>
 
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={readinessHistoryData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="readinessGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#34D399" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#34D399" stopOpacity={0.0} />
+                    <linearGradient id="readinessGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3D7BFF" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#3D7BFF" stopOpacity={0.0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
                   <XAxis dataKey="day" stroke={textColor} fontSize={11} tickLine={false} />
-                  <YAxis domain={[20, 100]} stroke={textColor} fontSize={11} tickLine={false} />
+                  <YAxis domain={[40, 100]} stroke={textColor} fontSize={11} tickLine={false} />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: tooltipBg,
@@ -429,185 +415,51 @@ export const InsightsPage: React.FC = () => {
                       fontSize: "12px",
                       color: isDark ? "#F5F6F8" : "#0B0C0F"
                     }}
-                    formatter={(val: number) => [`${val} pont`, "Készenlét"]}
                   />
-                  <ReferenceLine y={67} stroke="#34D399" strokeDasharray="4 4" label={{ value: "Ready (67)", fill: "#34D399", fontSize: 10, position: "insideTopLeft" }} />
-                  <ReferenceLine y={34} stroke="#FBBF24" strokeDasharray="4 4" label={{ value: "Caution (34)", fill: "#FBBF24", fontSize: 10, position: "insideTopLeft" }} />
+                  <ReferenceLine y={70} stroke="#34D399" strokeDasharray="3 3" />
+                  <ReferenceLine y={50} stroke="#FBBF24" strokeDasharray="3 3" />
                   <Area
                     type="monotone"
                     dataKey="score"
-                    stroke="#34D399"
+                    stroke="#3D7BFF"
                     strokeWidth={2.5}
                     fillOpacity={1}
-                    fill="url(#readinessGradient)"
+                    fill="url(#readinessGrad)"
                   />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           </Card>
-        </div>
-      )}
 
-      {/* VIEW B: SLEEP ANALYSIS SCREEN */}
-      {activeTab === "sleep" && (
-        <div className="space-y-6">
-          {/* Last Night & Sleep Debt Cockpit */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Last Night Card */}
-            <Card variant="surface" radius="20" className="p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Moon className="h-5 w-5 text-brand" />
-                  <h3 className="text-16 font-bold text-text-primary">
-                    {isHu ? "Múlt éjszakai alvás" : "Last Night's Sleep"}
-                  </h3>
-                </div>
-                <SourceBadge source="garmin" confidence={0.92} />
-              </div>
-
-              <div className="flex items-baseline gap-3">
-                <span className="text-36 sm:text-40 font-bold font-mono text-text-primary tracking-tight tabular-nums">
-                  {(lastNightSleepMinutes / 60).toFixed(1)}
-                </span>
-                <span className="text-16 text-text-secondary font-medium">
-                  {isHu ? "óra" : "hours"} ({lastNightSleepMinutes} {isHu ? "perc" : "min"})
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <div className="p-3 rounded-12 bg-bg-elevated border border-border-hairline">
-                  <span className="text-11 font-medium text-text-secondary block">
-                    {isHu ? "Minőség értékelés" : "Quality score"}
-                  </span>
-                  <span className="text-16 font-bold text-text-primary mt-0.5 block">
-                    {lastNightSleepQuality} / 5 ⭐
-                  </span>
-                </div>
-
-                <div className="p-3 rounded-12 bg-bg-elevated border border-border-hairline">
-                  <span className="text-11 font-medium text-text-secondary block">
-                    {isHu ? "Lefekvés - Ébredés" : "Bed - Wake"}
-                  </span>
-                  <span className="text-14 font-mono font-bold text-text-primary mt-0.5 block">
-                    23:00 - 06:30
-                  </span>
-                </div>
-              </div>
-            </Card>
-
-            {/* Sleep Target & Sleep Debt Card */}
-            <Card variant="surface" radius="20" className="p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-5 w-5 text-status-caution" />
-                  <h3 className="text-16 font-bold text-text-primary">
-                    {isHu ? "Alváscél & Halmozott Adósság" : "Sleep Target & Debt"}
-                  </h3>
-                </div>
-                <Badge
-                  variant={sevenDayDeficitMinutes > 180 ? "rest" : sevenDayDeficitMinutes > 60 ? "caution" : "ready"}
-                  size="sm"
-                >
-                  {sevenDayDeficitMinutes === 0
-                    ? isHu ? "Nincs deficit" : "Zero Debt"
-                    : `${sleepDebtHours}ó ${sleepDebtRemMinutes}p ${isHu ? "adósság" : "debt"}`}
-                </Badge>
-              </div>
-
-              {/* Editable Sleep Target Stepper */}
-              <div className="p-3.5 rounded-16 bg-bg-elevated border border-border-hairline flex items-center justify-between">
-                <div>
-                  <span className="text-12 font-bold text-text-primary block">
-                    {isHu ? "Egyéni alváscélod" : "Your Sleep Target"}
-                  </span>
-                  <span className="text-11 text-text-secondary">
-                    {isHu ? "Szerkeszthető egyéni referencia" : "Editable athlete baseline"}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleUpdateSleepTarget(targetSleepHours - 0.5)}
-                    className="h-8 w-8 rounded-8 bg-bg-surface border border-border-hairline flex items-center justify-center text-text-primary hover:bg-border-hairline font-bold"
-                  >
-                    -
-                  </button>
-                  <span className="text-16 font-mono font-bold text-brand tabular-nums px-1">
-                    {targetSleepHours.toFixed(1)} ó
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleUpdateSleepTarget(targetSleepHours + 0.5)}
-                    className="h-8 w-8 rounded-8 bg-bg-surface border border-border-hairline flex items-center justify-center text-text-primary hover:bg-border-hairline font-bold"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-
-              {/* Sleep Debt Summary Message */}
-              <div className="text-12 text-text-secondary leading-relaxed">
-                {sevenDayDeficitMinutes > 120 ? (
-                  <p className="text-status-rest font-medium flex items-center gap-1.5">
-                    <AlertCircle className="h-4 w-4 shrink-0" />
-                    <span>
-                      {isHu
-                        ? `Figyelem: az elmúlt 7 napban ${sleepDebtHours} óra ${sleepDebtRemMinutes} perc alvásadósság halmozódott fel.`
-                        : `Alert: ${sleepDebtHours}h ${sleepDebtRemMinutes}m sleep debt accumulated over the last 7 days.`}
-                    </span>
-                  </p>
-                ) : (
-                  <p className="text-status-ready font-medium flex items-center gap-1.5">
-                    <CheckCircle2 className="h-4 w-4 shrink-0" />
-                    <span>
-                      {isHu
-                        ? "Alvásidőd egyensúlyban van a kitűzött célértékkel."
-                        : "Your sleep volume is well-balanced with your personal target."}
-                    </span>
-                  </p>
-                )}
-              </div>
-            </Card>
-          </div>
-
-          {/* 7-Day & 30-Day Sleep Trend Chart with Reference Line */}
+          {/* 7-Day & 30-Day Sleep Duration vs Target */}
           <Card variant="surface" radius="20" className="p-6">
             <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
               <div>
                 <h3 className="text-16 font-bold text-text-primary">
-                  {isHu ? "Alvásmennyiség Trend & Célvonal" : "Sleep Duration Trend vs Target"}
+                  {isHu ? "Alvásmennyiség vs Célvonal" : "Sleep Duration vs Target"}
                 </h3>
                 <p className="text-12 text-text-secondary">
                   {isHu
-                    ? `Szürke szaggatott vonal: kitűzött cél (${targetSleepHours} óra)`
-                    : `Reference dashed line: sleep target (${targetSleepHours}h)`}
+                    ? `Kitűzött egyéni cél: ${targetSleepHours} óra / éjszaka`
+                    : `Personal target: ${targetSleepHours}h / night`}
                 </p>
               </div>
 
-              <div className="inline-flex rounded-10 bg-bg-elevated p-1 border border-border-hairline">
-                <button
-                  type="button"
-                  onClick={() => setSleepRange("7D")}
-                  className={`px-3 py-1 text-12 font-medium rounded-8 transition-colors ${
-                    sleepRange === "7D" ? "bg-bg-surface text-text-primary shadow-sm" : "text-text-secondary"
-                  }`}
-                >
-                  7 {isHu ? "nap" : "days"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSleepRange("30D")}
-                  className={`px-3 py-1 text-12 font-medium rounded-8 transition-colors ${
-                    sleepRange === "30D" ? "bg-bg-surface text-text-primary shadow-sm" : "text-text-secondary"
-                  }`}
-                >
-                  30 {isHu ? "nap" : "days"}
-                </button>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  step="0.5"
+                  min="5"
+                  max="11"
+                  value={targetSleepHours}
+                  onChange={(e) => handleUpdateSleepTarget(parseFloat(e.target.value) || 8)}
+                  className="w-16 rounded-8 bg-surface-elevated px-2 py-1 text-12 text-center text-text-primary border border-border-hairline"
+                />
+                <span className="text-12 text-text-secondary">óra cél</span>
               </div>
             </div>
 
-            <div className="h-64 w-full">
+            <div className="h-60 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={sleep7dData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
@@ -621,26 +473,357 @@ export const InsightsPage: React.FC = () => {
                       fontSize: "12px",
                       color: isDark ? "#F5F6F8" : "#0B0C0F"
                     }}
-                    formatter={(val: number) => [`${val} óra`, "Alvás"]}
                   />
                   <ReferenceLine
                     y={targetSleepHours}
                     stroke="#3D7BFF"
                     strokeDasharray="4 4"
-                    label={{
-                      value: `Cél: ${targetSleepHours}ó`,
-                      fill: "#3D7BFF",
-                      fontSize: 11,
-                      position: "insideTopRight"
-                    }}
+                    label={{ value: `Cél ${targetSleepHours}h`, fill: "#3D7BFF", fontSize: 11 }}
                   />
-                  <Bar
-                    dataKey="hours"
-                    radius={[8, 8, 0, 0]}
-                    fill="#3D7BFF"
-                  />
+                  <Bar dataKey="hours" radius={[8, 8, 0, 0]} fill="#3D7BFF" />
                 </BarChart>
               </ResponsiveContainer>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 3: CORRELATIONS (Sleep vs Readiness, Load vs Soreness) */}
+      {/* ========================================================================= */}
+      {activeTab === "correlations" && (
+        <div className="space-y-6">
+          {/* Correlation Chart 1: Sleep Duration vs Next-Day Readiness */}
+          <Card variant="surface" radius="20" className="p-6 space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <h3 className="text-16 font-bold text-text-primary flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-brand" />
+                  <span>{isHu ? "Alvásmennyiség vs Másnapi Készenlét" : "Sleep Duration vs Next-Day Readiness"}</span>
+                </h3>
+                <p className="text-12 text-text-secondary">
+                  {isHu
+                    ? "Erős pozitív összefüggés (r = 0.78): minden +1 óra minőségi alvás átlagosan +9 ponttal emeli a készenlétet."
+                    : "Strong positive correlation (r = 0.78): each +1h sleep increases readiness by +9 points on average."}
+                </p>
+              </div>
+              <Badge variant="ready" size="sm">
+                r = 0.78 (Erős)
+              </Badge>
+            </div>
+
+            <div className="h-64 w-full pt-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <ScatterChart margin={{ top: 10, right: 20, left: -10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+                  <XAxis
+                    type="number"
+                    dataKey="sleepHours"
+                    name="Alvásidő"
+                    unit="h"
+                    domain={[5.5, 9.0]}
+                    stroke={textColor}
+                    fontSize={11}
+                  />
+                  <YAxis
+                    type="number"
+                    dataKey="readiness"
+                    name="Készenlét"
+                    unit=" pt"
+                    domain={[40, 100]}
+                    stroke={textColor}
+                    fontSize={11}
+                  />
+                  <Tooltip
+                    cursor={{ strokeDasharray: "3 3" }}
+                    contentStyle={{
+                      backgroundColor: tooltipBg,
+                      borderColor: tooltipBorder,
+                      borderRadius: "12px",
+                      fontSize: "12px",
+                      color: isDark ? "#F5F6F8" : "#0B0C0F"
+                    }}
+                  />
+                  <Scatter name="Napok" data={sleepVsReadinessData} fill="#3D7BFF" />
+                </ScatterChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="p-3 rounded-12 bg-surface-elevated border border-border-hairline text-12 text-text-secondary flex items-start gap-2">
+              <Sparkles className="h-4 w-4 text-brand shrink-0 mt-0.5" />
+              <span>
+                {isHu
+                  ? "Személyes élettani tanács: 7.5 óra alvás felett a készenléted 100%-ban a zöld Ready zónában tartózkodott. Törekedj a 22:30 előtti lámpaoltásra."
+                  : "Physiological insight: Above 7.5h sleep, your readiness stayed in the green Ready zone 100% of the time."}
+              </span>
+            </div>
+          </Card>
+
+          {/* Correlation Chart 2: Daily Load (AU) vs Next-Day Soreness */}
+          <Card variant="surface" radius="20" className="p-6 space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <h3 className="text-16 font-bold text-text-primary flex items-center gap-2">
+                  <Flame className="h-5 w-5 text-status-caution" />
+                  <span>{isHu ? "Napi Terhelés (AU) vs Izomláz Késleltetés" : "Training Load (AU) vs Delayed Muscle Soreness"}</span>
+                </h3>
+                <p className="text-12 text-text-secondary">
+                  {isHu
+                    ? "A kemény laktát-küszöb edzések izomláz-csúcsa 24-48 órás késleltetéssel (DOMS) jelentkezik."
+                    : "High threshold volume exhibits classic 24-48h delayed onset muscle soreness (DOMS)."}
+                </p>
+              </div>
+            </div>
+
+            <div className="h-60 w-full pt-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={loadVsSorenessData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
+                  <XAxis dataKey="day" stroke={textColor} fontSize={11} />
+                  <YAxis yAxisId="left" domain={[0, 1000]} stroke={textColor} fontSize={11} />
+                  <YAxis yAxisId="right" orientation="right" domain={[0, 5]} stroke={textColor} fontSize={11} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: tooltipBg,
+                      borderColor: tooltipBorder,
+                      borderRadius: "12px",
+                      fontSize: "12px",
+                      color: isDark ? "#F5F6F8" : "#0B0C0F"
+                    }}
+                  />
+                  <Line yAxisId="left" type="monotone" dataKey="load" stroke="#3D7BFF" strokeWidth={2} name="Terhelés (AU)" />
+                  <Line yAxisId="right" type="monotone" dataKey="soreness" stroke="#F87171" strokeWidth={2} name="Izomláz (1-5)" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 4: TESTS & RECORDS (VO2max, Thresholds, Strength, Body Comp) */}
+      {/* ========================================================================= */}
+      {activeTab === "tests" && (
+        <div className="space-y-6">
+          {/* Aerobic & Threshold Records */}
+          <Card variant="surface" radius="20" className="p-6 space-y-4">
+            <div className="flex items-center gap-2">
+              <Trophy className="h-5 w-5 text-brand" />
+              <h3 className="text-16 font-bold text-text-primary">
+                {isHu ? "Aerob & Küszöb Értékek" : "Aerobic & Threshold Records"}
+              </h3>
+            </div>
+
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-4 rounded-16 bg-surface-elevated border border-border-hairline space-y-1">
+                <span className="text-11 text-text-secondary uppercase tracking-wider font-semibold">VO2max</span>
+                <div className="text-24 font-bold text-text-primary font-mono">62.4</div>
+                <span className="text-11 text-text-tertiary">ml/kg/perc • Nemzeti szint</span>
+              </div>
+
+              <div className="p-4 rounded-16 bg-surface-elevated border border-border-hairline space-y-1">
+                <span className="text-11 text-text-secondary uppercase tracking-wider font-semibold">FTP (Kerékpár)</span>
+                <div className="text-24 font-bold text-text-primary font-mono">310 W</div>
+                <span className="text-11 text-text-tertiary">4.3 W/kg • 2026. okt. teszt</span>
+              </div>
+
+              <div className="p-4 rounded-16 bg-surface-elevated border border-border-hairline space-y-1">
+                <span className="text-11 text-text-secondary uppercase tracking-wider font-semibold">LTHR (Küszöbpulzus)</span>
+                <div className="text-24 font-bold text-text-primary font-mono">172 bpm</div>
+                <span className="text-11 text-text-tertiary">Max pulzus: 191 bpm</span>
+              </div>
+
+              <div className="p-4 rounded-16 bg-surface-elevated border border-border-hairline space-y-1">
+                <span className="text-11 text-text-secondary uppercase tracking-wider font-semibold">CSS (Úszó Küszöb)</span>
+                <div className="text-24 font-bold text-text-primary font-mono">1:22</div>
+                <span className="text-11 text-text-tertiary">/100m • 400m/200m teszt</span>
+              </div>
+            </div>
+          </Card>
+
+          {/* Neuromuscular & Strength Tests */}
+          <Card variant="surface" radius="20" className="p-6 space-y-4">
+            <div className="flex items-center gap-2">
+              <Dumbbell className="h-5 w-5 text-brand" />
+              <h3 className="text-16 font-bold text-text-primary">
+                {isHu ? "Erőnléti & Neuromuszkuláris Tesztek" : "Strength & Neuromuscular Benchmarks"}
+              </h3>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="p-4 rounded-16 bg-surface-elevated border border-border-hairline space-y-1">
+                <span className="text-11 text-text-secondary uppercase tracking-wider font-semibold">CMJ Felugrás</span>
+                <div className="text-24 font-bold text-text-primary font-mono">44.5 cm</div>
+                <span className="text-11 text-status-ready font-medium">+2.1 cm fejlődés</span>
+              </div>
+
+              <div className="p-4 rounded-16 bg-surface-elevated border border-border-hairline space-y-1">
+                <span className="text-11 text-text-secondary uppercase tracking-wider font-semibold">Trap Bar Felhúzás 1RM</span>
+                <div className="text-24 font-bold text-text-primary font-mono">165 kg</div>
+                <span className="text-11 text-text-tertiary">2.28x testsúly</span>
+              </div>
+
+              <div className="p-4 rounded-16 bg-surface-elevated border border-border-hairline space-y-1">
+                <span className="text-11 text-text-secondary uppercase tracking-wider font-semibold">Guggolás 1RM</span>
+                <div className="text-24 font-bold text-text-primary font-mono">135 kg</div>
+                <span className="text-11 text-text-tertiary">1.87x testsúly</span>
+              </div>
+            </div>
+          </Card>
+
+          {/* Body Composition Trend Chart */}
+          <Card variant="surface" radius="20" className="p-6 space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <h3 className="text-16 font-bold text-text-primary flex items-center gap-2">
+                  <Scale className="h-5 w-5 text-brand" />
+                  <span>{isHu ? "Testösszetétel 90 Napos Trendje" : "Body Composition 90-Day Trend"}</span>
+                </h3>
+                <p className="text-12 text-text-secondary">
+                  {isHu
+                    ? "Fokozatos testzsírcsökkenés (12.1% → 10.4%) párhuzamos izomtömeg-gyarapodással (+1.0 kg)."
+                    : "Lean recomposition: fat dropped to 10.4% with lean muscle gain (+1.0 kg)."}
+                </p>
+              </div>
+              <Badge variant="ready" size="sm">
+                Versenyforma
+              </Badge>
+            </div>
+
+            <div className="h-64 w-full pt-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={bodyCompData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
+                  <XAxis dataKey="date" stroke={textColor} fontSize={11} />
+                  <YAxis yAxisId="kg" domain={[70, 76]} stroke={textColor} fontSize={11} unit="kg" />
+                  <YAxis yAxisId="fat" orientation="right" domain={[8, 14]} stroke={textColor} fontSize={11} unit="%" />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: tooltipBg,
+                      borderColor: tooltipBorder,
+                      borderRadius: "12px",
+                      fontSize: "12px",
+                      color: isDark ? "#F5F6F8" : "#0B0C0F"
+                    }}
+                  />
+                  <Line yAxisId="kg" type="monotone" dataKey="weightKg" stroke="#3D7BFF" strokeWidth={2.5} name="Testsúly (kg)" />
+                  <Line yAxisId="fat" type="monotone" dataKey="fatPercent" stroke="#FBBF24" strokeWidth={2} name="Testzsír %" />
+                  <Line yAxisId="kg" type="monotone" dataKey="muscleKg" stroke="#34D399" strokeWidth={2} strokeDasharray="4 4" name="Izomtömeg (kg)" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 5: A-RACE & GOALS (Countdown & Milestones) */}
+      {/* ========================================================================= */}
+      {activeTab === "goals" && (
+        <div className="space-y-6">
+          {/* Target A-Race Countdown Banner */}
+          <Card
+            variant="elevated"
+            radius="20"
+            className="p-6 sm:p-8 bg-gradient-to-r from-brand/15 via-surface to-surface border border-brand/30 space-y-4"
+          >
+            <div className="flex items-start justify-between flex-wrap gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="brand" size="sm">
+                    KIEMELT A-VERSENY
+                  </Badge>
+                  <span className="text-12 text-text-secondary">2027. január 12.</span>
+                </div>
+                <h3 className="text-22 sm:text-28 font-bold text-text-primary mt-1">
+                  Budapest Nemzetközi Triatlon Országos Bajnokság
+                </h3>
+                <p className="text-13 text-text-secondary mt-0.5">
+                  Cél: Sub-2:00:00 olimpiai táv • Kvalifikáció a válogatott keretbe
+                </p>
+              </div>
+
+              {/* Countdown Digits */}
+              <div className="flex items-center gap-2 sm:gap-3 bg-surface-elevated/90 border border-border-hairline p-3 sm:p-4 rounded-16 shadow-inner">
+                <div className="text-center">
+                  <div className="text-28 sm:text-36 font-bold text-brand font-mono leading-none">78</div>
+                  <span className="text-10 text-text-tertiary uppercase font-semibold">Nap</span>
+                </div>
+                <span className="text-20 text-text-tertiary font-bold">:</span>
+                <div className="text-center">
+                  <div className="text-28 sm:text-36 font-bold text-text-primary font-mono leading-none">14</div>
+                  <span className="text-10 text-text-tertiary uppercase font-semibold">Óra</span>
+                </div>
+                <span className="text-20 text-text-tertiary font-bold">:</span>
+                <div className="text-center">
+                  <div className="text-28 sm:text-36 font-bold text-text-primary font-mono leading-none">32</div>
+                  <span className="text-10 text-text-tertiary uppercase font-semibold">Perc</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Periodization Progress Bar */}
+            <div className="space-y-2 pt-2 border-t border-border-hairline">
+              <div className="flex items-center justify-between text-12">
+                <span className="font-bold text-text-primary">
+                  {isHu ? "Jelenlegi szakasz: Build 2 (Specifikus Küszöb)" : "Current phase: Build 2 (Specific Threshold)"}
+                </span>
+                <span className="text-text-secondary">62% a felkészülési ciklusból</span>
+              </div>
+              <div className="flex h-3 w-full overflow-hidden rounded-full border border-border-hairline">
+                <div className="bg-brand h-full" style={{ width: "62%" }} />
+                <div className="bg-status-caution/40 h-full" style={{ width: "20%" }} title="Peak szakasz" />
+                <div className="bg-status-ready/40 h-full" style={{ width: "18%" }} title="Taper szakasz" />
+              </div>
+              <div className="flex justify-between text-11 text-text-tertiary">
+                <span>Alapozás (Kész)</span>
+                <span className="text-brand font-semibold">Build 2 (Aktív)</span>
+                <span>Peak (3 hét múlva)</span>
+                <span>Tapering & Verseny</span>
+              </div>
+            </div>
+          </Card>
+
+          {/* Key Milestones Checklist */}
+          <Card variant="surface" radius="20" className="p-6 space-y-3">
+            <h4 className="text-14 font-bold text-text-primary flex items-center gap-2">
+              <Target className="h-4 w-4 text-brand" />
+              <span>{isHu ? "Kiemelt Felkészülési Mérföldkövek" : "Key Preparation Milestones"}</span>
+            </h4>
+
+            <div className="divide-y divide-border-hairline">
+              <div className="py-3 flex items-center justify-between text-13">
+                <div className="flex items-center gap-3">
+                  <CheckCircle2 className="h-5 w-5 text-status-ready" />
+                  <div>
+                    <span className="font-medium text-text-primary">Laktát-küszöb laboratóriumi kontrollteszt</span>
+                    <span className="block text-11 text-text-secondary">Teljesítve: 310W FTP, 172 bpm LTHR</span>
+                  </div>
+                </div>
+                <Badge variant="ready" size="sm">Kész</Badge>
+              </div>
+
+              <div className="py-3 flex items-center justify-between text-13">
+                <div className="flex items-center gap-3">
+                  <Clock className="h-5 w-5 text-brand" />
+                  <div>
+                    <span className="font-medium text-text-primary">Versenyszimulációs kemény hétvége (B-verseny)</span>
+                    <span className="block text-11 text-text-secondary">Ütemezve: 4 hét múlva</span>
+                  </div>
+                </div>
+                <Badge variant="brand" size="sm">Következő</Badge>
+              </div>
+
+              <div className="py-3 flex items-center justify-between text-13">
+                <div className="flex items-center gap-3">
+                  <div className="h-5 w-5 rounded-full border-2 border-border-hairline" />
+                  <div>
+                    <span className="font-medium text-text-primary">Tapering volumen-csökkentés indítása (-40% volumen, int. fenntartva)</span>
+                    <span className="block text-11 text-text-secondary">Ütemezve: A-verseny előtt 14 nappal</span>
+                  </div>
+                </div>
+                <Badge variant="outline" size="sm">Tervezett</Badge>
+              </div>
             </div>
           </Card>
         </div>

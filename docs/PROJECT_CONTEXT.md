@@ -559,8 +559,51 @@ All nutrition constants and formulas are documented in `src/shared/lib/nutrition
 - Comprehensive unit test suite: **13/13 vitest tests passing** in `alertsEngine.test.ts` (133/133 total project tests passing), 0 TypeScript errors, 0 ESLint warnings.
 
 ---
-> **Requirement:** At the completion of each subsequent stage, this document must be updated with the stage's achievements, architectural decisions, and updated status.
 
+## 14. Stage 10: Today Screen, Insights, Notifications, Hardening & Final Pass (COMPLETED)
 
+### A. Today Screen Experience (`TodayPage.tsx`)
+- **Readiness Ring & Top Driver Sentence:** Hero ProgressRing displays readiness score (0–100), dynamic status band (`ready` / `caution` / `rest`), confidence rating, and a synthesized single plain-language sentence attributing top autonomic drivers (e.g. HRV rMSSD deviation, sleep duration, Hooper fatigue/soreness).
+- **Adaptive Workout Adjustment Suggestion:** When readiness enters amber or red, an adaptive coaching banner surfaces a concrete recommendation to downscale intensity or duration by one step (e.g. Z4 threshold $\rightarrow$ Z2 aerobic base). Crucially adheres to the core principle: *the platform never silently alters a coach's plan; it only suggests, leaving the final decision to the athlete or coach*.
+- **Fuel Card & Session-Fuelling Hints:** Displays daily target vs consumed calories and macronutrient progress bars (Protein, Carbs, Fats), accompanied by pre-workout nutritional timing recommendations (e.g. 45g rapid carbs and 500ml hydration 60–90 min before key sessions).
+- **Hydration Progress & Quick Action Bar:** Real-time water intake tracking with instant `+250ml` / `+500ml` logging buttons. Top action bar gives immediate access to Daily Check-in, Session Logging, and Meal Logging.
+- **Adaptive Mode Layouts:**
+  - *Manual Mode:* Emphasizes quick manual check-in, RPE session logger, and nutrition entry without device clutter.
+  - *Device Mode:* Surfaces auto-synced Garmin/WHOOP biometric tiles with SourceBadges and synchronization status.
+  - *Solo Mode:* Displays periodization progress and solo plan generator hints.
+  - *Coach Mode:* Shows pinned coach instructions and feedback notes from staff.
+  - *First-Day Experience:* Welcoming 3-step onboarding guide for fresh users with 0 historical check-ins.
 
+### B. Comprehensive Insights Suite (`InsightsPage.tsx` & `weeklyReviewEngine.ts`)
+- **Rule-Based Automated Weekly Review (`weeklyReviewEngine.ts`):** Deterministic natural language synthesis (Hungarian & English) analyzing weekly training load (AU) vs previous weeks, acute load ramp rate ($<20\%$ safe progressive overload vs acute spike warning), average sleep duration vs target, cumulative sleep debt, readiness distribution (ready/caution/rest days), workout compliance %, and macronutrient adherence. Thoroughly covered by unit tests.
+- **Physiological Correlation Views:**
+  - *Sleep Duration vs Next-Day Readiness:* Scatter chart with regression trendline illustrating strong positive correlation ($r = 0.78$) between 7.5h+ sleep and peak readiness.
+  - *Training Load vs Delayed Soreness:* Multi-axis chart visualizing the 24–48h delayed onset muscle soreness (DOMS) lag following key high-threshold sessions.
+- **Tests & Records Dashboard:** Tracks aerobic milestones (VO2max 62.4 ml/kg/min, FTP 310W, LTHR 172 bpm, CSS 1:22/100m), neuromuscular strength benchmarks (CMJ 44.5cm, Trap Bar Deadlift 165kg, Back Squat 135kg), and 90-day lean body composition trendline (weight, body fat %, muscle mass).
+- **A-Race Goal Progression & Countdown:** Real-time countdown clock (days, hours, minutes) to the target A-competition ("Budapest Nemzetközi Triatlon OB") with macrocycle phase tracking (Build 2 $\rightarrow$ Peak $\rightarrow$ Taper) and milestone checklists.
 
+### C. Notifications & In-App Notification Center (`notificationStore.ts` & `NotificationCenter.tsx`)
+- **FCM Architecture & Local Store:** Zustand persistent notification store handling four core notification categories: `checkin_reminder`, `upcoming_workout`, `coach_message`, and `staff_alert`.
+- **User Customization:**
+  - Custom morning check-in reminder time picker (`<input type="time" />`).
+  - Quiet hours scheduling (`quietHoursEnabled`, `quietHoursStart`, `quietHoursEnd`) suppressing non-critical alerts during rest.
+  - Category-level toggles.
+- **Interactive Header Notification Center:** Bell icon with live unread badge, categorized popover list, relative time formatting ("20 perce", "2 órája"), mark-as-read, clear-all, and one-click deep link navigation to relevant screens.
+
+### D. Hardening, Security & Compliance
+- **Content Security Policy & Security Headers (`firebase.json`):** Strict CSP (`default-src 'self' ...`), `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=()`.
+- **Firebase App Check:** Initializer module in `src/shared/lib/firebase/index.ts` with reCAPTCHA Enterprise provider support.
+- **Cloud Functions Rate Limiting & Input Validation:** In-memory token bucket rate limiter (`assertRateLimit`) and rigorous input sanitization on all callable functions and webhooks.
+- **GDPR Compliance (Articles 17 & 20):**
+  - *Right to Erasure (Article 17):* Recursive deletion of user documents, athlete subcollections, relationship records, Cloud Storage files, and Firebase Auth account in `deleteUserData`.
+  - *Data Portability (Article 20):* Full structured JSON data export (`exportUserData` Cloud Function and client-side download) bundling profile, daily check-ins, sessions, nutrition days, and measurements.
+  - *Consent Versioning:* GDPR Health Data Consent v1.1 tracking with automatic prompt if policy versions update.
+- **Sanitized Logging:** All tokens, passwords, and raw biometric streams are excluded from server and client logs.
+
+### E. Demo Seed Data & E2E Testing
+- **Demo Seed Generator (`scripts/seedDemoData.ts` / `npm run seed`):** Generates 90 days of realistic data for an Olympic-tier athlete (Nagy Bence), complete with 90 daily check-ins, 96 training sessions, 90 nutrition days, performance benchmarks, and relationships with demo Head Coach (Kovács Péter) and Sports Dietitian (Molnár Eszter).
+- **Playwright E2E Smoke Suite (`e2e/smoke.spec.ts` / `npm run test:e2e`):** 5 end-to-end smoke tests verifying Onboarding in manual mode, Daily Check-in, Session Logging, Meal Logging, and Coach Invitation & Access Revocation.
+- **Project Roadmap (`docs/NEXT_STEPS.md`):** Comprehensive architectural roadmap covering AI Planning Assistants, Native Capacitor wrappers, extended wearable APIs, team/federation hierarchies, and reporting exports.
+
+---
+> **Requirement:** All 10 stages of the Apex Athletic Platform are completed, tested, documented, and hardened.

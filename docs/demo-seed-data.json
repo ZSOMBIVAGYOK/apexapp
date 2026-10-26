@@ -1,0 +1,3952 @@
+{
+  "athlete": {
+    "uid": "demo-athlete-001",
+    "displayName": "Nagy Bence",
+    "email": "bence.nagy@apex-olympic.hu",
+    "sport": "Triatlon",
+    "level": "Olimpiai keret",
+    "heightCm": 184,
+    "weightKg": 72.2,
+    "birthDate": "1998-05-14",
+    "targetCompetition": "Budapest Nemzetközi Triatlon OB",
+    "targetDate": "2027-01-12",
+    "targetPriority": "A"
+  },
+  "coach": {
+    "uid": "demo-coach-001",
+    "displayName": "Kovács Péter",
+    "role": "coach",
+    "permissions": {
+      "training": "write",
+      "recovery": "read",
+      "nutrition": "read",
+      "devices": "read",
+      "messages": "write",
+      "health": "none"
+    }
+  },
+  "dietitian": {
+    "uid": "demo-dietitian-001",
+    "displayName": "Molnár Eszter",
+    "role": "specialist",
+    "specialty": "nutrition",
+    "permissions": {
+      "nutrition": "write",
+      "recovery": "read",
+      "training": "read",
+      "messages": "write",
+      "devices": "none",
+      "health": "none"
+    }
+  },
+  "dailies": [
+    {
+      "date": "2026-07-29",
+      "sleep": {
+        "durationMinutes": 433,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 47,
+      "hrv": {
+        "rmssd": 90
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 1,
+        "stress": 1,
+        "mood": 4,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 81,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-07-30",
+      "sleep": {
+        "durationMinutes": 437,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 48,
+      "hrv": {
+        "rmssd": 89
+      },
+      "subjective": {
+        "fatigue": 2,
+        "soreness": 1,
+        "stress": 1,
+        "mood": 4,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 83,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-07-31",
+      "sleep": {
+        "durationMinutes": 445,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 49,
+      "hrv": {
+        "rmssd": 87
+      },
+      "subjective": {
+        "fatigue": 2,
+        "soreness": 2,
+        "stress": 1,
+        "mood": 4,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 80,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-08-01",
+      "sleep": {
+        "durationMinutes": 455,
+        "qualityScore": 5
+      },
+      "restingHeartRate": 49,
+      "hrv": {
+        "rmssd": 84
+      },
+      "subjective": {
+        "fatigue": 1,
+        "soreness": 2,
+        "stress": 1,
+        "mood": 4,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 82,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-08-02",
+      "sleep": {
+        "durationMinutes": 464,
+        "qualityScore": 5
+      },
+      "restingHeartRate": 50,
+      "hrv": {
+        "rmssd": 81
+      },
+      "subjective": {
+        "fatigue": 1,
+        "soreness": 3,
+        "stress": 1,
+        "mood": 4,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 78,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-08-03",
+      "sleep": {
+        "durationMinutes": 509,
+        "qualityScore": 5
+      },
+      "restingHeartRate": 54,
+      "hrv": {
+        "rmssd": 73
+      },
+      "subjective": {
+        "fatigue": 1,
+        "soreness": 3,
+        "stress": 1,
+        "mood": 4,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 67,
+      "readinessBand": "amber"
+    },
+    {
+      "date": "2026-08-04",
+      "sleep": {
+        "durationMinutes": 508,
+        "qualityScore": 5
+      },
+      "restingHeartRate": 51,
+      "hrv": {
+        "rmssd": 76
+      },
+      "subjective": {
+        "fatigue": 1,
+        "soreness": 3,
+        "stress": 1,
+        "mood": 4,
+        "motivation": 4,
+        "illness": false,
+        "soreAreas": [
+          "calves",
+          "quads"
+        ]
+      },
+      "readinessScore": 73,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-08-05",
+      "sleep": {
+        "durationMinutes": 500,
+        "qualityScore": 5
+      },
+      "restingHeartRate": 51,
+      "hrv": {
+        "rmssd": 75
+      },
+      "subjective": {
+        "fatigue": 2,
+        "soreness": 3,
+        "stress": 1,
+        "mood": 4,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 68,
+      "readinessBand": "amber"
+    },
+    {
+      "date": "2026-08-06",
+      "sleep": {
+        "durationMinutes": 485,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 51,
+      "hrv": {
+        "rmssd": 74
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 2,
+        "stress": 1,
+        "mood": 5,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 64,
+      "readinessBand": "amber"
+    },
+    {
+      "date": "2026-08-07",
+      "sleep": {
+        "durationMinutes": 465,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 51,
+      "hrv": {
+        "rmssd": 74
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 1,
+        "stress": 2,
+        "mood": 5,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 64,
+      "readinessBand": "amber"
+    },
+    {
+      "date": "2026-08-08",
+      "sleep": {
+        "durationMinutes": 480,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 50,
+      "hrv": {
+        "rmssd": 76
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 1,
+        "stress": 2,
+        "mood": 5,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 66,
+      "readinessBand": "amber"
+    },
+    {
+      "date": "2026-08-09",
+      "sleep": {
+        "durationMinutes": 454,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 50,
+      "hrv": {
+        "rmssd": 78
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 1,
+        "stress": 2,
+        "mood": 5,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 68,
+      "readinessBand": "amber"
+    },
+    {
+      "date": "2026-08-10",
+      "sleep": {
+        "durationMinutes": 430,
+        "qualityScore": 3
+      },
+      "restingHeartRate": 52,
+      "hrv": {
+        "rmssd": 74
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 1,
+        "stress": 2,
+        "mood": 5,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 62,
+      "readinessBand": "amber"
+    },
+    {
+      "date": "2026-08-11",
+      "sleep": {
+        "durationMinutes": 410,
+        "qualityScore": 3
+      },
+      "restingHeartRate": 48,
+      "hrv": {
+        "rmssd": 83
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 2,
+        "stress": 2,
+        "mood": 5,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 74,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-08-12",
+      "sleep": {
+        "durationMinutes": 396,
+        "qualityScore": 3
+      },
+      "restingHeartRate": 48,
+      "hrv": {
+        "rmssd": 86
+      },
+      "subjective": {
+        "fatigue": 2,
+        "soreness": 3,
+        "stress": 2,
+        "mood": 4,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 81,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-08-13",
+      "sleep": {
+        "durationMinutes": 428,
+        "qualityScore": 3
+      },
+      "restingHeartRate": 47,
+      "hrv": {
+        "rmssd": 88
+      },
+      "subjective": {
+        "fatigue": 1,
+        "soreness": 3,
+        "stress": 2,
+        "mood": 4,
+        "motivation": 4,
+        "illness": false,
+        "soreAreas": [
+          "shoulders",
+          "lats"
+        ]
+      },
+      "readinessScore": 88,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-08-14",
+      "sleep": {
+        "durationMinutes": 428,
+        "qualityScore": 3
+      },
+      "restingHeartRate": 46,
+      "hrv": {
+        "rmssd": 89
+      },
+      "subjective": {
+        "fatigue": 1,
+        "soreness": 3,
+        "stress": 3,
+        "mood": 4,
+        "motivation": 4,
+        "illness": false,
+        "soreAreas": [
+          "calves",
+          "quads"
+        ]
+      },
+      "readinessScore": 90,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-08-15",
+      "sleep": {
+        "durationMinutes": 433,
+        "qualityScore": 3
+      },
+      "restingHeartRate": 46,
+      "hrv": {
+        "rmssd": 90
+      },
+      "subjective": {
+        "fatigue": 1,
+        "soreness": 3,
+        "stress": 3,
+        "mood": 4,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 90,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-08-16",
+      "sleep": {
+        "durationMinutes": 442,
+        "qualityScore": 3
+      },
+      "restingHeartRate": 45,
+      "hrv": {
+        "rmssd": 90
+      },
+      "subjective": {
+        "fatigue": 1,
+        "soreness": 2,
+        "stress": 3,
+        "mood": 4,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 92,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-08-17",
+      "sleep": {
+        "durationMinutes": 452,
+        "qualityScore": 3
+      },
+      "restingHeartRate": 48,
+      "hrv": {
+        "rmssd": 82
+      },
+      "subjective": {
+        "fatigue": 2,
+        "soreness": 1,
+        "stress": 3,
+        "mood": 4,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 78,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-08-18",
+      "sleep": {
+        "durationMinutes": 500,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 45,
+      "hrv": {
+        "rmssd": 86
+      },
+      "subjective": {
+        "fatigue": 2,
+        "soreness": 1,
+        "stress": 3,
+        "mood": 4,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 84,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-08-19",
+      "sleep": {
+        "durationMinutes": 504,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 45,
+      "hrv": {
+        "rmssd": 84
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 1,
+        "stress": 2,
+        "mood": 4,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 79,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-08-20",
+      "sleep": {
+        "durationMinutes": 501,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 45,
+      "hrv": {
+        "rmssd": 81
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 1,
+        "stress": 2,
+        "mood": 4,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 76,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-08-21",
+      "sleep": {
+        "durationMinutes": 491,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 46,
+      "hrv": {
+        "rmssd": 78
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 2,
+        "stress": 2,
+        "mood": 4,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 73,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-08-22",
+      "sleep": {
+        "durationMinutes": 474,
+        "qualityScore": 5
+      },
+      "restingHeartRate": 46,
+      "hrv": {
+        "rmssd": 76
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 2,
+        "stress": 2,
+        "mood": 5,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 71,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-08-23",
+      "sleep": {
+        "durationMinutes": 492,
+        "qualityScore": 5
+      },
+      "restingHeartRate": 47,
+      "hrv": {
+        "rmssd": 75
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 3,
+        "stress": 2,
+        "mood": 5,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 69,
+      "readinessBand": "amber"
+    },
+    {
+      "date": "2026-08-24",
+      "sleep": {
+        "durationMinutes": 467,
+        "qualityScore": 5
+      },
+      "restingHeartRate": 51,
+      "hrv": {
+        "rmssd": 68
+      },
+      "subjective": {
+        "fatigue": 2,
+        "soreness": 3,
+        "stress": 2,
+        "mood": 5,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 63,
+      "readinessBand": "amber"
+    },
+    {
+      "date": "2026-08-25",
+      "sleep": {
+        "durationMinutes": 441,
+        "qualityScore": 5
+      },
+      "restingHeartRate": 49,
+      "hrv": {
+        "rmssd": 74
+      },
+      "subjective": {
+        "fatigue": 2,
+        "soreness": 3,
+        "stress": 2,
+        "mood": 5,
+        "motivation": 4,
+        "illness": false,
+        "soreAreas": [
+          "calves",
+          "quads"
+        ]
+      },
+      "readinessScore": 70,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-08-26",
+      "sleep": {
+        "durationMinutes": 418,
+        "qualityScore": 5
+      },
+      "restingHeartRate": 49,
+      "hrv": {
+        "rmssd": 76
+      },
+      "subjective": {
+        "fatigue": 1,
+        "soreness": 3,
+        "stress": 2,
+        "mood": 5,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 76,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-08-27",
+      "sleep": {
+        "durationMinutes": 399,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 50,
+      "hrv": {
+        "rmssd": 78
+      },
+      "subjective": {
+        "fatigue": 1,
+        "soreness": 2,
+        "stress": 1,
+        "mood": 4,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 76,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-08-28",
+      "sleep": {
+        "durationMinutes": 427,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 50,
+      "hrv": {
+        "rmssd": 80
+      },
+      "subjective": {
+        "fatigue": 1,
+        "soreness": 1,
+        "stress": 1,
+        "mood": 4,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 78,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-08-29",
+      "sleep": {
+        "durationMinutes": 422,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 51,
+      "hrv": {
+        "rmssd": 83
+      },
+      "subjective": {
+        "fatigue": 1,
+        "soreness": 1,
+        "stress": 1,
+        "mood": 4,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 79,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-08-30",
+      "sleep": {
+        "durationMinutes": 423,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 51,
+      "hrv": {
+        "rmssd": 86
+      },
+      "subjective": {
+        "fatigue": 2,
+        "soreness": 1,
+        "stress": 1,
+        "mood": 4,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 77,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-08-31",
+      "sleep": {
+        "durationMinutes": 430,
+        "qualityScore": 3
+      },
+      "restingHeartRate": 54,
+      "hrv": {
+        "rmssd": 82
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 1,
+        "stress": 1,
+        "mood": 4,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 66,
+      "readinessBand": "amber"
+    },
+    {
+      "date": "2026-09-01",
+      "sleep": {
+        "durationMinutes": 440,
+        "qualityScore": 3
+      },
+      "restingHeartRate": 51,
+      "hrv": {
+        "rmssd": 89
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 2,
+        "stress": 1,
+        "mood": 4,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 76,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-09-02",
+      "sleep": {
+        "durationMinutes": 489,
+        "qualityScore": 3
+      },
+      "restingHeartRate": 50,
+      "hrv": {
+        "rmssd": 90
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 3,
+        "stress": 1,
+        "mood": 4,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 78,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-09-03",
+      "sleep": {
+        "durationMinutes": 496,
+        "qualityScore": 3
+      },
+      "restingHeartRate": 50,
+      "hrv": {
+        "rmssd": 90
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 3,
+        "stress": 1,
+        "mood": 4,
+        "motivation": 4,
+        "illness": false,
+        "soreAreas": [
+          "shoulders",
+          "lats"
+        ]
+      },
+      "readinessScore": 78,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-09-04",
+      "sleep": {
+        "durationMinutes": 498,
+        "qualityScore": 3
+      },
+      "restingHeartRate": 49,
+      "hrv": {
+        "rmssd": 88
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 3,
+        "stress": 1,
+        "mood": 4,
+        "motivation": 4,
+        "illness": false,
+        "soreAreas": [
+          "calves",
+          "quads"
+        ]
+      },
+      "readinessScore": 77,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-09-05",
+      "sleep": {
+        "durationMinutes": 493,
+        "qualityScore": 3
+      },
+      "restingHeartRate": 49,
+      "hrv": {
+        "rmssd": 86
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 3,
+        "stress": 1,
+        "mood": 4,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 76,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-09-06",
+      "sleep": {
+        "durationMinutes": 481,
+        "qualityScore": 3
+      },
+      "restingHeartRate": 48,
+      "hrv": {
+        "rmssd": 84
+      },
+      "subjective": {
+        "fatigue": 2,
+        "soreness": 2,
+        "stress": 1,
+        "mood": 4,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 79,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-09-07",
+      "sleep": {
+        "durationMinutes": 503,
+        "qualityScore": 3
+      },
+      "restingHeartRate": 50,
+      "hrv": {
+        "rmssd": 75
+      },
+      "subjective": {
+        "fatigue": 1,
+        "soreness": 1,
+        "stress": 2,
+        "mood": 5,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 74,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-09-08",
+      "sleep": {
+        "durationMinutes": 479,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 46,
+      "hrv": {
+        "rmssd": 78
+      },
+      "subjective": {
+        "fatigue": 1,
+        "soreness": 1,
+        "stress": 2,
+        "mood": 5,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 81,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-09-09",
+      "sleep": {
+        "durationMinutes": 454,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 46,
+      "hrv": {
+        "rmssd": 76
+      },
+      "subjective": {
+        "fatigue": 1,
+        "soreness": 1,
+        "stress": 2,
+        "mood": 5,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 79,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-09-10",
+      "sleep": {
+        "durationMinutes": 428,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 45,
+      "hrv": {
+        "rmssd": 75
+      },
+      "subjective": {
+        "fatigue": 1,
+        "soreness": 1,
+        "stress": 2,
+        "mood": 5,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 80,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-09-11",
+      "sleep": {
+        "durationMinutes": 406,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 45,
+      "hrv": {
+        "rmssd": 74
+      },
+      "subjective": {
+        "fatigue": 2,
+        "soreness": 2,
+        "stress": 2,
+        "mood": 5,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 75,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-09-12",
+      "sleep": {
+        "durationMinutes": 429,
+        "qualityScore": 5
+      },
+      "restingHeartRate": 45,
+      "hrv": {
+        "rmssd": 74
+      },
+      "subjective": {
+        "fatigue": 2,
+        "soreness": 2,
+        "stress": 2,
+        "mood": 4,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 75,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-09-13",
+      "sleep": {
+        "durationMinutes": 419,
+        "qualityScore": 5
+      },
+      "restingHeartRate": 45,
+      "hrv": {
+        "rmssd": 76
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 3,
+        "stress": 2,
+        "mood": 4,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 72,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-09-14",
+      "sleep": {
+        "durationMinutes": 416,
+        "qualityScore": 5
+      },
+      "restingHeartRate": 48,
+      "hrv": {
+        "rmssd": 72
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 3,
+        "stress": 2,
+        "mood": 4,
+        "motivation": 4,
+        "illness": true
+      },
+      "readinessScore": 66,
+      "readinessBand": "amber"
+    },
+    {
+      "date": "2026-09-15",
+      "sleep": {
+        "durationMinutes": 419,
+        "qualityScore": 5
+      },
+      "restingHeartRate": 46,
+      "hrv": {
+        "rmssd": 80
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 3,
+        "stress": 3,
+        "mood": 4,
+        "motivation": 4,
+        "illness": false,
+        "soreAreas": [
+          "calves",
+          "quads"
+        ]
+      },
+      "readinessScore": 74,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-09-16",
+      "sleep": {
+        "durationMinutes": 427,
+        "qualityScore": 5
+      },
+      "restingHeartRate": 46,
+      "hrv": {
+        "rmssd": 83
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 3,
+        "stress": 3,
+        "mood": 4,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 77,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-09-17",
+      "sleep": {
+        "durationMinutes": 477,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 47,
+      "hrv": {
+        "rmssd": 86
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 2,
+        "stress": 3,
+        "mood": 4,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 78,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-09-18",
+      "sleep": {
+        "durationMinutes": 486,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 48,
+      "hrv": {
+        "rmssd": 88
+      },
+      "subjective": {
+        "fatigue": 2,
+        "soreness": 1,
+        "stress": 3,
+        "mood": 4,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 82,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-09-19",
+      "sleep": {
+        "durationMinutes": 491,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 49,
+      "hrv": {
+        "rmssd": 89
+      },
+      "subjective": {
+        "fatigue": 2,
+        "soreness": 1,
+        "stress": 3,
+        "mood": 4,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 82,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-09-20",
+      "sleep": {
+        "durationMinutes": 491,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 49,
+      "hrv": {
+        "rmssd": 90
+      },
+      "subjective": {
+        "fatigue": 1,
+        "soreness": 1,
+        "stress": 2,
+        "mood": 4,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 87,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-09-21",
+      "sleep": {
+        "durationMinutes": 485,
+        "qualityScore": 3
+      },
+      "restingHeartRate": 53,
+      "hrv": {
+        "rmssd": 84
+      },
+      "subjective": {
+        "fatigue": 1,
+        "soreness": 1,
+        "stress": 2,
+        "mood": 4,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 77,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-09-22",
+      "sleep": {
+        "durationMinutes": 511,
+        "qualityScore": 3
+      },
+      "restingHeartRate": 50,
+      "hrv": {
+        "rmssd": 88
+      },
+      "subjective": {
+        "fatigue": 1,
+        "soreness": 2,
+        "stress": 2,
+        "mood": 5,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 84,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-09-23",
+      "sleep": {
+        "durationMinutes": 491,
+        "qualityScore": 3
+      },
+      "restingHeartRate": 51,
+      "hrv": {
+        "rmssd": 86
+      },
+      "subjective": {
+        "fatigue": 1,
+        "soreness": 3,
+        "stress": 2,
+        "mood": 5,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 81,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-09-24",
+      "sleep": {
+        "durationMinutes": 466,
+        "qualityScore": 3
+      },
+      "restingHeartRate": 51,
+      "hrv": {
+        "rmssd": 84
+      },
+      "subjective": {
+        "fatigue": 2,
+        "soreness": 3,
+        "stress": 2,
+        "mood": 5,
+        "motivation": 4,
+        "illness": false,
+        "soreAreas": [
+          "shoulders",
+          "lats"
+        ]
+      },
+      "readinessScore": 76,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-09-25",
+      "sleep": {
+        "durationMinutes": 441,
+        "qualityScore": 3
+      },
+      "restingHeartRate": 51,
+      "hrv": {
+        "rmssd": 81
+      },
+      "subjective": {
+        "fatigue": 2,
+        "soreness": 3,
+        "stress": 2,
+        "mood": 5,
+        "motivation": 4,
+        "illness": false,
+        "soreAreas": [
+          "calves",
+          "quads"
+        ]
+      },
+      "readinessScore": 73,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-09-26",
+      "sleep": {
+        "durationMinutes": 416,
+        "qualityScore": 3
+      },
+      "restingHeartRate": 51,
+      "hrv": {
+        "rmssd": 78
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 3,
+        "stress": 2,
+        "mood": 5,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 67,
+      "readinessBand": "amber"
+    },
+    {
+      "date": "2026-09-27",
+      "sleep": {
+        "durationMinutes": 435,
+        "qualityScore": 3
+      },
+      "restingHeartRate": 50,
+      "hrv": {
+        "rmssd": 76
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 2,
+        "stress": 1,
+        "mood": 5,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 66,
+      "readinessBand": "amber"
+    },
+    {
+      "date": "2026-09-28",
+      "sleep": {
+        "durationMinutes": 420,
+        "qualityScore": 3
+      },
+      "restingHeartRate": 53,
+      "hrv": {
+        "rmssd": 69
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 1,
+        "stress": 1,
+        "mood": 4,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 57,
+      "readinessBand": "amber"
+    },
+    {
+      "date": "2026-09-29",
+      "sleep": {
+        "durationMinutes": 412,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 49,
+      "hrv": {
+        "rmssd": 74
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 1,
+        "stress": 1,
+        "mood": 4,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 66,
+      "readinessBand": "amber"
+    },
+    {
+      "date": "2026-09-30",
+      "sleep": {
+        "durationMinutes": 411,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 49,
+      "hrv": {
+        "rmssd": 74
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 1,
+        "stress": 1,
+        "mood": 4,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 66,
+      "readinessBand": "amber"
+    },
+    {
+      "date": "2026-10-01",
+      "sleep": {
+        "durationMinutes": 416,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 48,
+      "hrv": {
+        "rmssd": 76
+      },
+      "subjective": {
+        "fatigue": 2,
+        "soreness": 1,
+        "stress": 1,
+        "mood": 4,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 73,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-10-02",
+      "sleep": {
+        "durationMinutes": 464,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 47,
+      "hrv": {
+        "rmssd": 78
+      },
+      "subjective": {
+        "fatigue": 2,
+        "soreness": 2,
+        "stress": 1,
+        "mood": 4,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 76,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-10-03",
+      "sleep": {
+        "durationMinutes": 474,
+        "qualityScore": 5
+      },
+      "restingHeartRate": 46,
+      "hrv": {
+        "rmssd": 80
+      },
+      "subjective": {
+        "fatigue": 1,
+        "soreness": 2,
+        "stress": 1,
+        "mood": 4,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 82,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-10-04",
+      "sleep": {
+        "durationMinutes": 482,
+        "qualityScore": 5
+      },
+      "restingHeartRate": 46,
+      "hrv": {
+        "rmssd": 83
+      },
+      "subjective": {
+        "fatigue": 1,
+        "soreness": 3,
+        "stress": 1,
+        "mood": 4,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 85,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-10-05",
+      "sleep": {
+        "durationMinutes": 486,
+        "qualityScore": 5
+      },
+      "restingHeartRate": 48,
+      "hrv": {
+        "rmssd": 80
+      },
+      "subjective": {
+        "fatigue": 1,
+        "soreness": 3,
+        "stress": 1,
+        "mood": 4,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 80,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-10-06",
+      "sleep": {
+        "durationMinutes": 485,
+        "qualityScore": 5
+      },
+      "restingHeartRate": 45,
+      "hrv": {
+        "rmssd": 88
+      },
+      "subjective": {
+        "fatigue": 2,
+        "soreness": 3,
+        "stress": 1,
+        "mood": 4,
+        "motivation": 4,
+        "illness": false,
+        "soreAreas": [
+          "calves",
+          "quads"
+        ]
+      },
+      "readinessScore": 86,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-10-07",
+      "sleep": {
+        "durationMinutes": 516,
+        "qualityScore": 5
+      },
+      "restingHeartRate": 45,
+      "hrv": {
+        "rmssd": 89
+      },
+      "subjective": {
+        "fatigue": 2,
+        "soreness": 3,
+        "stress": 1,
+        "mood": 4,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 87,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-10-08",
+      "sleep": {
+        "durationMinutes": 500,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 45,
+      "hrv": {
+        "rmssd": 90
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 2,
+        "stress": 1,
+        "mood": 5,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 84,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-10-09",
+      "sleep": {
+        "durationMinutes": 478,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 45,
+      "hrv": {
+        "rmssd": 90
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 1,
+        "stress": 2,
+        "mood": 5,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 84,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-10-10",
+      "sleep": {
+        "durationMinutes": 453,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 46,
+      "hrv": {
+        "rmssd": 88
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 1,
+        "stress": 2,
+        "mood": 5,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 81,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-10-11",
+      "sleep": {
+        "durationMinutes": 427,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 46,
+      "hrv": {
+        "rmssd": 86
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 1,
+        "stress": 2,
+        "mood": 5,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 79,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-10-12",
+      "sleep": {
+        "durationMinutes": 444,
+        "qualityScore": 3
+      },
+      "restingHeartRate": 50,
+      "hrv": {
+        "rmssd": 77
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 1,
+        "stress": 2,
+        "mood": 5,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 67,
+      "readinessBand": "amber"
+    },
+    {
+      "date": "2026-10-13",
+      "sleep": {
+        "durationMinutes": 424,
+        "qualityScore": 3
+      },
+      "restingHeartRate": 48,
+      "hrv": {
+        "rmssd": 81
+      },
+      "subjective": {
+        "fatigue": 2,
+        "soreness": 2,
+        "stress": 2,
+        "mood": 5,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 77,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-10-14",
+      "sleep": {
+        "durationMinutes": 411,
+        "qualityScore": 3
+      },
+      "restingHeartRate": 48,
+      "hrv": {
+        "rmssd": 78
+      },
+      "subjective": {
+        "fatigue": 2,
+        "soreness": 3,
+        "stress": 2,
+        "mood": 4,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 74,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-10-15",
+      "sleep": {
+        "durationMinutes": 405,
+        "qualityScore": 3
+      },
+      "restingHeartRate": 49,
+      "hrv": {
+        "rmssd": 76
+      },
+      "subjective": {
+        "fatigue": 1,
+        "soreness": 3,
+        "stress": 2,
+        "mood": 4,
+        "motivation": 4,
+        "illness": false,
+        "soreAreas": [
+          "shoulders",
+          "lats"
+        ]
+      },
+      "readinessScore": 76,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-10-16",
+      "sleep": {
+        "durationMinutes": 406,
+        "qualityScore": 3
+      },
+      "restingHeartRate": 50,
+      "hrv": {
+        "rmssd": 75
+      },
+      "subjective": {
+        "fatigue": 1,
+        "soreness": 3,
+        "stress": 3,
+        "mood": 4,
+        "motivation": 4,
+        "illness": false,
+        "soreAreas": [
+          "calves",
+          "quads"
+        ]
+      },
+      "readinessScore": 74,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-10-17",
+      "sleep": {
+        "durationMinutes": 452,
+        "qualityScore": 3
+      },
+      "restingHeartRate": 50,
+      "hrv": {
+        "rmssd": 74
+      },
+      "subjective": {
+        "fatigue": 1,
+        "soreness": 3,
+        "stress": 3,
+        "mood": 4,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 73,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-10-18",
+      "sleep": {
+        "durationMinutes": 461,
+        "qualityScore": 3
+      },
+      "restingHeartRate": 51,
+      "hrv": {
+        "rmssd": 74
+      },
+      "subjective": {
+        "fatigue": 1,
+        "soreness": 2,
+        "stress": 3,
+        "mood": 4,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 72,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-10-19",
+      "sleep": {
+        "durationMinutes": 471,
+        "qualityScore": 3
+      },
+      "restingHeartRate": 54,
+      "hrv": {
+        "rmssd": 70
+      },
+      "subjective": {
+        "fatigue": 2,
+        "soreness": 1,
+        "stress": 3,
+        "mood": 4,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 61,
+      "readinessBand": "amber"
+    },
+    {
+      "date": "2026-10-20",
+      "sleep": {
+        "durationMinutes": 478,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 51,
+      "hrv": {
+        "rmssd": 78
+      },
+      "subjective": {
+        "fatigue": 2,
+        "soreness": 1,
+        "stress": 3,
+        "mood": 4,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 71,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-10-21",
+      "sleep": {
+        "durationMinutes": 481,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 51,
+      "hrv": {
+        "rmssd": 81
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 1,
+        "stress": 2,
+        "mood": 4,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 69,
+      "readinessBand": "amber"
+    },
+    {
+      "date": "2026-10-22",
+      "sleep": {
+        "durationMinutes": 517,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 51,
+      "hrv": {
+        "rmssd": 83
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 1,
+        "stress": 2,
+        "mood": 4,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 71,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-10-23",
+      "sleep": {
+        "durationMinutes": 506,
+        "qualityScore": 4
+      },
+      "restingHeartRate": 50,
+      "hrv": {
+        "rmssd": 86
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 2,
+        "stress": 2,
+        "mood": 4,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 74,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-10-24",
+      "sleep": {
+        "durationMinutes": 488,
+        "qualityScore": 5
+      },
+      "restingHeartRate": 49,
+      "hrv": {
+        "rmssd": 88
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 2,
+        "stress": 2,
+        "mood": 5,
+        "motivation": 5,
+        "illness": false
+      },
+      "readinessScore": 77,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-10-25",
+      "sleep": {
+        "durationMinutes": 466,
+        "qualityScore": 5
+      },
+      "restingHeartRate": 49,
+      "hrv": {
+        "rmssd": 90
+      },
+      "subjective": {
+        "fatigue": 3,
+        "soreness": 3,
+        "stress": 2,
+        "mood": 5,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 79,
+      "readinessBand": "green"
+    },
+    {
+      "date": "2026-10-26",
+      "sleep": {
+        "durationMinutes": 440,
+        "qualityScore": 5
+      },
+      "restingHeartRate": 51,
+      "hrv": {
+        "rmssd": 84
+      },
+      "subjective": {
+        "fatigue": 2,
+        "soreness": 3,
+        "stress": 2,
+        "mood": 5,
+        "motivation": 4,
+        "illness": false
+      },
+      "readinessScore": 76,
+      "readinessBand": "green"
+    }
+  ],
+  "sessions": [
+    {
+      "id": "sess-demo-athlete-001-2026-07-29-1",
+      "date": "2026-07-29",
+      "sport": "running",
+      "title": "Pálya tempófutás (Threshold)",
+      "durationMinutes": 60,
+      "rpe": 8.5,
+      "load": 510,
+      "avgHeartRate": 172,
+      "maxHeartRate": 190
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-07-30-1",
+      "date": "2026-07-30",
+      "sport": "strength",
+      "title": "Funkcionális erő & törzs-stabilitás",
+      "durationMinutes": 50,
+      "rpe": 6.5,
+      "load": 325,
+      "avgHeartRate": 125,
+      "maxHeartRate": 143
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-07-31-1",
+      "date": "2026-07-31",
+      "sport": "swimming",
+      "title": "5 x 400m Küszöb sorozat (CSS)",
+      "durationMinutes": 90,
+      "rpe": 8,
+      "load": 720,
+      "avgHeartRate": 166,
+      "maxHeartRate": 184
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-08-01-1",
+      "date": "2026-08-01",
+      "sport": "cycling",
+      "title": "Hosszú állóképességi országúti tekerés",
+      "durationMinutes": 180,
+      "rpe": 6,
+      "load": 1080,
+      "avgHeartRate": 145,
+      "maxHeartRate": 163
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-08-02-1",
+      "date": "2026-08-02",
+      "sport": "running",
+      "title": "Aerob alapozó futás",
+      "durationMinutes": 60,
+      "rpe": 5,
+      "load": 300,
+      "avgHeartRate": 142,
+      "maxHeartRate": 160
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-08-03-1",
+      "date": "2026-08-03",
+      "sport": "swimming",
+      "title": "Technikai és aerob úszóblokk",
+      "durationMinutes": 75,
+      "rpe": 5.5,
+      "load": 413,
+      "avgHeartRate": 138,
+      "maxHeartRate": 156
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-08-04-1",
+      "date": "2026-08-04",
+      "sport": "cycling",
+      "title": "Laktát-küszöb kerékpáros intervallumok",
+      "durationMinutes": 90,
+      "rpe": 8,
+      "load": 720,
+      "avgHeartRate": 168,
+      "maxHeartRate": 186
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-08-04-2",
+      "date": "2026-08-04",
+      "sport": "strength",
+      "title": "Preventív törzs- és farizom erősítés",
+      "durationMinutes": 35,
+      "rpe": 5,
+      "load": 175,
+      "avgHeartRate": 118,
+      "maxHeartRate": 135
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-08-05-1",
+      "date": "2026-08-05",
+      "sport": "running",
+      "title": "Pálya tempófutás (Threshold)",
+      "durationMinutes": 60,
+      "rpe": 8.5,
+      "load": 510,
+      "avgHeartRate": 172,
+      "maxHeartRate": 190
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-08-06-1",
+      "date": "2026-08-06",
+      "sport": "strength",
+      "title": "Funkcionális erő & törzs-stabilitás",
+      "durationMinutes": 50,
+      "rpe": 6.5,
+      "load": 325,
+      "avgHeartRate": 125,
+      "maxHeartRate": 143
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-08-07-1",
+      "date": "2026-08-07",
+      "sport": "swimming",
+      "title": "5 x 400m Küszöb sorozat (CSS)",
+      "durationMinutes": 90,
+      "rpe": 8,
+      "load": 720,
+      "avgHeartRate": 166,
+      "maxHeartRate": 184
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-08-08-1",
+      "date": "2026-08-08",
+      "sport": "cycling",
+      "title": "Hosszú állóképességi országúti tekerés",
+      "durationMinutes": 180,
+      "rpe": 6,
+      "load": 1080,
+      "avgHeartRate": 145,
+      "maxHeartRate": 163
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-08-10-1",
+      "date": "2026-08-10",
+      "sport": "swimming",
+      "title": "Technikai és aerob úszóblokk",
+      "durationMinutes": 75,
+      "rpe": 5.5,
+      "load": 413,
+      "avgHeartRate": 138,
+      "maxHeartRate": 156
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-08-11-1",
+      "date": "2026-08-11",
+      "sport": "cycling",
+      "title": "Laktát-küszöb kerékpáros intervallumok",
+      "durationMinutes": 90,
+      "rpe": 8,
+      "load": 720,
+      "avgHeartRate": 168,
+      "maxHeartRate": 186
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-08-11-2",
+      "date": "2026-08-11",
+      "sport": "strength",
+      "title": "Preventív törzs- és farizom erősítés",
+      "durationMinutes": 35,
+      "rpe": 5,
+      "load": 175,
+      "avgHeartRate": 118,
+      "maxHeartRate": 135
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-08-12-1",
+      "date": "2026-08-12",
+      "sport": "running",
+      "title": "Pálya tempófutás (Threshold)",
+      "durationMinutes": 60,
+      "rpe": 8.5,
+      "load": 510,
+      "avgHeartRate": 172,
+      "maxHeartRate": 190
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-08-13-1",
+      "date": "2026-08-13",
+      "sport": "strength",
+      "title": "Funkcionális erő & törzs-stabilitás",
+      "durationMinutes": 50,
+      "rpe": 6.5,
+      "load": 325,
+      "avgHeartRate": 125,
+      "maxHeartRate": 143
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-08-14-1",
+      "date": "2026-08-14",
+      "sport": "swimming",
+      "title": "5 x 400m Küszöb sorozat (CSS)",
+      "durationMinutes": 90,
+      "rpe": 8,
+      "load": 720,
+      "avgHeartRate": 166,
+      "maxHeartRate": 184
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-08-15-1",
+      "date": "2026-08-15",
+      "sport": "cycling",
+      "title": "Hosszú állóképességi országúti tekerés",
+      "durationMinutes": 180,
+      "rpe": 6,
+      "load": 1080,
+      "avgHeartRate": 145,
+      "maxHeartRate": 163
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-08-16-1",
+      "date": "2026-08-16",
+      "sport": "running",
+      "title": "Aerob alapozó futás",
+      "durationMinutes": 60,
+      "rpe": 5,
+      "load": 300,
+      "avgHeartRate": 142,
+      "maxHeartRate": 160
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-08-17-1",
+      "date": "2026-08-17",
+      "sport": "swimming",
+      "title": "Technikai és aerob úszóblokk",
+      "durationMinutes": 75,
+      "rpe": 5.5,
+      "load": 413,
+      "avgHeartRate": 138,
+      "maxHeartRate": 156
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-08-18-1",
+      "date": "2026-08-18",
+      "sport": "cycling",
+      "title": "Laktát-küszöb kerékpáros intervallumok",
+      "durationMinutes": 90,
+      "rpe": 8,
+      "load": 720,
+      "avgHeartRate": 168,
+      "maxHeartRate": 186
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-08-18-2",
+      "date": "2026-08-18",
+      "sport": "strength",
+      "title": "Preventív törzs- és farizom erősítés",
+      "durationMinutes": 35,
+      "rpe": 5,
+      "load": 175,
+      "avgHeartRate": 118,
+      "maxHeartRate": 135
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-08-19-1",
+      "date": "2026-08-19",
+      "sport": "running",
+      "title": "Pálya tempófutás (Threshold)",
+      "durationMinutes": 60,
+      "rpe": 8.5,
+      "load": 510,
+      "avgHeartRate": 172,
+      "maxHeartRate": 190
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-08-20-1",
+      "date": "2026-08-20",
+      "sport": "strength",
+      "title": "Funkcionális erő & törzs-stabilitás",
+      "durationMinutes": 50,
+      "rpe": 6.5,
+      "load": 325,
+      "avgHeartRate": 125,
+      "maxHeartRate": 143
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-08-21-1",
+      "date": "2026-08-21",
+      "sport": "swimming",
+      "title": "5 x 400m Küszöb sorozat (CSS)",
+      "durationMinutes": 90,
+      "rpe": 8,
+      "load": 720,
+      "avgHeartRate": 166,
+      "maxHeartRate": 184
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-08-22-1",
+      "date": "2026-08-22",
+      "sport": "cycling",
+      "title": "Hosszú állóképességi országúti tekerés",
+      "durationMinutes": 180,
+      "rpe": 6,
+      "load": 1080,
+      "avgHeartRate": 145,
+      "maxHeartRate": 163
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-08-24-1",
+      "date": "2026-08-24",
+      "sport": "swimming",
+      "title": "Technikai és aerob úszóblokk",
+      "durationMinutes": 75,
+      "rpe": 5.5,
+      "load": 413,
+      "avgHeartRate": 138,
+      "maxHeartRate": 156
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-08-25-1",
+      "date": "2026-08-25",
+      "sport": "cycling",
+      "title": "Laktát-küszöb kerékpáros intervallumok",
+      "durationMinutes": 90,
+      "rpe": 8,
+      "load": 720,
+      "avgHeartRate": 168,
+      "maxHeartRate": 186
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-08-25-2",
+      "date": "2026-08-25",
+      "sport": "strength",
+      "title": "Preventív törzs- és farizom erősítés",
+      "durationMinutes": 35,
+      "rpe": 5,
+      "load": 175,
+      "avgHeartRate": 118,
+      "maxHeartRate": 135
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-08-26-1",
+      "date": "2026-08-26",
+      "sport": "running",
+      "title": "Pálya tempófutás (Threshold)",
+      "durationMinutes": 60,
+      "rpe": 8.5,
+      "load": 510,
+      "avgHeartRate": 172,
+      "maxHeartRate": 190
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-08-27-1",
+      "date": "2026-08-27",
+      "sport": "strength",
+      "title": "Funkcionális erő & törzs-stabilitás",
+      "durationMinutes": 50,
+      "rpe": 6.5,
+      "load": 325,
+      "avgHeartRate": 125,
+      "maxHeartRate": 143
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-08-28-1",
+      "date": "2026-08-28",
+      "sport": "swimming",
+      "title": "5 x 400m Küszöb sorozat (CSS)",
+      "durationMinutes": 90,
+      "rpe": 8,
+      "load": 720,
+      "avgHeartRate": 166,
+      "maxHeartRate": 184
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-08-29-1",
+      "date": "2026-08-29",
+      "sport": "cycling",
+      "title": "Hosszú állóképességi országúti tekerés",
+      "durationMinutes": 180,
+      "rpe": 6,
+      "load": 1080,
+      "avgHeartRate": 145,
+      "maxHeartRate": 163
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-08-30-1",
+      "date": "2026-08-30",
+      "sport": "running",
+      "title": "Aerob alapozó futás",
+      "durationMinutes": 60,
+      "rpe": 5,
+      "load": 300,
+      "avgHeartRate": 142,
+      "maxHeartRate": 160
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-08-31-1",
+      "date": "2026-08-31",
+      "sport": "swimming",
+      "title": "Technikai és aerob úszóblokk",
+      "durationMinutes": 75,
+      "rpe": 5.5,
+      "load": 413,
+      "avgHeartRate": 138,
+      "maxHeartRate": 156
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-09-01-1",
+      "date": "2026-09-01",
+      "sport": "cycling",
+      "title": "Laktát-küszöb kerékpáros intervallumok",
+      "durationMinutes": 90,
+      "rpe": 8,
+      "load": 720,
+      "avgHeartRate": 168,
+      "maxHeartRate": 186
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-09-01-2",
+      "date": "2026-09-01",
+      "sport": "strength",
+      "title": "Preventív törzs- és farizom erősítés",
+      "durationMinutes": 35,
+      "rpe": 5,
+      "load": 175,
+      "avgHeartRate": 118,
+      "maxHeartRate": 135
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-09-02-1",
+      "date": "2026-09-02",
+      "sport": "running",
+      "title": "Pálya tempófutás (Threshold)",
+      "durationMinutes": 60,
+      "rpe": 8.5,
+      "load": 510,
+      "avgHeartRate": 172,
+      "maxHeartRate": 190
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-09-03-1",
+      "date": "2026-09-03",
+      "sport": "strength",
+      "title": "Funkcionális erő & törzs-stabilitás",
+      "durationMinutes": 50,
+      "rpe": 6.5,
+      "load": 325,
+      "avgHeartRate": 125,
+      "maxHeartRate": 143
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-09-04-1",
+      "date": "2026-09-04",
+      "sport": "swimming",
+      "title": "5 x 400m Küszöb sorozat (CSS)",
+      "durationMinutes": 90,
+      "rpe": 8,
+      "load": 720,
+      "avgHeartRate": 166,
+      "maxHeartRate": 184
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-09-05-1",
+      "date": "2026-09-05",
+      "sport": "cycling",
+      "title": "Hosszú állóképességi országúti tekerés",
+      "durationMinutes": 180,
+      "rpe": 6,
+      "load": 1080,
+      "avgHeartRate": 145,
+      "maxHeartRate": 163
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-09-07-1",
+      "date": "2026-09-07",
+      "sport": "swimming",
+      "title": "Technikai és aerob úszóblokk",
+      "durationMinutes": 75,
+      "rpe": 5.5,
+      "load": 413,
+      "avgHeartRate": 138,
+      "maxHeartRate": 156
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-09-08-1",
+      "date": "2026-09-08",
+      "sport": "cycling",
+      "title": "Laktát-küszöb kerékpáros intervallumok",
+      "durationMinutes": 90,
+      "rpe": 8,
+      "load": 720,
+      "avgHeartRate": 168,
+      "maxHeartRate": 186
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-09-08-2",
+      "date": "2026-09-08",
+      "sport": "strength",
+      "title": "Preventív törzs- és farizom erősítés",
+      "durationMinutes": 35,
+      "rpe": 5,
+      "load": 175,
+      "avgHeartRate": 118,
+      "maxHeartRate": 135
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-09-09-1",
+      "date": "2026-09-09",
+      "sport": "running",
+      "title": "Pálya tempófutás (Threshold)",
+      "durationMinutes": 60,
+      "rpe": 8.5,
+      "load": 510,
+      "avgHeartRate": 172,
+      "maxHeartRate": 190
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-09-10-1",
+      "date": "2026-09-10",
+      "sport": "strength",
+      "title": "Funkcionális erő & törzs-stabilitás",
+      "durationMinutes": 50,
+      "rpe": 6.5,
+      "load": 325,
+      "avgHeartRate": 125,
+      "maxHeartRate": 143
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-09-11-1",
+      "date": "2026-09-11",
+      "sport": "swimming",
+      "title": "5 x 400m Küszöb sorozat (CSS)",
+      "durationMinutes": 90,
+      "rpe": 8,
+      "load": 720,
+      "avgHeartRate": 166,
+      "maxHeartRate": 184
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-09-12-1",
+      "date": "2026-09-12",
+      "sport": "cycling",
+      "title": "Hosszú állóképességi országúti tekerés",
+      "durationMinutes": 180,
+      "rpe": 6,
+      "load": 1080,
+      "avgHeartRate": 145,
+      "maxHeartRate": 163
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-09-13-1",
+      "date": "2026-09-13",
+      "sport": "running",
+      "title": "Aerob alapozó futás",
+      "durationMinutes": 60,
+      "rpe": 5,
+      "load": 300,
+      "avgHeartRate": 142,
+      "maxHeartRate": 160
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-09-14-1",
+      "date": "2026-09-14",
+      "sport": "swimming",
+      "title": "Technikai és aerob úszóblokk",
+      "durationMinutes": 75,
+      "rpe": 5.5,
+      "load": 413,
+      "avgHeartRate": 138,
+      "maxHeartRate": 156
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-09-15-1",
+      "date": "2026-09-15",
+      "sport": "cycling",
+      "title": "Laktát-küszöb kerékpáros intervallumok",
+      "durationMinutes": 90,
+      "rpe": 8,
+      "load": 720,
+      "avgHeartRate": 168,
+      "maxHeartRate": 186
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-09-15-2",
+      "date": "2026-09-15",
+      "sport": "strength",
+      "title": "Preventív törzs- és farizom erősítés",
+      "durationMinutes": 35,
+      "rpe": 5,
+      "load": 175,
+      "avgHeartRate": 118,
+      "maxHeartRate": 135
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-09-16-1",
+      "date": "2026-09-16",
+      "sport": "running",
+      "title": "Pálya tempófutás (Threshold)",
+      "durationMinutes": 60,
+      "rpe": 8.5,
+      "load": 510,
+      "avgHeartRate": 172,
+      "maxHeartRate": 190
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-09-17-1",
+      "date": "2026-09-17",
+      "sport": "strength",
+      "title": "Funkcionális erő & törzs-stabilitás",
+      "durationMinutes": 50,
+      "rpe": 6.5,
+      "load": 325,
+      "avgHeartRate": 125,
+      "maxHeartRate": 143
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-09-18-1",
+      "date": "2026-09-18",
+      "sport": "swimming",
+      "title": "5 x 400m Küszöb sorozat (CSS)",
+      "durationMinutes": 90,
+      "rpe": 8,
+      "load": 720,
+      "avgHeartRate": 166,
+      "maxHeartRate": 184
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-09-19-1",
+      "date": "2026-09-19",
+      "sport": "cycling",
+      "title": "Hosszú állóképességi országúti tekerés",
+      "durationMinutes": 180,
+      "rpe": 6,
+      "load": 1080,
+      "avgHeartRate": 145,
+      "maxHeartRate": 163
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-09-21-1",
+      "date": "2026-09-21",
+      "sport": "swimming",
+      "title": "Technikai és aerob úszóblokk",
+      "durationMinutes": 75,
+      "rpe": 5.5,
+      "load": 413,
+      "avgHeartRate": 138,
+      "maxHeartRate": 156
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-09-22-1",
+      "date": "2026-09-22",
+      "sport": "cycling",
+      "title": "Laktát-küszöb kerékpáros intervallumok",
+      "durationMinutes": 90,
+      "rpe": 8,
+      "load": 720,
+      "avgHeartRate": 168,
+      "maxHeartRate": 186
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-09-22-2",
+      "date": "2026-09-22",
+      "sport": "strength",
+      "title": "Preventív törzs- és farizom erősítés",
+      "durationMinutes": 35,
+      "rpe": 5,
+      "load": 175,
+      "avgHeartRate": 118,
+      "maxHeartRate": 135
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-09-23-1",
+      "date": "2026-09-23",
+      "sport": "running",
+      "title": "Pálya tempófutás (Threshold)",
+      "durationMinutes": 60,
+      "rpe": 8.5,
+      "load": 510,
+      "avgHeartRate": 172,
+      "maxHeartRate": 190
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-09-24-1",
+      "date": "2026-09-24",
+      "sport": "strength",
+      "title": "Funkcionális erő & törzs-stabilitás",
+      "durationMinutes": 50,
+      "rpe": 6.5,
+      "load": 325,
+      "avgHeartRate": 125,
+      "maxHeartRate": 143
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-09-25-1",
+      "date": "2026-09-25",
+      "sport": "swimming",
+      "title": "5 x 400m Küszöb sorozat (CSS)",
+      "durationMinutes": 90,
+      "rpe": 8,
+      "load": 720,
+      "avgHeartRate": 166,
+      "maxHeartRate": 184
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-09-26-1",
+      "date": "2026-09-26",
+      "sport": "cycling",
+      "title": "Hosszú állóképességi országúti tekerés",
+      "durationMinutes": 180,
+      "rpe": 6,
+      "load": 1080,
+      "avgHeartRate": 145,
+      "maxHeartRate": 163
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-09-27-1",
+      "date": "2026-09-27",
+      "sport": "running",
+      "title": "Aerob alapozó futás",
+      "durationMinutes": 60,
+      "rpe": 5,
+      "load": 300,
+      "avgHeartRate": 142,
+      "maxHeartRate": 160
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-09-28-1",
+      "date": "2026-09-28",
+      "sport": "swimming",
+      "title": "Technikai és aerob úszóblokk",
+      "durationMinutes": 75,
+      "rpe": 5.5,
+      "load": 413,
+      "avgHeartRate": 138,
+      "maxHeartRate": 156
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-09-29-1",
+      "date": "2026-09-29",
+      "sport": "cycling",
+      "title": "Laktát-küszöb kerékpáros intervallumok",
+      "durationMinutes": 90,
+      "rpe": 8,
+      "load": 720,
+      "avgHeartRate": 168,
+      "maxHeartRate": 186
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-09-29-2",
+      "date": "2026-09-29",
+      "sport": "strength",
+      "title": "Preventív törzs- és farizom erősítés",
+      "durationMinutes": 35,
+      "rpe": 5,
+      "load": 175,
+      "avgHeartRate": 118,
+      "maxHeartRate": 135
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-09-30-1",
+      "date": "2026-09-30",
+      "sport": "running",
+      "title": "Pálya tempófutás (Threshold)",
+      "durationMinutes": 60,
+      "rpe": 8.5,
+      "load": 510,
+      "avgHeartRate": 172,
+      "maxHeartRate": 190
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-10-01-1",
+      "date": "2026-10-01",
+      "sport": "strength",
+      "title": "Funkcionális erő & törzs-stabilitás",
+      "durationMinutes": 50,
+      "rpe": 6.5,
+      "load": 325,
+      "avgHeartRate": 125,
+      "maxHeartRate": 143
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-10-02-1",
+      "date": "2026-10-02",
+      "sport": "swimming",
+      "title": "5 x 400m Küszöb sorozat (CSS)",
+      "durationMinutes": 90,
+      "rpe": 8,
+      "load": 720,
+      "avgHeartRate": 166,
+      "maxHeartRate": 184
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-10-03-1",
+      "date": "2026-10-03",
+      "sport": "cycling",
+      "title": "Hosszú állóképességi országúti tekerés",
+      "durationMinutes": 180,
+      "rpe": 6,
+      "load": 1080,
+      "avgHeartRate": 145,
+      "maxHeartRate": 163
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-10-05-1",
+      "date": "2026-10-05",
+      "sport": "swimming",
+      "title": "Technikai és aerob úszóblokk",
+      "durationMinutes": 75,
+      "rpe": 5.5,
+      "load": 413,
+      "avgHeartRate": 138,
+      "maxHeartRate": 156
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-10-06-1",
+      "date": "2026-10-06",
+      "sport": "cycling",
+      "title": "Laktát-küszöb kerékpáros intervallumok",
+      "durationMinutes": 90,
+      "rpe": 8,
+      "load": 720,
+      "avgHeartRate": 168,
+      "maxHeartRate": 186
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-10-06-2",
+      "date": "2026-10-06",
+      "sport": "strength",
+      "title": "Preventív törzs- és farizom erősítés",
+      "durationMinutes": 35,
+      "rpe": 5,
+      "load": 175,
+      "avgHeartRate": 118,
+      "maxHeartRate": 135
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-10-07-1",
+      "date": "2026-10-07",
+      "sport": "running",
+      "title": "Pálya tempófutás (Threshold)",
+      "durationMinutes": 60,
+      "rpe": 8.5,
+      "load": 510,
+      "avgHeartRate": 172,
+      "maxHeartRate": 190
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-10-08-1",
+      "date": "2026-10-08",
+      "sport": "strength",
+      "title": "Funkcionális erő & törzs-stabilitás",
+      "durationMinutes": 50,
+      "rpe": 6.5,
+      "load": 325,
+      "avgHeartRate": 125,
+      "maxHeartRate": 143
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-10-09-1",
+      "date": "2026-10-09",
+      "sport": "swimming",
+      "title": "5 x 400m Küszöb sorozat (CSS)",
+      "durationMinutes": 90,
+      "rpe": 8,
+      "load": 720,
+      "avgHeartRate": 166,
+      "maxHeartRate": 184
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-10-10-1",
+      "date": "2026-10-10",
+      "sport": "cycling",
+      "title": "Hosszú állóképességi országúti tekerés",
+      "durationMinutes": 180,
+      "rpe": 6,
+      "load": 1080,
+      "avgHeartRate": 145,
+      "maxHeartRate": 163
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-10-11-1",
+      "date": "2026-10-11",
+      "sport": "running",
+      "title": "Aerob alapozó futás",
+      "durationMinutes": 60,
+      "rpe": 5,
+      "load": 300,
+      "avgHeartRate": 142,
+      "maxHeartRate": 160
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-10-12-1",
+      "date": "2026-10-12",
+      "sport": "swimming",
+      "title": "Technikai és aerob úszóblokk",
+      "durationMinutes": 75,
+      "rpe": 5.5,
+      "load": 413,
+      "avgHeartRate": 138,
+      "maxHeartRate": 156
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-10-13-1",
+      "date": "2026-10-13",
+      "sport": "cycling",
+      "title": "Laktát-küszöb kerékpáros intervallumok",
+      "durationMinutes": 90,
+      "rpe": 8,
+      "load": 720,
+      "avgHeartRate": 168,
+      "maxHeartRate": 186
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-10-13-2",
+      "date": "2026-10-13",
+      "sport": "strength",
+      "title": "Preventív törzs- és farizom erősítés",
+      "durationMinutes": 35,
+      "rpe": 5,
+      "load": 175,
+      "avgHeartRate": 118,
+      "maxHeartRate": 135
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-10-14-1",
+      "date": "2026-10-14",
+      "sport": "running",
+      "title": "Pálya tempófutás (Threshold)",
+      "durationMinutes": 60,
+      "rpe": 8.5,
+      "load": 510,
+      "avgHeartRate": 172,
+      "maxHeartRate": 190
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-10-15-1",
+      "date": "2026-10-15",
+      "sport": "strength",
+      "title": "Funkcionális erő & törzs-stabilitás",
+      "durationMinutes": 50,
+      "rpe": 6.5,
+      "load": 325,
+      "avgHeartRate": 125,
+      "maxHeartRate": 143
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-10-16-1",
+      "date": "2026-10-16",
+      "sport": "swimming",
+      "title": "5 x 400m Küszöb sorozat (CSS)",
+      "durationMinutes": 90,
+      "rpe": 8,
+      "load": 720,
+      "avgHeartRate": 166,
+      "maxHeartRate": 184
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-10-17-1",
+      "date": "2026-10-17",
+      "sport": "cycling",
+      "title": "Hosszú állóképességi országúti tekerés",
+      "durationMinutes": 180,
+      "rpe": 6,
+      "load": 1080,
+      "avgHeartRate": 145,
+      "maxHeartRate": 163
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-10-19-1",
+      "date": "2026-10-19",
+      "sport": "swimming",
+      "title": "Technikai és aerob úszóblokk",
+      "durationMinutes": 75,
+      "rpe": 5.5,
+      "load": 413,
+      "avgHeartRate": 138,
+      "maxHeartRate": 156
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-10-20-1",
+      "date": "2026-10-20",
+      "sport": "cycling",
+      "title": "Laktát-küszöb kerékpáros intervallumok",
+      "durationMinutes": 90,
+      "rpe": 8,
+      "load": 720,
+      "avgHeartRate": 168,
+      "maxHeartRate": 186
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-10-20-2",
+      "date": "2026-10-20",
+      "sport": "strength",
+      "title": "Preventív törzs- és farizom erősítés",
+      "durationMinutes": 35,
+      "rpe": 5,
+      "load": 175,
+      "avgHeartRate": 118,
+      "maxHeartRate": 135
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-10-21-1",
+      "date": "2026-10-21",
+      "sport": "running",
+      "title": "Pálya tempófutás (Threshold)",
+      "durationMinutes": 60,
+      "rpe": 8.5,
+      "load": 510,
+      "avgHeartRate": 172,
+      "maxHeartRate": 190
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-10-22-1",
+      "date": "2026-10-22",
+      "sport": "strength",
+      "title": "Funkcionális erő & törzs-stabilitás",
+      "durationMinutes": 50,
+      "rpe": 6.5,
+      "load": 325,
+      "avgHeartRate": 125,
+      "maxHeartRate": 143
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-10-23-1",
+      "date": "2026-10-23",
+      "sport": "swimming",
+      "title": "5 x 400m Küszöb sorozat (CSS)",
+      "durationMinutes": 90,
+      "rpe": 8,
+      "load": 720,
+      "avgHeartRate": 166,
+      "maxHeartRate": 184
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-10-24-1",
+      "date": "2026-10-24",
+      "sport": "cycling",
+      "title": "Hosszú állóképességi országúti tekerés",
+      "durationMinutes": 180,
+      "rpe": 6,
+      "load": 1080,
+      "avgHeartRate": 145,
+      "maxHeartRate": 163
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-10-25-1",
+      "date": "2026-10-25",
+      "sport": "running",
+      "title": "Aerob alapozó futás",
+      "durationMinutes": 60,
+      "rpe": 5,
+      "load": 300,
+      "avgHeartRate": 142,
+      "maxHeartRate": 160
+    },
+    {
+      "id": "sess-demo-athlete-001-2026-10-26-1",
+      "date": "2026-10-26",
+      "sport": "swimming",
+      "title": "Technikai és aerob úszóblokk",
+      "durationMinutes": 75,
+      "rpe": 5.5,
+      "load": 413,
+      "avgHeartRate": 138,
+      "maxHeartRate": 156
+    }
+  ],
+  "nutritionDays": [
+    {
+      "date": "2026-07-29",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2789,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-07-30",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2737,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-07-31",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3338,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-08-01",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3391,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-08-02",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2873,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-08-03",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2943,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-08-04",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3570,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-08-05",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2940,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-08-06",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2868,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-08-07",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3387,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-08-08",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3336,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-08-09",
+      "dayType": "rest",
+      "caloriesTarget": 2200,
+      "caloriesActual": 2088,
+      "proteinGrams": 160,
+      "carbsGrams": 210,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-08-10",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2793,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-08-11",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3475,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-08-12",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2945,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-08-13",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2970,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-08-14",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3539,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-08-15",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3466,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-08-16",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2786,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-08-17",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2736,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-08-18",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3339,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-08-19",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2795,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-08-20",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2877,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-08-21",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3546,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-08-22",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3570,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-08-23",
+      "dayType": "rest",
+      "caloriesTarget": 2200,
+      "caloriesActual": 2288,
+      "proteinGrams": 160,
+      "carbsGrams": 210,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-08-24",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2864,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-08-25",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3384,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-08-26",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2735,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-08-27",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2740,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-08-28",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3397,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-08-29",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3479,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-08-30",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2947,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-08-31",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2970,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-09-01",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3536,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-09-02",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2862,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-09-03",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2782,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-09-04",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3334,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-09-05",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3341,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-09-06",
+      "dayType": "rest",
+      "caloriesTarget": 2200,
+      "caloriesActual": 2149,
+      "proteinGrams": 160,
+      "carbsGrams": 210,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-09-07",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2881,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-09-08",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3548,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-09-09",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2970,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-09-10",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2935,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-09-11",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3460,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-09-12",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3381,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-09-13",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2734,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-09-14",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2742,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-09-15",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3400,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-09-16",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2883,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-09-17",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2949,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-09-18",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3569,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-09-19",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3533,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-09-20",
+      "dayType": "rest",
+      "caloriesTarget": 2200,
+      "caloriesActual": 2208,
+      "proteinGrams": 160,
+      "carbsGrams": 210,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-09-21",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2779,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-09-22",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3333,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-09-23",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2743,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-09-24",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2802,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-09-25",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3484,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-09-26",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3550,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-09-27",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2969,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-09-28",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2932,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-09-29",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3456,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-09-30",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2777,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-10-01",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2733,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-10-02",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3343,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-10-03",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3404,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-10-04",
+      "dayType": "rest",
+      "caloriesTarget": 2200,
+      "caloriesActual": 2236,
+      "proteinGrams": 160,
+      "carbsGrams": 210,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-10-05",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2951,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-10-06",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3569,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-10-07",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2930,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-10-08",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2854,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-10-09",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3376,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-10-10",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3332,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-10-11",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2744,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-10-12",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2806,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-10-13",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3488,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-10-14",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2953,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-10-15",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2969,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-10-16",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3529,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-10-17",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3452,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-10-18",
+      "dayType": "rest",
+      "caloriesTarget": 2200,
+      "caloriesActual": 2124,
+      "proteinGrams": 160,
+      "carbsGrams": 210,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-10-19",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2732,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-10-20",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3345,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-10-21",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2808,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-10-22",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2890,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-10-23",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3554,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-10-24",
+      "dayType": "hard",
+      "caloriesTarget": 3450,
+      "caloriesActual": 3568,
+      "proteinGrams": 180,
+      "carbsGrams": 480,
+      "fatGrams": 75,
+      "waterLiters": 3.6
+    },
+    {
+      "date": "2026-10-25",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2927,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    },
+    {
+      "date": "2026-10-26",
+      "dayType": "moderate",
+      "caloriesTarget": 2850,
+      "caloriesActual": 2850,
+      "proteinGrams": 160,
+      "carbsGrams": 360,
+      "fatGrams": 65,
+      "waterLiters": 3
+    }
+  ],
+  "benchmarks": {
+    "vo2max": 62.4,
+    "ftpWatts": 310,
+    "lthrBpm": 172,
+    "thresholdPace": "3:45 min/km",
+    "cssPer100m": "1:22 /100m",
+    "cmjJumpCm": 44.5,
+    "trapBarDeadlift1RMKg": 165,
+    "squat1RMKg": 135
+  }
+}

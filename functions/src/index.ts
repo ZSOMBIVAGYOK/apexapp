@@ -6,6 +6,25 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 
+// In-memory rate limiting cache for Cloud Functions
+const rateLimitCache = new Map<string, { count: number; resetAt: number }>();
+
+export function assertRateLimit(key: string, maxRequests = 60, windowSeconds = 60): void {
+  const now = Date.now();
+  const entry = rateLimitCache.get(key);
+  if (!entry || now > entry.resetAt) {
+    rateLimitCache.set(key, { count: 1, resetAt: now + windowSeconds * 1000 });
+    return;
+  }
+  if (entry.count >= maxRequests) {
+    throw new HttpsError(
+      "resource-exhausted",
+      `Rate limit exceeded. Please wait ${Math.ceil((entry.resetAt - now) / 1000)} seconds before retrying.`
+    );
+  }
+  entry.count++;
+}
+
 // Apex Cloud Functions health check
 export const healthCheck = onRequest((request, response) => {
   logger.info("Apex Health Check pinged", { structuredData: true });
@@ -461,6 +480,15 @@ export const deleteUserData = onCall(async (request) => {
     }
     await batch.commit();
 
+    // 3b. Delete user files from Cloud Storage
+    try {
+      const bucket = admin.storage().bucket();
+      await bucket.deleteFiles({ prefix: `users/${uid}/` });
+      await bucket.deleteFiles({ prefix: `athletes/${uid}/` });
+    } catch (storageErr) {
+      logger.warn(`Storage cleanup note for ${uid}:`, storageErr);
+    }
+
     // 4. Delete user account from Firebase Auth
     try {
       await admin.auth().deleteUser(uid);
@@ -478,6 +506,56 @@ export const deleteUserData = onCall(async (request) => {
     throw new HttpsError(
       "internal",
       "Failed to permanently delete user data. Please try again or contact support."
+    );
+  }
+});
+
+/**
+ * Complete Data Portability Export (GDPR Article 20).
+ * Compiles athlete profile, daily check-ins, sessions, nutrition, and relationships into JSON.
+ */
+export const exportUserData = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError(
+      "unauthenticated",
+      "Authentication is required to export user data."
+    );
+  }
+  const uid = request.auth.uid;
+  assertRateLimit(`export_${uid}`, 5, 3600);
+
+  const db = admin.firestore();
+  try {
+    const userDoc = await db.collection("users").doc(uid).get();
+    const athleteDoc = await db.collection("athletes").doc(uid).get();
+
+    const daysSnap = await db.collection("athletes").doc(uid).collection("days").limit(365).get();
+    const sessionsSnap = await db.collection("athletes").doc(uid).collection("sessions").limit(1000).get();
+    const plannedSnap = await db.collection("athletes").doc(uid).collection("plannedWorkouts").limit(500).get();
+    const nutritionSnap = await db.collection("athletes").doc(uid).collection("nutritionDays").limit(365).get();
+    const injuriesSnap = await db.collection("athletes").doc(uid).collection("injuries").get();
+    const measurementsSnap = await db.collection("athletes").doc(uid).collection("measurements").get();
+    const relsSnap = await db.collection("relationships").where("athleteId", "==", uid).get();
+
+    return {
+      exportedAt: new Date().toISOString(),
+      formatVersion: "1.0.0",
+      compliance: "GDPR Article 20 - Right to Data Portability",
+      user: userDoc.data() || null,
+      athlete: athleteDoc.data() || null,
+      days: daysSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+      sessions: sessionsSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+      plannedWorkouts: plannedSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+      nutritionDays: nutritionSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+      injuries: injuriesSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+      measurements: measurementsSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+      relationships: relsSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
+    };
+  } catch (error: unknown) {
+    logger.error(`Error exporting user data for ${uid}:`, error);
+    throw new HttpsError(
+      "internal",
+      "Failed to compile user export package. Please try again."
     );
   }
 });

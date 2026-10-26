@@ -5,6 +5,8 @@ import { useAuthStore } from "@features/auth/authStore";
 import { useThemeStore } from "@shared/lib/theme/themeStore";
 import { callDeleteUserData } from "@features/auth/authService";
 import { DataMode, SupportMode, UnitSystem } from "@shared/types";
+import { useNotificationStore } from "@shared/lib/notifications/notificationStore";
+import { getAllLocalDailies, getLocalSessions } from "@shared/lib/offline/offlineStorage";
 import {
   Card,
   Button,
@@ -43,13 +45,8 @@ export const SettingsPage: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
-  // Notification state
-  const notifications = user?.notifications || {
-    morningReminder: true,
-    workoutReminder: true,
-    coachFeedback: true,
-    weeklyReport: false
-  };
+  // Notifications from store
+  const { settings: notifSettings, updateSettings: updateNotifSettings } = useNotificationStore();
 
   const handleLanguageChange = (lang: string) => {
     i18n.changeLanguage(lang);
@@ -100,23 +97,19 @@ export const SettingsPage: React.FC = () => {
     await updateProfile({ supportMode: updated });
   };
 
-  const handleToggleNotification = async (key: keyof typeof notifications) => {
-    const updated = {
-      ...notifications,
-      [key]: !notifications[key]
-    };
-    await updateProfile({ notifications: updated });
-  };
-
   // Export User Data as JSON
   const handleExportData = () => {
     setIsExporting(true);
     try {
+      const athleteId = user?.uid || "demo-athlete-001";
       const exportPayload = {
         exportedAt: new Date().toISOString(),
-        version: "1.0.0",
+        version: "1.1.0",
         app: "Apex Athletic Platform",
+        compliance: "GDPR Article 20 - Right to Data Portability",
         profile: user,
+        dailies: getAllLocalDailies(athleteId),
+        trainingSessions: getLocalSessions(athleteId),
         system: {
           userAgent: navigator.userAgent,
           language: i18n.language,
@@ -428,76 +421,171 @@ export const SettingsPage: React.FC = () => {
         </Card>
       </div>
 
+      {/* Consent Version Update Banner (if version is outdated or missing) */}
+      {user?.consent?.healthData?.version !== "1.1" && (
+        <Card variant="elevated" radius="20" className="p-4 border-brand/40 bg-brand/5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <ShieldCheck className="h-5 w-5 text-brand shrink-0" />
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-13 font-bold text-text-primary">
+                  GDPR Egészségügyi Adatkezelési Szabályzat v1.1
+                </span>
+                <Badge variant="brand" size="sm">Frissítés</Badge>
+              </div>
+              <p className="text-12 text-text-secondary">
+                A legújabb adatvédelmi szabványok szerinti sportélettani biometrikus integráció.
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={async () => {
+              await updateProfile({
+                consent: {
+                  healthData: {
+                    accepted: true,
+                    version: "1.1",
+                    timestamp: new Date().toISOString()
+                  }
+                }
+              });
+              showToast({
+                title: "Hozzájárulás frissítve",
+                message: "A GDPR v1.1 szabályzat elfogadva.",
+                type: "success"
+              });
+            }}
+          >
+            Elfogadás (v1.1)
+          </Button>
+        </Card>
+      )}
+
       {/* Notifications Preferences */}
       <Card variant="surface" radius="20" className="p-6 space-y-4">
-        <div className="flex items-center gap-2 text-text-primary">
-          <Bell className="h-4 w-4 text-brand" aria-hidden="true" />
-          <h4 className="text-14 font-bold">{t("settings.notificationsTitle")}</h4>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-text-primary">
+            <Bell className="h-4 w-4 text-brand" aria-hidden="true" />
+            <h4 className="text-14 font-bold">{t("settings.notificationsTitle", "Értesítési Beállítások")}</h4>
+          </div>
+          <Badge variant="outline" size="sm">FCM Cloud Messaging</Badge>
         </div>
 
         <div className="divide-y divide-border-hairline">
+          {/* Checkin Reminder with custom time */}
+          <div className="flex items-center justify-between py-3 gap-3">
+            <div>
+              <span className="text-13 font-medium text-text-primary block">
+                {t("settings.notifMorning", "Reggeli Check-in emlékeztető")}
+              </span>
+              <span className="text-11 text-text-secondary">
+                Napi felugró értesítés a megadott időpontban
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="time"
+                value={notifSettings.checkinReminderTime}
+                onChange={(e) => updateNotifSettings({ checkinReminderTime: e.target.value })}
+                className="rounded-8 bg-surface-elevated px-2 py-1 text-12 font-mono text-text-primary border border-border-hairline"
+              />
+              <Toggle
+                checked={notifSettings.checkinReminderEnabled}
+                onChange={() => updateNotifSettings({ checkinReminderEnabled: !notifSettings.checkinReminderEnabled })}
+                label="Reggeli emlékeztető"
+              />
+            </div>
+          </div>
+
+          {/* Workout reminder */}
           <div className="flex items-center justify-between py-3">
             <div>
               <span className="text-13 font-medium text-text-primary block">
-                {t("settings.notifMorning")}
+                {t("settings.notifWorkout", "Közelgő edzés emlékeztető")}
               </span>
               <span className="text-11 text-text-secondary">
-                Ébredés utáni automatikus értesítés 07:00-kor
+                45 perccel a tervezett edzésblokk előtt
               </span>
             </div>
             <Toggle
-              checked={notifications.morningReminder}
-              onChange={() => handleToggleNotification("morningReminder")}
-              label={t("settings.notifMorning")}
+              checked={notifSettings.workoutReminderEnabled}
+              onChange={() => updateNotifSettings({ workoutReminderEnabled: !notifSettings.workoutReminderEnabled })}
+              label="Edzés emlékeztető"
             />
           </div>
 
+          {/* Coach message */}
           <div className="flex items-center justify-between py-3">
             <div>
               <span className="text-13 font-medium text-text-primary block">
-                {t("settings.notifWorkout")}
+                {t("settings.notifCoach", "Edzői üzenetek & stáb visszajelzés")}
               </span>
               <span className="text-11 text-text-secondary">
-                1 órával a tervezett edzésblokk előtt
+                Azonnali értesítés új edzői utasítás vagy stáb megjegyzés érkezésekor
               </span>
             </div>
             <Toggle
-              checked={notifications.workoutReminder}
-              onChange={() => handleToggleNotification("workoutReminder")}
-              label={t("settings.notifWorkout")}
+              checked={notifSettings.coachMessageEnabled}
+              onChange={() => updateNotifSettings({ coachMessageEnabled: !notifSettings.coachMessageEnabled })}
+              label="Edzői üzenetek"
             />
           </div>
 
+          {/* Staff alerts */}
           <div className="flex items-center justify-between py-3">
             <div>
               <span className="text-13 font-medium text-text-primary block">
-                {t("settings.notifCoach")}
+                Stáb riasztások és élettani figyelmeztetések
               </span>
               <span className="text-11 text-text-secondary">
-                Amikor az edződ módosítja a tervet vagy visszajelzést ír
+                ACWR kiugrás, alváshiány vagy sérülés kockázat észlelésekor
               </span>
             </div>
             <Toggle
-              checked={notifications.coachFeedback}
-              onChange={() => handleToggleNotification("coachFeedback")}
-              label={t("settings.notifCoach")}
+              checked={notifSettings.staffAlertsEnabled}
+              onChange={() => updateNotifSettings({ staffAlertsEnabled: !notifSettings.staffAlertsEnabled })}
+              label="Stáb riasztások"
             />
           </div>
 
-          <div className="flex items-center justify-between py-3">
-            <div>
-              <span className="text-13 font-medium text-text-primary block">
-                {t("settings.notifWeekly")}
-              </span>
-              <span className="text-11 text-text-secondary">
-                Vasárnap este készülő ACWR és terhelési összegző
-              </span>
+          {/* Quiet Hours */}
+          <div className="py-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-13 font-medium text-text-primary block">
+                  Csendes órák (Quiet Hours)
+                </span>
+                <span className="text-11 text-text-secondary">
+                  Ebben az idősávban az app némítja a nem kritikus értesítéseket
+                </span>
+              </div>
+              <Toggle
+                checked={notifSettings.quietHoursEnabled}
+                onChange={() => updateNotifSettings({ quietHoursEnabled: !notifSettings.quietHoursEnabled })}
+                label="Csendes órák"
+              />
             </div>
-            <Toggle
-              checked={notifications.weeklyReport}
-              onChange={() => handleToggleNotification("weeklyReport")}
-              label={t("settings.notifWeekly")}
-            />
+
+            {notifSettings.quietHoursEnabled && (
+              <div className="flex items-center gap-2 pl-2 text-12 text-text-secondary">
+                <span>Kezdet:</span>
+                <input
+                  type="time"
+                  value={notifSettings.quietHoursStart}
+                  onChange={(e) => updateNotifSettings({ quietHoursStart: e.target.value })}
+                  className="rounded-8 bg-surface-elevated px-2 py-1 text-12 font-mono text-text-primary border border-border-hairline"
+                />
+                <span>Vége:</span>
+                <input
+                  type="time"
+                  value={notifSettings.quietHoursEnd}
+                  onChange={(e) => updateNotifSettings({ quietHoursEnd: e.target.value })}
+                  className="rounded-8 bg-surface-elevated px-2 py-1 text-12 font-mono text-text-primary border border-border-hairline"
+                />
+              </div>
+            )}
           </div>
         </div>
       </Card>

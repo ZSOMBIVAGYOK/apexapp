@@ -24,6 +24,8 @@ import { showToast } from "@shared/ui/toastStore";
 import { PwaUpdateToast } from "@shared/ui/PwaUpdateToast";
 import { PwaInstallBanner } from "@shared/ui/PwaInstallBanner";
 import { OfflineIndicator } from "@shared/ui/OfflineIndicator";
+import { NotificationCenter } from "@shared/ui/NotificationCenter";
+import { useNotificationStore } from "@shared/lib/notifications/notificationStore";
 
 export const AppLayout: React.FC = () => {
   const { i18n } = useTranslation();
@@ -35,6 +37,7 @@ export const AppLayout: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const unreadCount = useNotificationStore((s) => s.unreadCount);
 
   // Scroll listener for collapsing large title header
   useEffect(() => {
@@ -281,6 +284,19 @@ export const AppLayout: React.FC = () => {
             >
               {i18n.language.startsWith("hu") ? "HU" : "EN"}
             </button>
+            <button
+              type="button"
+              onClick={() => setShowNotifications(true)}
+              aria-label="Értesítések megnyitása"
+              className="relative h-8 w-8 rounded-12 border border-border-hairline bg-bg-surface text-text-secondary hover:text-text-primary flex items-center justify-center transition-colors"
+            >
+              <Bell className="h-4 w-4" aria-hidden="true" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-brand text-[10px] font-bold text-white shadow-sm animate-pulse">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
             <Avatar
               name={user?.displayName || "Sportoló"}
               size="sm"
@@ -477,6 +493,12 @@ export const AppLayout: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Interactive In-App Notification Center */}
+      <NotificationCenter
+        isOpen={showNotifications}
+        onClose={() => setShowNotifications(false)}
+      />
 
       {/* App-Wide Toasts & PWA Updates */}
       <ToastContainer />

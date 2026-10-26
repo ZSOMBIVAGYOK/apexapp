@@ -81,7 +81,10 @@ npm run emulators
 - `npm run dev`: Starts the Vite local development server with HMR.
 - `npm run build`: Typechecks and builds production PWA assets into `dist/`.
 - `npm run preview`: Locally previews the production build from `dist/`.
-- `npm run lint`: Runs ESLint with zero-warning threshold.
+- `npm run test`: Runs the Vitest unit test suite (133+ unit tests).
+- `npm run test:e2e`: Runs the Playwright end-to-end smoke tests.
+- `npm run seed`: Generates 90 days of realistic demo athlete, coach, and dietitian data into `docs/demo-seed-data.json`.
+- `npm run lint`: Runs ESLint with zero-warning threshold (`--max-warnings 0`).
 - `npm run typecheck`: Runs strict TypeScript type checks across app and node configs.
 - `npm run emulators`: Starts the full Firebase Emulator Suite.
 - `npm run deploy`: Deploys Hosting, Firestore rules/indexes, Storage rules, and Functions to Firebase.
@@ -98,17 +101,27 @@ npm run emulators
 
 ## 🏛 Feature Architecture
 
-- `src/app`: Application bootstrapping, Router, QueryClient, global CSS, layout shell.
+- `src/app`: Application bootstrapping, Router, QueryClient, global CSS, layout shell with interactive Notification Center.
 - `src/features/auth`: Authentication state (Zustand), Firebase Auth integration, Demo athlete mode, ProtectedRoute guard.
-- `src/features/onboarding`: Athlete profile creation, sport selection, competition tier, support role configuration.
-- `src/features/today`: Morning overview dashboard, Readiness Index, key biometrics, daily planned workout, hydration.
-- `src/features/checkin`: Morning subjective check-in (sleep, soreness, mental stress, energy, HRV, resting HR).
-- `src/features/training`: Workout periodization, session logging, RPE intensity rating, completion toggles.
-- `src/features/nutrition`: Target vs. consumed calories, macronutrient balance (protein/carbs/fat), hydration logging.
-- `src/features/devices`: Biometric device connections (Garmin, WHOOP, Apple Health, Polar Flow) with manual sync triggers.
-- `src/features/coach`: Support staff directory, role assignments, feedback messaging, and specialist invitations.
-- `src/features/insights`: Performance analytics, Acute:Chronic Workload Ratio (ACWR) safety index, Recharts visualizations.
-- `src/features/settings`: Language selector (HU/EN), theme, runtime emulator status, profile settings.
-- `src/shared/ui`: Reusable WCAG AA components, PWA install banner, update toast, offline indicator, 404 page.
-- `src/shared/lib`: Firebase clients, i18next configuration, PWA hooks, styling utilities.
-- `functions/src`: Cloud Functions backend.
+- `src/features/onboarding`: Athlete profile creation, sport selection, competition tier, support role configuration, GDPR health consent.
+- `src/features/today`: Morning overview dashboard, Readiness Index ring with driver explanations, adaptive workout card with red/amber intensity reduction suggestions, nutrition targets vs consumed, next session fuelling hint, and quick action bar.
+- `src/features/checkin`: Morning subjective check-in (sleep, Hooper wellness sliders, interactive body soreness map, HRV, resting HR).
+- `src/features/training`: Calendar, season periodization, workout builder with structured blocks and strength exercises, session-RPE manual logger, thresholds and HR/power zones.
+- `src/features/nutrition`: Mifflin-St Jeor / Cunningham energy targets, periodized carbohydrate guidelines, USDA/Open Food Facts proxy, quick & meal-builder logging, session fuelling engine.
+- `src/features/devices`: Device integration layer with normalized schemas, FIT/TCX/GPX/CSV file import pipeline, and Garmin, WHOOP, Polar, and Oura adapters.
+- `src/features/coach`: Multi-athlete roster dashboard with attention-needed section, permission-gated detail views, clinical alerts engine, bulk assignment and week-copy tools, and dual-role switcher.
+- `src/features/insights`: Rule-based automated weekly review text, sleep vs readiness and load vs soreness correlation charts, tests & records dashboard (VO2max, FTP, LTHR, CSS, CMJ, 1RM), and A-race countdown timer.
+- `src/features/settings`: Language selector (HU/EN), theme toggle, units, data mode, support mode, FCM notification preferences (time picker, quiet hours, category toggles), GDPR Article 20 JSON data export, and permanent account erasure.
+- `src/shared/ui`: Reusable WCAG AA components, Notification Center, body soreness map, PWA install banner, update toast, offline indicator.
+- `src/shared/lib`: Pure engines (readiness, load, periodization, nutrition, alerts, weekly review), Firebase clients, i18next configuration.
+- `functions/src`: Cloud Functions backend with rate limiting, input validation, scheduled alerts check, file parser, and food proxy.
+
+---
+
+## 📚 Documentation
+
+- [Project Context & Architectural Decisions](docs/PROJECT_CONTEXT.md)
+- [Firestore Data Model & Security Rules](docs/DATA_MODEL.md)
+- [Device Integrations Architecture](docs/INTEGRATIONS.md)
+- [Future Roadmap & Next Steps](docs/NEXT_STEPS.md)
+

@@ -47,3 +47,23 @@ export const getCloudMessaging = async () => {
   }
   return null;
 };
+
+// App Check initialization (reCAPTCHA Enterprise / Debug Token)
+export const initAppCheck = () => {
+  if (typeof window === "undefined") return null;
+  const siteKey = import.meta.env.VITE_RECAPTCHA_ENTERPRISE_KEY;
+  if (!siteKey) return null;
+  try {
+    // Dynamic import to keep main bundle lean
+    import("firebase/app-check").then(({ initializeAppCheck, ReCaptchaEnterpriseProvider }) => {
+      initializeAppCheck(app, {
+        provider: new ReCaptchaEnterpriseProvider(siteKey),
+        isTokenAutoRefreshEnabled: true
+      });
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn("App Check initialization error:", err);
+  }
+  return null;
+};

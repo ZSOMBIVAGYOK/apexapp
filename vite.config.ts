@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 import path from "path";
@@ -122,5 +122,9 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true
+  },
+  test: {
+    globals: true,
+    exclude: ["**/node_modules/**", "**/dist/**", "**/e2e/**"]
   }
 });
