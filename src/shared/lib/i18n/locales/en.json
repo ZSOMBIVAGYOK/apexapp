@@ -360,6 +360,48 @@
     "reloadBtn": "Update & Reload",
     "offlineBanner": "Offline mode: displaying cached data."
   },
+  "sharing": {
+    "title": "Who Sees What? (Sharing Settings)",
+    "subtitle": "The athlete owns all data. Coaches and specialists see only what you explicitly grant, per module.",
+    "corePrincipleTitle": "Core Principle (Zero-Trust Athlete Ownership)",
+    "corePrincipleDesc": "Your preparation data belongs solely to you. Staff members only see modules you explicitly enable. Coaches cannot access the health module (injuries, medical notes) unless you explicitly grant it.",
+    "activeStaff": "Connected Staff & Specialists",
+    "noStaff": "You currently have no connected coaches or specialists.",
+    "inviteBtn": "Invite Coach / Specialist",
+    "healthNotice": "Special protection: the health module (injuries, diagnostics, medical notes) is strictly blocked unless explicitly enabled.",
+    "modules": {
+      "training": "Training & Periodization",
+      "recovery": "Recovery & Check-in",
+      "nutrition": "Nutrition & Diet",
+      "health": "Health & Injuries",
+      "devices": "Connected Devices",
+      "messages": "Direct Messages"
+    },
+    "levels": {
+      "none": "Blocked",
+      "read": "Read",
+      "write": "Write"
+    },
+    "actions": {
+      "save": "Save Changes",
+      "saved": "Permissions updated successfully!",
+      "revoke": "Instant Revoke",
+      "auditLog": "Audit Log"
+    },
+    "revokeConfirmTitle": "Revoke All Access?",
+    "revokeConfirmDesc": "The staff member will immediately lose access to all your data. This revocation is recorded in your audit log.",
+    "revokedSuccess": "Access revoked immediately!",
+    "auditLogTitle": "Permission Audit Log",
+    "auditLogDesc": "Immutable, timestamped record of all permission changes, acceptances, and revocations.",
+    "noAuditLogs": "No permission changes recorded yet.",
+    "inviteModalTitle": "Invite Support Staff",
+    "invitePresetLabel": "Select Role / Discipline (Automatic Preset):",
+    "generateCodeBtn": "Generate Invite Code",
+    "codeGeneratedTitle": "Invite Code Ready",
+    "codeGeneratedDesc": "Share this code with your coach or specialist. The code is valid for 7 days.",
+    "copyCode": "Copy Code",
+    "copied": "Copied to clipboard!"
+  },
   "notFound": {
     "title": "Page Not Found (404)",
     "desc": "The requested route does not exist on the Apex platform.",

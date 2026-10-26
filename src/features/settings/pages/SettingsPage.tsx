@@ -29,7 +29,8 @@ import {
   ExternalLink,
   ShieldCheck,
   AlertTriangle,
-  Flame
+  Flame,
+  ChevronRight
 } from "lucide-react";
 
 export const SettingsPage: React.FC = () => {
@@ -255,6 +256,40 @@ export const SettingsPage: React.FC = () => {
               {t("common.logout")}
             </Button>
           </div>
+        </div>
+      </Card>
+
+      {/* Sharing & Staff Access: "Ki mit lát?" */}
+      <Card variant="surface" radius="20" className="p-6 border border-brand/20 bg-brand/5 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-12 bg-brand text-white">
+              <ShieldCheck className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-16 font-bold text-text-primary">
+                  {t("sharing.title")}
+                </h3>
+                <Badge variant="brand" size="sm">
+                  Zero-Trust
+                </Badge>
+              </div>
+              <p className="text-12 text-text-secondary mt-1 max-w-xl">
+                {t("sharing.subtitle")}
+              </p>
+            </div>
+          </div>
+
+          <Link to="/settings/sharing" className="shrink-0">
+            <Button
+              variant="primary"
+              size="sm"
+              rightIcon={<ChevronRight className="h-4 w-4" />}
+            >
+              Kezelés & Szabályozás
+            </Button>
+          </Link>
         </div>
       </Card>
 

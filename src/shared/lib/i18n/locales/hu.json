@@ -360,6 +360,48 @@
     "reloadBtn": "Frissítés & Újratöltés",
     "offlineBanner": "Offline üzemmód: korábban betöltött adatok aktívak."
   },
+  "sharing": {
+    "title": "Ki mit lát? (Megosztási Beállítások)",
+    "subtitle": "A sportoló tulajdonolja az adatait. Bármely hozzáférés azonnal módosítható vagy visszavonható.",
+    "corePrincipleTitle": "Adattulajdonlási Alapelv (Zero-Trust Athlete Ownership)",
+    "corePrincipleDesc": "A felkészülési adataid kizárólag a tiéd. A szakemberek csak azokat a modulokat láthatják, amelyeket kifejezetten engedélyezel. Az edzők nem láthatják az egészségügyi modulodat (sérülések, orvosi adatok), kivéve ha kifejezetten engedélyezed.",
+    "activeStaff": "Csatlakoztatott stáb & szakemberek",
+    "noStaff": "Jelenleg még nem csatlakoztattál edzőt vagy szakembert.",
+    "inviteBtn": "Új edző / szakember meghívása",
+    "healthNotice": "Különleges védelem: az egészségügyi modul (sérülések, vizsgálatok, orvosi jegyzetek) alapértelmezetten le van tiltva.",
+    "modules": {
+      "training": "Edzéstervezés",
+      "recovery": "Regeneráció & Check-in",
+      "nutrition": "Táplálkozás & Étrend",
+      "health": "Egészség & Sérülések",
+      "devices": "Okoseszközök",
+      "messages": "Belső üzenetküldés"
+    },
+    "levels": {
+      "none": "Tiltva",
+      "read": "Olvasás",
+      "write": "Írás"
+    },
+    "actions": {
+      "save": "Módosítások mentése",
+      "saved": "Hozzáférések sikeresen frissítve!",
+      "revoke": "Azonnali visszavonás",
+      "auditLog": "Audit napló"
+    },
+    "revokeConfirmTitle": "Biztosan visszavonod a hozzáférést?",
+    "revokeConfirmDesc": "A szakember minden modulhoz azonnal elveszíti a hozzáférést. A visszavonás bekerül a nyilvános audit naplódba.",
+    "revokedSuccess": "Hozzáférés azonnal visszavonva!",
+    "auditLogTitle": "Jogosultsági Audit Napló",
+    "auditLogDesc": "Megváltoztathatatlan időbélyeges napló a jogosultságok alakulásáról.",
+    "noAuditLogs": "Még nem történt módosítás a kapcsolatban.",
+    "inviteModalTitle": "Új Stáb Meghívása",
+    "invitePresetLabel": "Válassz szakmai szerepkört (Automatikus preset):",
+    "generateCodeBtn": "Meghívókód generálása",
+    "codeGeneratedTitle": "Meghívókód elkészült",
+    "codeGeneratedDesc": "Add át a kódot az edződnek vagy szakemberednek. A kód 7 napig érvényes.",
+    "copyCode": "Kód másolása",
+    "copied": "Kód kimásolva a vágólapra!"
+  },
   "notFound": {
     "title": "Az oldal nem található (404)",
     "desc": "A keresett útvonal nem létezik az Apex platformon.",

@@ -146,3 +146,5 @@ export interface SpecialistStaff {
   avatarUrl?: string;
   status: "active" | "invited";
 }
+
+export * from "./dataModel";

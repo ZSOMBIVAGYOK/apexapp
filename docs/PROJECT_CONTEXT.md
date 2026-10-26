@@ -170,13 +170,13 @@ Every screen is required to support three states:
 |---|---|---|---|
 | **Stage 1** | **Foundation & Scaffold** | Project scaffold, ESLint, Prettier, path aliases, Firebase config & emulators, PWA manifest, service worker caching, offline fallback, lazy routing shell, Hungarian/English i18n, and WCAG AA mobile-first UI shell. | **Completed** |
 | **Stage 2** | **Design System & Cockpit App Shell** | Complete design tokens (Dark `#0B0C0F` default, Light `#F5F6F8`), 26 accessible components, Apple-clean cockpit layout, mobile 5-tab bar with collapsing header, desktop sidebar (>=1024px) with search & notifications, role-aware navigation (Athlete vs Coach/Specialist), dev-only `/design` styleguide. | **Completed** |
-| **Stage 3** | **Authentication, Multi-Role Profiles & Onboarding** | Firebase Auth (Email/Pass, Google, Apple), session persistence, localized error codes, multi-role user profile in Firestore (`users/{uid}`), 7-step resumable onboarding state machine with Vitest unit tests, mandatory GDPR Art. 9 health-data consent, adaptive UI via `useAppMode()`, extended settings with units, live mode changers, JSON data export, and Cloud Function `deleteUserData` account erasure. | **Completed (Current)** |
-| **Stage 4** | **Morning Check-in & Readiness Engine** | Recovery score calculation engine, HRV and resting HR integration, daily subjective fatigue markers, persistent Firestore check-in collection. | Upcoming |
-| **Stage 5** | **Training Engine & Periodization** | Structured training blocks, interval timer, mechanical volume calculation, session completion logs, RPE-based load adjustment. | Upcoming |
-| **Stage 6** | **Nutrition & Hydration Tracking** | Macronutrient distribution, pre/post workout nutrient timing, hydration progress logger with custom water volume increments. | Upcoming |
-| **Stage 7** | **Wearable Devices & Sensor Sync** | Webhook and OAuth integrations with Garmin Connect, WHOOP 4.0, Apple HealthKit, and Polar Flow; background biometric syncing. | Upcoming |
-| **Stage 8** | **Coaching Staff & Specialist Hub** | Multi-user collaboration for dietitians, physiotherapists, strength coaches, psychologists, and physicians; athlete note sharing and invitation workflows. | Upcoming |
-| **Stage 9** | **Performance Analytics & ACWR Engine** | Acute:Chronic Workload Ratio (ACWR) safety index calculation, injury risk forecasting models, advanced Recharts trend graphs. | Upcoming |
+| **Stage 3** | **Authentication, Multi-Role Profiles & Onboarding** | Firebase Auth (Email/Pass, Google, Apple), session persistence, localized error codes, multi-role user profile in Firestore (`users/{uid}`), 7-step resumable onboarding state machine with Vitest unit tests, mandatory GDPR Art. 9 health-data consent, adaptive UI via `useAppMode()`, extended settings with units, live mode changers, JSON data export, and Cloud Function `deleteUserData` account erasure. | **Completed** |
+| **Stage 4** | **Firestore Data Model, Security Rules & Sharing System** | Granular data model (`athletes/{id}/*`, `relationships/{id}`, `threads`, `invites`), standard record metadata (`source`, `confidence`), strict `firestore.rules` denying by default, zero-trust athlete ownership, 40 unit tests, permission presets (Coach, Dietitian, Physio, Strength, Psychologist, Physician), Cloud Functions (`createInvite`, `acceptInvite`, `updatePermissions`, `revokeAccess`), "Ki mit lát?" UI screen with audit log drawer. Documented in `docs/DATA_MODEL.md`. | **Completed (Current)** |
+| **Stage 5** | **Morning Check-in & Readiness Engine** | Recovery score calculation engine, HRV and resting HR integration, daily subjective fatigue markers, persistent Firestore check-in collection. | Upcoming |
+| **Stage 6** | **Training Engine & Periodization** | Structured training blocks, interval timer, mechanical volume calculation, session completion logs, RPE-based load adjustment. | Upcoming |
+| **Stage 7** | **Nutrition & Hydration Tracking** | Macronutrient distribution, pre/post workout nutrient timing, hydration progress logger with custom water volume increments. | Upcoming |
+| **Stage 8** | **Wearable Devices & Sensor Sync** | Webhook and OAuth integrations with Garmin Connect, WHOOP 4.0, Apple HealthKit, and Polar Flow; background biometric syncing. | Upcoming |
+| **Stage 9** | **Coaching Staff & Specialist Hub** | Multi-user collaboration for dietitians, physiotherapists, strength coaches, psychologists, and physicians; athlete note sharing and invitation workflows. | Upcoming |
 | **Stage 10** | **Push Notifications, Hardening & Deployment** | Firebase Cloud Messaging (FCM) web push notifications, automated daily check-in reminders, scheduled weekly digests via Cloud Functions, security auditing, and production deployment. | Upcoming |
 
 ---
@@ -220,5 +220,45 @@ Every screen is required to support three states:
 - **Settings:** Live theme switch (Dark / Light / System), language switch (HU / EN), measurement units (Metric / Imperial), live data/support mode toggles, and notification preferences.
 - **GDPR Art. 20 Data Portability:** Downloadable JSON export containing full profile, settings, and telemetry history.
 - **GDPR Art. 17 Right to Erasure:** Dangerous zone confirmation dialog calls `deleteUserData` Cloud Function, recursively wiping Firestore documents, subcollections, collaborations, and Firebase Auth record.
+
+---
+
+## 8. Stage 4 Implementation Details & Data Governance
+
+### A. Granular Data Model & Provenance
+- Detailed in [docs/DATA_MODEL.md](file:///Users/zsombi/Downloads/oly/docs/DATA_MODEL.md).
+- Isolated root document and subcollections under `athletes/{athleteId}`:
+  - `days/{yyyy-MM-dd}`: Recovery & morning check-in aggregates
+  - `sessions/{sessionId}`: Completed training sessions with intervals
+  - `plannedWorkouts/{workoutId}`: Prescribed workouts
+  - `nutritionDays/{date}` & `entries/{entryId}`: Macros & meals
+  - `injuries/{injuryId}`: Musculoskeletal injuries (**HEALTH** module)
+  - `measurements/{measurementId}`: Lab tests & body composition (**HEALTH** module)
+  - `notes/{noteId}`: Confidential consultations (**HEALTH** module)
+  - `devices/{deviceId}`: Hardware sensors
+- Every data record enforces `source`, `confidence` (0-1), `createdAt`, `updatedAt`, `updatedBy`.
+
+### B. Security Rules & Zero-Trust Governance
+- Deny by default (`firestore.rules`).
+- The athlete owns their entire data tree (`athletes/{athleteId}/**`).
+- Access for coaches and specialists is strictly granted on a per-module basis via `relationships/{athleteId}_{memberId}`.
+- Coaches do NOT see the `health` module (injuries, measurements, notes) unless explicitly granted.
+- Members cannot elevate their own permissions (enforced by security rules).
+- 40 unit tests verifying all security rules in `src/shared/lib/sharing/rules.test.ts`.
+
+### C. Cloud Functions for Access Management
+- `createInvite`: Athlete generates 7-day cryptographic invite codes (`APX-XXXXX`) with role presets.
+- `acceptInvite`: Member accepts invite, establishing the active relationship and logging the audit event.
+- `updatePermissions`: Athlete modifies module permissions, appending a diff to the audit log.
+- `revokeAccess`: Athlete instantly revokes access, setting all permissions to `'none'` and recording the revocation.
+
+### D. "Ki mit lát?" (Who Sees What) UI
+- Dedicated screen at `/settings/sharing` ([SharingSettingsPage.tsx](file:///Users/zsombi/Downloads/oly/src/features/settings/pages/SharingSettingsPage.tsx)):
+  - Zero-Trust ownership banner
+  - Connected staff cards with per-module `[none | read | write]` SegmentedControls
+  - Special lock indicator and warning on the Health module
+  - Instant Revoke confirmation dialog
+  - Audit Log drawer displaying immutable history of permission modifications
+  - Multi-discipline invite modal with automatic presets (Coach, Dietitian, Physio, Strength, Psychologist, Physician)
 
 > **Requirement:** At the completion of each subsequent stage, this document must be updated with the stage's achievements, architectural decisions, and updated status.

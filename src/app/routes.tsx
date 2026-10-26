@@ -18,6 +18,7 @@ const DevicesPage = lazy(() => import("@features/devices/pages/DevicesPage"));
 const CoachPage = lazy(() => import("@features/coach/pages/CoachPage"));
 const InsightsPage = lazy(() => import("@features/insights/pages/InsightsPage"));
 const SettingsPage = lazy(() => import("@features/settings/pages/SettingsPage"));
+const SharingSettingsPage = lazy(() => import("@features/settings/pages/SharingSettingsPage"));
 const DesignSystemPage = lazy(() => import("@features/design/pages/DesignSystemPage"));
 
 const SuspenseFallback: React.FC = () => (
@@ -127,6 +128,14 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <SettingsPage />
+          </Suspense>
+        )
+      },
+      {
+        path: "settings/sharing",
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <SharingSettingsPage />
           </Suspense>
         )
       },
