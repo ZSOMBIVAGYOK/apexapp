@@ -25,7 +25,8 @@ export interface AcceptInviteResponse {
 }
 
 /**
- * Creates an invite for a coach or specialist
+ * Creates an invite code for a coach or specialist via Cloud Function.
+ * Returns an alphanumeric code (e.g., APX-XXXXX) valid for 7 days.
  */
 export const createSharingInvite = async (params: {
   memberRole: MemberRole;
@@ -39,7 +40,8 @@ export const createSharingInvite = async (params: {
 };
 
 /**
- * Accepts an invitation code
+ * Accepts and redeems an invitation code via Cloud Function with an atomic transaction.
+ * Establishes an 'active' relationship and writes an audit log.
  */
 export const acceptSharingInvite = async (code: string): Promise<AcceptInviteResponse> => {
   const fn = httpsCallable<{ code: string }, AcceptInviteResponse>(functions, "acceptInvite");
@@ -48,7 +50,8 @@ export const acceptSharingInvite = async (code: string): Promise<AcceptInviteRes
 };
 
 /**
- * Updates permissions for an existing relationship
+ * Updates module permissions for an existing relationship via Cloud Function.
+ * Only the athlete can call this. Writes old/new values to the audit log.
  */
 export const updateMemberPermissions = async (
   relId: string,
@@ -64,7 +67,9 @@ export const updateMemberPermissions = async (
 };
 
 /**
- * Revokes access instantly for a coach or specialist
+ * Revokes access instantly for a relationship via Cloud Function.
+ * Callable by either the athlete or the member leaving. Sets status to 'revoked'
+ * and all module permissions to 'none'.
  */
 export const revokeMemberAccess = async (
   relId: string,
@@ -79,7 +84,7 @@ export const revokeMemberAccess = async (
 };
 
 /**
- * Fetches all sharing relationships for an athlete
+ * Fetches all sharing relationships for an athlete (read-only client query).
  */
 export const fetchAthleteRelationships = async (
   athleteId: string
@@ -91,14 +96,31 @@ export const fetchAthleteRelationships = async (
     );
     const snap = await getDocs(q);
     return snap.docs.map((docSnap) => docSnap.data() as SharingRelationship);
-  } catch (err) {
-    // If offline or permission error, return empty
+  } catch {
     return [];
   }
 };
 
 /**
- * Fetches the audit log entries for a relationship
+ * Fetches all sharing relationships where user is a staff member.
+ */
+export const fetchMemberRelationships = async (
+  memberId: string
+): Promise<SharingRelationship[]> => {
+  try {
+    const q = query(
+      collection(firestore, "relationships"),
+      where("memberId", "==", memberId)
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map((docSnap) => docSnap.data() as SharingRelationship);
+  } catch {
+    return [];
+  }
+};
+
+/**
+ * Fetches the audit log entries for a relationship (read-only client query).
  */
 export const fetchRelationshipAuditLog = async (
   relId: string
@@ -110,7 +132,7 @@ export const fetchRelationshipAuditLog = async (
     );
     const snap = await getDocs(q);
     return snap.docs.map((docSnap) => docSnap.data() as RelationshipAuditLogEntry);
-  } catch (err) {
+  } catch {
     return [];
   }
 };

@@ -607,3 +607,31 @@ All nutrition constants and formulas are documented in `src/shared/lib/nutrition
 
 ---
 > **Requirement:** All 10 stages of the Apex Athletic Platform are completed, tested, documented, and hardened.
+
+---
+
+## 15. Invitation & Sharing Permission Subsystem Hardening (COMPLETED)
+
+### A. Security Audit & Zero-Trust Vulnerability Remediation
+- Full architectural audit documented in `docs/SECURITY_AUDIT.md`. Identified and closed:
+  1. *Direct Client Relationship Writes:* Eliminated client-side creation/updates to `relationships/{relId}` in `firestore.rules`. Previously an attacker could create an active relationship bypassing athlete consent.
+  2. *Direct Client Audit Log Writes:* Prohibited client mutations to `relationships/{relId}/log/{logId}` (`allow write: if false;`). Logs are append-only via the Admin SDK.
+  3. *Insecure Invite Enumeration:* Restricted `invites/{code}` reads exclusively to the athlete who generated them (`resource.data.athleteId == request.auth.uid`). Client writes prohibited.
+  4. *Staff Departure Support:* Extended `revokeAccess` to allow either the athlete to revoke access or a staff member to voluntarily leave.
+  5. *Replay Attacks Closed:* Enforced single-use invite codes with Firestore transactions (`db.runTransaction()`).
+
+### B. Cloud Functions Hardening (`functions/src/index.ts`)
+- **Strict Zod Input Validation:** All callables (`createInvite`, `acceptInvite`, `updatePermissions`, `revokeAccess`) validate payloads against runtime schemas (`CreateInviteInputSchema`, `AcceptInviteInputSchema`, `UpdatePermissionsInputSchema`, `RevokeAccessInputSchema`).
+- **App Check & Rate Limiting:** Enforced via `assertAppCheck` and token-bucket `assertRateLimit(request.auth.uid, maxRequests, windowSeconds)`.
+- **Atomic Transactions:** Single-use verification, expiration checks (7 days), and relationship activation executed in a single atomic transaction.
+- **Audit Logging:** Every state transition logs who (`performedBy`), what (`action`), when (`timestamp`), old values (`previousStatus`, `previousPermissions`), and new values (`newStatus`, `newPermissions`).
+
+### C. Client & UI Layer (`SharingSettingsPage.tsx` & `InviteAthleteModal.tsx`)
+- Eliminated mock alphanumeric code generation and local client fallbacks.
+- Connected `InviteAthleteModal` directly to `createSharingInvite` Cloud Function.
+- Added "Meghívókód beváltása" (Redeem Invite) modal with instant single-use redemption and live list refresh.
+- Restricted `rulesEvaluator.ts` strictly to advisory UI hints (lock icons, disabled states), never as a security boundary.
+
+### D. Comprehensive Verification Suite (160 / 160 Tests Passing)
+- **`src/shared/lib/sharing/rules.test.ts` (45 Tests):** Complete coverage of athlete, coach, dietitian, physiotherapist, strength coach, sport psychologist, stranger, pending, revoked, and direct client write rejection.
+- **`src/shared/lib/sharing/sharingFunctions.test.ts` (20 Tests):** Validation of Zod schemas, 7-day expiration, single-use reuse rejection, expired invite rejection, self-invite blocking, athlete-only permission updates, staff resignation, and audit trail structure.

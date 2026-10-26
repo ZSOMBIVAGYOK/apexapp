@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { BottomSheet, Button, Input, Select, showToast } from "@shared/ui";
 import { Copy, Check, UserPlus, Sparkles } from "lucide-react";
 import { MemberSpecialty } from "@shared/types/dataModel";
+import { createSharingInvite } from "@shared/lib/sharing/sharingService";
 
 export interface InviteAthleteModalProps {
   isOpen: boolean;
@@ -21,29 +22,35 @@ export const InviteAthleteModal: React.FC<InviteAthleteModalProps> = ({
   const [copied, setCopied] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const handleGenerate = (e: React.FormEvent) => {
+  const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsGenerating(true);
 
-    setTimeout(() => {
-      // Generate clean alphanumeric code APX-XXXXX
-      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-      let randomPart = "";
-      for (let i = 0; i < 5; i++) {
-        randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
-      }
-      const code = `APX-${randomPart}`;
+    try {
+      const res = await createSharingInvite({
+        memberRole: roleType === "athlete" ? "coach" : "specialist",
+        specialty: roleType === "specialist" ? specialty : undefined,
+        inviteeEmail: athleteEmail.trim() || undefined
+      });
 
-      setGeneratedCode(code);
-      setIsGenerating(false);
-      onInviteCreated?.(code);
+      setGeneratedCode(res.code);
+      onInviteCreated?.(res.code);
 
       showToast({
         title: "Meghívókód sikeresen létrehozva",
-        message: `Kód: ${code} (7 napig érvényes)`,
+        message: `Kód: ${res.code} (7 napig érvényes)`,
         type: "success"
       });
-    }, 400);
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : "A meghívókód generálása sikertelen.";
+      showToast({
+        title: "Hiba történt a meghívókód létrehozásakor",
+        message: errorMsg,
+        type: "error"
+      });
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleCopy = () => {

@@ -2,8 +2,9 @@ import { describe, it, expect } from "vitest";
 import { evaluateFirestoreRules, MockDatabase } from "./rulesEvaluator";
 import { PERMISSION_PRESETS } from "./permissionPresets";
 
-describe("Firestore Security Rules - Granular Sharing Suite (35+ Tests)", () => {
+describe("Firestore Security Rules - Zero-Trust Sharing Suite (45+ Tests)", () => {
   const ATHLETE_UID = "athlete-kovacs-01";
+  const OTHER_ATHLETE_UID = "athlete-szabo-99";
   const COACH_UID = "coach-nagy-02";
   const DIETITIAN_UID = "dietitian-molnar-03";
   const PHYSIO_UID = "physio-szabo-04";
@@ -15,28 +16,28 @@ describe("Firestore Security Rules - Granular Sharing Suite (35+ Tests)", () => 
 
   const mockDb: MockDatabase = {
     relationships: {
-      // 1. Active Head Coach (training write, recovery read, nutrition read, devices read, health NONE)
+      // 1. Active Head Coach (training write, recovery read, nutrition read, devices read, messages write, health NONE)
       [`${ATHLETE_UID}_${COACH_UID}`]: {
         athleteId: ATHLETE_UID,
         memberId: COACH_UID,
         status: "active",
         permissions: PERMISSION_PRESETS.coach.permissions
       },
-      // 2. Active Dietitian (nutrition write, recovery read, training read, health NONE)
+      // 2. Active Dietitian (nutrition write, recovery read, training read, messages write, health NONE)
       [`${ATHLETE_UID}_${DIETITIAN_UID}`]: {
         athleteId: ATHLETE_UID,
         memberId: DIETITIAN_UID,
         status: "active",
         permissions: PERMISSION_PRESETS.dietitian.permissions
       },
-      // 3. Active Physiotherapist (health write, training read, recovery read)
+      // 3. Active Physiotherapist (health write, training read, recovery read, messages write)
       [`${ATHLETE_UID}_${PHYSIO_UID}`]: {
         athleteId: ATHLETE_UID,
         memberId: PHYSIO_UID,
         status: "active",
         permissions: PERMISSION_PRESETS.physiotherapist.permissions
       },
-      // 4. Active Strength Coach (training write, recovery read)
+      // 4. Active Strength Coach (training write, recovery read, messages write)
       [`${ATHLETE_UID}_${STRENGTH_UID}`]: {
         athleteId: ATHLETE_UID,
         memberId: STRENGTH_UID,
@@ -74,6 +75,10 @@ describe("Firestore Security Rules - Granular Sharing Suite (35+ Tests)", () => 
     invites: {
       "APX-1234": {
         athleteId: ATHLETE_UID,
+        status: "pending"
+      },
+      "APX-5678": {
+        athleteId: OTHER_ATHLETE_UID,
         status: "pending"
       }
     }
@@ -369,11 +374,11 @@ describe("Firestore Security Rules - Granular Sharing Suite (35+ Tests)", () => 
     });
   });
 
-  // Group 7: Relationship Management, Self-Elevation Prevention & Audit Log (6 tests)
-  describe("Relationship Ownership & Permission Modification Enforcement", () => {
+  // Group 7: Server-Only Enforcement: Block All Client Writes to Relationships & Invites (11 tests)
+  describe("Server-Only Enforcement & Privilege Escalation Prevention", () => {
     const relKey = `${ATHLETE_UID}_${COACH_UID}`;
 
-    it("35. Member CANNOT modify their own relationship permissions (Self-Elevation Block)", () => {
+    it("35. Member CANNOT directly modify relationship document (Privilege Escalation Block)", () => {
       const res = evaluateFirestoreRules(
         {
           auth: { uid: COACH_UID },
@@ -390,7 +395,7 @@ describe("Firestore Security Rules - Granular Sharing Suite (35+ Tests)", () => 
       expect(res.allowed).toBe(false);
     });
 
-    it("36. Athlete CAN update relationship permissions for a member", () => {
+    it("36. Athlete CANNOT directly update relationship from client (Must use Cloud Functions)", () => {
       const res = evaluateFirestoreRules(
         {
           auth: { uid: ATHLETE_UID },
@@ -404,61 +409,150 @@ describe("Firestore Security Rules - Granular Sharing Suite (35+ Tests)", () => 
         },
         mockDb
       );
-      expect(res.allowed).toBe(true);
+      expect(res.allowed).toBe(false);
     });
 
-    it("37. Athlete CAN revoke member access in relationship", () => {
+    it("37. Member CANNOT directly create a relationship document (Bypass Prevention)", () => {
+      const res = evaluateFirestoreRules(
+        {
+          auth: { uid: COACH_UID },
+          path: `relationships/${ATHLETE_UID}_${COACH_UID}`,
+          operation: "create",
+          requestData: {
+            athleteId: ATHLETE_UID,
+            memberId: COACH_UID,
+            status: "active",
+            permissions: PERMISSION_PRESETS.coach.permissions
+          }
+        },
+        mockDb
+      );
+      expect(res.allowed).toBe(false);
+    });
+
+    it("38. Stranger CANNOT directly create a relationship document", () => {
+      const res = evaluateFirestoreRules(
+        {
+          auth: { uid: STRANGER_UID },
+          path: `relationships/${ATHLETE_UID}_${STRANGER_UID}`,
+          operation: "create",
+          requestData: {
+            athleteId: ATHLETE_UID,
+            memberId: STRANGER_UID,
+            status: "active"
+          }
+        },
+        mockDb
+      );
+      expect(res.allowed).toBe(false);
+    });
+
+    it("39. Client CANNOT directly create audit log entries (Audit Tampering Block)", () => {
       const res = evaluateFirestoreRules(
         {
           auth: { uid: ATHLETE_UID },
-          path: `relationships/${relKey}`,
-          operation: "update",
-          resourceData: mockDb.relationships![relKey],
+          path: `relationships/${relKey}/log/log-fake`,
+          operation: "create",
+          requestData: {
+            action: "tampered"
+          }
+        },
+        mockDb
+      );
+      expect(res.allowed).toBe(false);
+    });
+
+    it("40. Client CANNOT directly create invites in invites collection", () => {
+      const res = evaluateFirestoreRules(
+        {
+          auth: { uid: ATHLETE_UID },
+          path: `invites/APX-FAKE`,
+          operation: "create",
           requestData: {
             athleteId: ATHLETE_UID,
-            status: "revoked"
+            status: "pending"
           }
+        },
+        mockDb
+      );
+      expect(res.allowed).toBe(false);
+    });
+
+    it("41. Client CANNOT directly update invites in invites collection", () => {
+      const res = evaluateFirestoreRules(
+        {
+          auth: { uid: COACH_UID },
+          path: `invites/APX-1234`,
+          operation: "update",
+          resourceData: mockDb.invites!["APX-1234"],
+          requestData: {
+            status: "accepted"
+          }
+        },
+        mockDb
+      );
+      expect(res.allowed).toBe(false);
+    });
+
+    it("42. Athlete CAN read their own pending invite", () => {
+      const res = evaluateFirestoreRules(
+        {
+          auth: { uid: ATHLETE_UID },
+          path: `invites/APX-1234`,
+          operation: "read",
+          resourceData: mockDb.invites!["APX-1234"]
         },
         mockDb
       );
       expect(res.allowed).toBe(true);
     });
 
-    it("38. Stranger CANNOT read another athlete's relationship record", () => {
+    it("43. Athlete CANNOT read another athlete's invite", () => {
       const res = evaluateFirestoreRules(
         {
-          auth: { uid: STRANGER_UID },
+          auth: { uid: ATHLETE_UID },
+          path: `invites/APX-5678`,
+          operation: "read",
+          resourceData: mockDb.invites!["APX-5678"]
+        },
+        mockDb
+      );
+      expect(res.allowed).toBe(false);
+    });
+
+    it("44. Athlete CANNOT read another athlete's subcollections", () => {
+      const res = evaluateFirestoreRules(
+        {
+          auth: { uid: ATHLETE_UID },
+          path: `athletes/${OTHER_ATHLETE_UID}/days/2026-10-26`,
+          operation: "read"
+        },
+        mockDb
+      );
+      expect(res.allowed).toBe(false);
+    });
+
+    it("45. Both athlete and member CAN read their relationship record", () => {
+      const athleteRead = evaluateFirestoreRules(
+        {
+          auth: { uid: ATHLETE_UID },
           path: `relationships/${relKey}`,
           operation: "read",
           resourceData: mockDb.relationships![relKey]
         },
         mockDb
       );
-      expect(res.allowed).toBe(false);
-    });
-
-    it("39. Athlete CAN read relationship audit log (relationships/{relId}/log/{logId})", () => {
-      const res = evaluateFirestoreRules(
-        {
-          auth: { uid: ATHLETE_UID },
-          path: `relationships/${relKey}/log/log-01`,
-          operation: "read"
-        },
-        mockDb
-      );
-      expect(res.allowed).toBe(true);
-    });
-
-    it("40. Member CANNOT read relationship audit log (strictly visible to athlete)", () => {
-      const res = evaluateFirestoreRules(
+      const memberRead = evaluateFirestoreRules(
         {
           auth: { uid: COACH_UID },
-          path: `relationships/${relKey}/log/log-01`,
-          operation: "read"
+          path: `relationships/${relKey}`,
+          operation: "read",
+          resourceData: mockDb.relationships![relKey]
         },
         mockDb
       );
-      expect(res.allowed).toBe(false);
+      expect(athleteRead.allowed).toBe(true);
+      expect(memberRead.allowed).toBe(true);
     });
   });
 });

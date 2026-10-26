@@ -1,7 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.copyAthleteWeek = exports.bulkAssignWorkout = exports.runAthleteAlertCheck = exports.parseImportedFile = exports.polarWebhook = exports.whoopWebhook = exports.garminWebhook = exports.ingestHealthData = exports.getFoodByBarcode = exports.searchFoods = exports.exportUserData = exports.deleteUserData = exports.revokeAccess = exports.updatePermissions = exports.acceptInvite = exports.createInvite = exports.healthCheck = void 0;
+exports.copyAthleteWeek = exports.bulkAssignWorkout = exports.runAthleteAlertCheck = exports.parseImportedFile = exports.polarWebhook = exports.whoopWebhook = exports.garminWebhook = exports.ingestHealthData = exports.getFoodByBarcode = exports.searchFoods = exports.exportUserData = exports.deleteUserData = exports.revokeAccess = exports.updatePermissions = exports.acceptInvite = exports.createInvite = exports.getPresetPermissions = exports.DEFAULT_PRESETS = exports.RevokeAccessInputSchema = exports.UpdatePermissionsInputSchema = exports.AcceptInviteInputSchema = exports.CreateInviteInputSchema = exports.ModulePermissionsSchema = exports.ModulePermissionLevelSchema = exports.healthCheck = void 0;
 exports.assertRateLimit = assertRateLimit;
+exports.assertAppCheck = assertAppCheck;
 const https_1 = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
@@ -23,7 +24,7 @@ function assertRateLimit(key, maxRequests = 60, windowSeconds = 60) {
     entry.count++;
 }
 // Apex Cloud Functions health check
-exports.healthCheck = (0, https_1.onRequest)((request, response) => {
+exports.healthCheck = (0, https_1.onRequest)((_request, response) => {
     logger.info("Apex Health Check pinged", { structuredData: true });
     response.json({
         status: "ok",
@@ -31,7 +32,51 @@ exports.healthCheck = (0, https_1.onRequest)((request, response) => {
         timestamp: new Date().toISOString()
     });
 });
-const DEFAULT_PRESETS = {
+const zod_1 = require("zod");
+/**
+ * App Check verification helper.
+ * Enforces valid App Check in production while allowing local emulator testing.
+ */
+function assertAppCheck(request) {
+    const isEmulator = process.env.FUNCTIONS_EMULATOR === "true";
+    const isDev = process.env.NODE_ENV !== "production";
+    if (isEmulator || isDev) {
+        return;
+    }
+    if (!request.app) {
+        throw new https_1.HttpsError("failed-precondition", "The function must be called from an App Check verified app.");
+    }
+}
+exports.ModulePermissionLevelSchema = zod_1.z.enum(["none", "read", "write"]);
+exports.ModulePermissionsSchema = zod_1.z.object({
+    training: exports.ModulePermissionLevelSchema,
+    recovery: exports.ModulePermissionLevelSchema,
+    nutrition: exports.ModulePermissionLevelSchema,
+    health: exports.ModulePermissionLevelSchema,
+    devices: exports.ModulePermissionLevelSchema,
+    messages: exports.ModulePermissionLevelSchema
+});
+exports.CreateInviteInputSchema = zod_1.z.object({
+    memberRole: zod_1.z.enum(["coach", "specialist"]),
+    specialty: zod_1.z
+        .enum(["nutrition", "physio", "strength", "psychology", "medical", "other"])
+        .optional(),
+    inviteeEmail: zod_1.z.string().email().optional().or(zod_1.z.literal("")),
+    customPermissions: exports.ModulePermissionsSchema.partial().optional()
+});
+exports.AcceptInviteInputSchema = zod_1.z.object({
+    code: zod_1.z.string().min(4).max(32)
+});
+exports.UpdatePermissionsInputSchema = zod_1.z.object({
+    relId: zod_1.z.string().min(3).max(128),
+    permissions: exports.ModulePermissionsSchema,
+    reason: zod_1.z.string().max(500).optional()
+});
+exports.RevokeAccessInputSchema = zod_1.z.object({
+    relId: zod_1.z.string().min(3).max(128),
+    reason: zod_1.z.string().max(500).optional()
+});
+exports.DEFAULT_PRESETS = {
     coach: {
         training: "write",
         recovery: "read",
@@ -83,10 +128,13 @@ const DEFAULT_PRESETS = {
 };
 const getPresetPermissions = (role, specialty) => {
     if (role === "coach") {
-        return { ...DEFAULT_PRESETS.coach };
+        return { ...exports.DEFAULT_PRESETS.coach };
     }
-    if (specialty && DEFAULT_PRESETS[specialty]) {
-        return { ...DEFAULT_PRESETS[specialty] };
+    if (specialty && specialty in exports.DEFAULT_PRESETS) {
+        const preset = exports.DEFAULT_PRESETS[specialty];
+        if (preset) {
+            return { ...preset };
+        }
     }
     return {
         training: "read",
@@ -97,18 +145,24 @@ const getPresetPermissions = (role, specialty) => {
         messages: "write"
     };
 };
+exports.getPresetPermissions = getPresetPermissions;
 /**
  * 1. createInvite: Athlete creates an invitation code for a coach or specialist.
+ * Single-use, expires in 7 days, Zod-validated input, authenticated, App Check enforced, rate limited.
  */
 exports.createInvite = (0, https_1.onCall)(async (request) => {
     if (!request.auth) {
         throw new https_1.HttpsError("unauthenticated", "Authentication required to create invites.");
     }
+    assertAppCheck(request);
+    assertRateLimit(request.auth.uid, 30, 60);
     const athleteId = request.auth.uid;
-    const { memberRole, specialty, inviteeEmail, customPermissions } = request.data || {};
-    if (!memberRole || (memberRole !== "coach" && memberRole !== "specialist")) {
-        throw new https_1.HttpsError("invalid-argument", "Valid memberRole ('coach' | 'specialist') is required.");
+    const parseResult = exports.CreateInviteInputSchema.safeParse(request.data);
+    if (!parseResult.success) {
+        const errorDetails = parseResult.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+        throw new https_1.HttpsError("invalid-argument", `Invalid invite arguments: ${errorDetails}`);
     }
+    const { memberRole, specialty, inviteeEmail, customPermissions } = parseResult.data;
     const db = admin.firestore();
     // Fetch athlete profile for display name
     let athleteName = "Sportoló";
@@ -122,7 +176,7 @@ exports.createInvite = (0, https_1.onCall)(async (request) => {
         }
     }
     catch {
-        // Fallback to defaults
+        // Fallback
     }
     // Generate unique 6-character alphanumeric code e.g. APX-98K2
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -131,12 +185,16 @@ exports.createInvite = (0, https_1.onCall)(async (request) => {
         randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     const code = `APX-${randomPart}`;
-    const basePermissions = getPresetPermissions(memberRole, specialty);
+    const basePermissions = (0, exports.getPresetPermissions)(memberRole, specialty);
     const permissions = {
         ...basePermissions,
         ...(customPermissions || {})
     };
-    // 7 days expiration
+    // CORE ZERO-TRUST PRINCIPLE: Coaches NEVER see the health module unless explicitly granted!
+    if (memberRole === "coach" && !customPermissions?.health) {
+        permissions.health = "none";
+    }
+    // Exactly 7 days expiration
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     const createdAt = new Date().toISOString();
     const inviteDoc = {
@@ -149,6 +207,7 @@ exports.createInvite = (0, https_1.onCall)(async (request) => {
         specialty: specialty || (memberRole === "coach" ? "other" : "other"),
         permissions,
         status: "pending",
+        singleUse: true,
         expiresAt,
         createdAt
     };
@@ -163,32 +222,22 @@ exports.createInvite = (0, https_1.onCall)(async (request) => {
 });
 /**
  * 2. acceptInvite: Coach or specialist accepts an invitation code.
+ * Single-use, atomic transaction, Zod-validated input, authenticated, App Check enforced, rate limited.
  */
 exports.acceptInvite = (0, https_1.onCall)(async (request) => {
     if (!request.auth) {
         throw new https_1.HttpsError("unauthenticated", "Authentication required to accept an invite.");
     }
+    assertAppCheck(request);
+    assertRateLimit(request.auth.uid, 20, 60);
     const memberId = request.auth.uid;
-    const { code } = request.data || {};
-    if (!code || typeof code !== "string") {
-        throw new https_1.HttpsError("invalid-argument", "Invite code is required.");
+    const parseResult = exports.AcceptInviteInputSchema.safeParse(request.data);
+    if (!parseResult.success) {
+        throw new https_1.HttpsError("invalid-argument", "Valid invite code string is required.");
     }
+    const rawCode = parseResult.data.code;
+    const formattedCode = rawCode.trim().toUpperCase();
     const db = admin.firestore();
-    const inviteRef = db.collection("invites").doc(code.trim().toUpperCase());
-    const inviteSnap = await inviteRef.get();
-    if (!inviteSnap.exists) {
-        throw new https_1.HttpsError("not-found", "A megadott meghívókód nem létezik vagy lejárt.");
-    }
-    const inviteData = inviteSnap.data();
-    if (inviteData?.status !== "pending") {
-        throw new https_1.HttpsError("failed-precondition", "Ez a meghívókód már fel lett használva.");
-    }
-    if (new Date(inviteData.expiresAt).getTime() < Date.now()) {
-        throw new https_1.HttpsError("failed-precondition", "A meghívókód érvényessége lejárt.");
-    }
-    if (inviteData.athleteId === memberId) {
-        throw new https_1.HttpsError("invalid-argument", "Nem fogadhatod el a saját magad által generált meghívót.");
-    }
     // Fetch member info
     let memberName = "Szakember";
     let memberEmail = "";
@@ -203,67 +252,102 @@ exports.acceptInvite = (0, https_1.onCall)(async (request) => {
     catch {
         // Fallback
     }
-    const athleteId = inviteData.athleteId;
-    const relId = `${athleteId}_${memberId}`;
-    const now = new Date().toISOString();
-    // Create or update relationships/{relId}
-    const relDoc = {
-        relId,
-        athleteId,
-        memberId,
-        memberName,
-        memberEmail,
-        memberRole: inviteData.memberRole,
-        specialty: inviteData.specialty,
-        status: "active",
-        permissions: inviteData.permissions,
-        createdAt: now,
-        updatedAt: now,
-        updatedBy: memberId
-    };
-    const batch = db.batch();
-    batch.set(db.collection("relationships").doc(relId), relDoc, { merge: true });
-    // Append audit log entry
-    const logRef = db.collection("relationships").doc(relId).collection("log").doc();
-    batch.set(logRef, {
-        logId: logRef.id,
-        relId,
-        athleteId,
-        performedBy: memberId,
-        action: "accepted",
-        newStatus: "active",
-        newPermissions: inviteData.permissions,
-        timestamp: now,
-        reason: `Invite code ${code} accepted by ${memberName}`
+    // Run transaction to guarantee atomic verification & single-use redemption
+    const transactionResult = await db.runTransaction(async (transaction) => {
+        const inviteRef = db.collection("invites").doc(formattedCode);
+        const inviteSnap = await transaction.get(inviteRef);
+        if (!inviteSnap.exists) {
+            throw new https_1.HttpsError("not-found", "A megadott meghívókód nem létezik vagy lejárt.");
+        }
+        const inviteData = inviteSnap.data();
+        if (!inviteData || inviteData.status !== "pending") {
+            throw new https_1.HttpsError("failed-precondition", "Ez a meghívókód már fel lett használva.");
+        }
+        if (new Date(inviteData.expiresAt).getTime() < Date.now()) {
+            throw new https_1.HttpsError("failed-precondition", "A meghívókód érvényessége lejárt.");
+        }
+        if (inviteData.athleteId === memberId) {
+            throw new https_1.HttpsError("invalid-argument", "Nem fogadhatod el a saját magad által generált meghívót.");
+        }
+        if (inviteData.inviteeEmail && memberEmail) {
+            if (inviteData.inviteeEmail.trim().toLowerCase() !== memberEmail.trim().toLowerCase()) {
+                throw new https_1.HttpsError("permission-denied", `Ez a meghívókód a(z) ${inviteData.inviteeEmail} címre lett kiállítva.`);
+            }
+        }
+        const athleteId = inviteData.athleteId;
+        const relId = `${athleteId}_${memberId}`;
+        const relRef = db.collection("relationships").doc(relId);
+        const relSnap = await transaction.get(relRef);
+        const now = new Date().toISOString();
+        const previousStatus = relSnap.exists ? relSnap.data()?.status || "none" : "none";
+        const previousPermissions = relSnap.exists ? relSnap.data()?.permissions || null : null;
+        // Create / update active relationship
+        const relDoc = {
+            relId,
+            athleteId,
+            memberId,
+            memberName,
+            memberEmail,
+            memberRole: inviteData.memberRole,
+            specialty: inviteData.specialty,
+            status: "active",
+            permissions: inviteData.permissions,
+            createdAt: relSnap.exists ? relSnap.data()?.createdAt || now : now,
+            updatedAt: now,
+            updatedBy: memberId
+        };
+        transaction.set(relRef, relDoc, { merge: true });
+        // Append audit log entry in relationships/{relId}/log/{logId}
+        const logRef = relRef.collection("log").doc();
+        transaction.set(logRef, {
+            logId: logRef.id,
+            relId,
+            athleteId,
+            performedBy: memberId,
+            action: "accepted",
+            previousStatus,
+            newStatus: "active",
+            previousPermissions,
+            newPermissions: inviteData.permissions,
+            timestamp: now,
+            reason: `Invite code ${formattedCode} accepted by ${memberName}`
+        });
+        // Mark single-use invite as accepted
+        transaction.update(inviteRef, {
+            status: "accepted",
+            acceptedAt: now,
+            acceptedBy: memberId
+        });
+        return {
+            relId,
+            athleteId,
+            athleteName: inviteData.athleteName,
+            permissions: inviteData.permissions
+        };
     });
-    // Mark invite as accepted
-    batch.update(inviteRef, {
-        status: "accepted",
-        acceptedAt: now,
-        acceptedBy: memberId
-    });
-    await batch.commit();
-    logger.info(`Relationship ${relId} established via invite ${code}`);
+    logger.info(`Relationship ${transactionResult.relId} established via invite ${formattedCode}`);
     return {
         success: true,
-        relId,
-        athleteId,
-        athleteName: inviteData.athleteName,
-        permissions: inviteData.permissions
+        ...transactionResult
     };
 });
 /**
  * 3. updatePermissions: Athlete modifies per-module permissions for a coach or specialist.
+ * Only the athlete can call this. Zod-validated input, authenticated, App Check enforced, rate limited.
  */
 exports.updatePermissions = (0, https_1.onCall)(async (request) => {
     if (!request.auth) {
         throw new https_1.HttpsError("unauthenticated", "Authentication required to update permissions.");
     }
+    assertAppCheck(request);
+    assertRateLimit(request.auth.uid, 30, 60);
     const athleteId = request.auth.uid;
-    const { relId, permissions, reason } = request.data || {};
-    if (!relId || !permissions) {
-        throw new https_1.HttpsError("invalid-argument", "relId and permissions are required.");
+    const parseResult = exports.UpdatePermissionsInputSchema.safeParse(request.data);
+    if (!parseResult.success) {
+        const errorDetails = parseResult.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+        throw new https_1.HttpsError("invalid-argument", `Invalid permission arguments: ${errorDetails}`);
     }
+    const { relId, permissions, reason } = parseResult.data;
     const db = admin.firestore();
     const relRef = db.collection("relationships").doc(relId);
     const relSnap = await relRef.get();
@@ -271,11 +355,12 @@ exports.updatePermissions = (0, https_1.onCall)(async (request) => {
         throw new https_1.HttpsError("not-found", "Relationship record not found.");
     }
     const relData = relSnap.data();
-    // CORE PRINCIPLE: athlete owns the data
+    // CORE ZERO-TRUST PRINCIPLE: athlete owns the data
     if (relData?.athleteId !== athleteId) {
         throw new https_1.HttpsError("permission-denied", "Only the athlete can modify sharing permissions.");
     }
     const previousPermissions = relData.permissions;
+    const previousStatus = relData.status || "active";
     const now = new Date().toISOString();
     const batch = db.batch();
     batch.update(relRef, {
@@ -291,6 +376,8 @@ exports.updatePermissions = (0, https_1.onCall)(async (request) => {
         athleteId,
         performedBy: athleteId,
         action: "permissions_updated",
+        previousStatus,
+        newStatus: previousStatus,
         previousPermissions,
         newPermissions: permissions,
         timestamp: now,
@@ -305,17 +392,21 @@ exports.updatePermissions = (0, https_1.onCall)(async (request) => {
     };
 });
 /**
- * 4. revokeAccess: Athlete instantly revokes a member's access.
+ * 4. revokeAccess: Athlete instantly revokes a member's access, or member voluntarily leaves.
+ * Zod-validated input, authenticated, App Check enforced, rate limited.
  */
 exports.revokeAccess = (0, https_1.onCall)(async (request) => {
     if (!request.auth) {
         throw new https_1.HttpsError("unauthenticated", "Authentication required to revoke access.");
     }
-    const athleteId = request.auth.uid;
-    const { relId, reason } = request.data || {};
-    if (!relId) {
-        throw new https_1.HttpsError("invalid-argument", "relId is required.");
+    assertAppCheck(request);
+    assertRateLimit(request.auth.uid, 30, 60);
+    const callerUid = request.auth.uid;
+    const parseResult = exports.RevokeAccessInputSchema.safeParse(request.data);
+    if (!parseResult.success) {
+        throw new https_1.HttpsError("invalid-argument", "Valid relId is required to revoke access.");
     }
+    const { relId, reason } = parseResult.data;
     const db = admin.firestore();
     const relRef = db.collection("relationships").doc(relId);
     const relSnap = await relRef.get();
@@ -323,8 +414,10 @@ exports.revokeAccess = (0, https_1.onCall)(async (request) => {
         throw new https_1.HttpsError("not-found", "Relationship record not found.");
     }
     const relData = relSnap.data();
-    if (relData?.athleteId !== athleteId) {
-        throw new https_1.HttpsError("permission-denied", "Only the athlete can revoke sharing access.");
+    const isAthlete = relData?.athleteId === callerUid;
+    const isMember = relData?.memberId === callerUid;
+    if (!isAthlete && !isMember) {
+        throw new https_1.HttpsError("permission-denied", "Only the athlete or the member can revoke sharing access.");
     }
     const now = new Date().toISOString();
     const revokedPermissions = {
@@ -335,28 +428,31 @@ exports.revokeAccess = (0, https_1.onCall)(async (request) => {
         devices: "none",
         messages: "none"
     };
+    const action = isAthlete ? "revoked" : "member_left";
     const batch = db.batch();
     batch.update(relRef, {
         status: "revoked",
         permissions: revokedPermissions,
         updatedAt: now,
-        updatedBy: athleteId
+        updatedBy: callerUid
     });
     // Append to audit log
     const logRef = relRef.collection("log").doc();
     batch.set(logRef, {
         logId: logRef.id,
         relId,
-        athleteId,
-        performedBy: athleteId,
-        action: "revoked",
-        previousStatus: relData.status,
+        athleteId: relData?.athleteId,
+        performedBy: callerUid,
+        action,
+        previousStatus: relData?.status,
         newStatus: "revoked",
+        previousPermissions: relData?.permissions,
+        newPermissions: revokedPermissions,
         timestamp: now,
-        reason: reason || "Athlete instantly revoked all module permissions"
+        reason: reason || (isAthlete ? "Athlete instantly revoked all module permissions" : "Member voluntarily left team")
     });
     await batch.commit();
-    logger.info(`Access revoked for rel ${relId} by athlete ${athleteId}`);
+    logger.info(`Access revoked for rel ${relId} by ${isAthlete ? "athlete" : "member"} ${callerUid}`);
     return {
         success: true,
         relId,
@@ -760,12 +856,14 @@ exports.ingestHealthData = (0, https_1.onRequest)({ cors: true }, async (req, re
         // Verify authentication via Firebase Auth ID token or API Key
         if (authHeader && authHeader.startsWith("Bearer ")) {
             const idToken = authHeader.split("Bearer ")[1];
-            try {
-                const decoded = await admin.auth().verifyIdToken(idToken);
-                athleteId = decoded.uid;
-            }
-            catch (err) {
-                logger.warn("Invalid Bearer token in ingestHealthData:", err);
+            if (idToken) {
+                try {
+                    const decoded = await admin.auth().verifyIdToken(idToken);
+                    athleteId = decoded.uid;
+                }
+                catch (err) {
+                    logger.warn("Invalid Bearer token in ingestHealthData:", err);
+                }
             }
         }
         else if (apiKey) {

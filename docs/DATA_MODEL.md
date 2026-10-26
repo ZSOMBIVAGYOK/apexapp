@@ -246,25 +246,32 @@ export interface SharingRelationship {
    Staff members cannot query or read subcollections for which their `relationships` document grants `'none'`.
 4. **Health Protection:**
    The `injuries`, `measurements`, and `notes` subcollections require `permissions.health == 'read'` or `'write'`. Even an active Head Coach has zero visibility into health documents unless the athlete explicitly toggles this access.
-5. **Self-Elevation Prevention:**
-   Security rules strictly dictate:
+5. **Server-Enforced Mutations (Zero Direct Client Writes):**
+   Clients must **NEVER** be able to create, update, or delete `relationships/*`, `invites/*`, or `relationships/{relId}/log/*` documents directly from the client:
    ```javascript
-   allow update: if isAuthenticated() &&
-     resource.data.athleteId == request.auth.uid &&
-     request.resource.data.athleteId == request.auth.uid;
+   match /relationships/{relId} {
+     allow read: if isAuthenticated() && (
+       resource.data.athleteId == request.auth.uid ||
+       resource.data.memberId == request.auth.uid
+     );
+     // All mutations strictly restricted to Cloud Functions Admin SDK
+     allow create, update, delete: if false;
+   }
    ```
-   A member **cannot** modify their own relationship permissions or status. Only the athlete who owns the account can alter permissions.
-6. **Instant Revocation:**
-   When an athlete sets `status == 'revoked'`, all module permissions are evaluated to `'none'` immediately in real-time Firestore evaluation.
-7. **Audit Trail Isolation:**
-   Subcollection `relationships/{relId}/log/{logId}` is visible **only** to the athlete (`athleteId == request.auth.uid`). Staff members cannot inspect the audit log.
+   This completely blocks rogue relationship document creation, privilege escalation, and audit log falsification.
+6. **Single-Use Invite Codes:**
+   Invite documents (`invites/{code}`) can only be created and redeemed via Cloud Functions. Read access is restricted strictly to the creator (`resource.data.athleteId == request.auth.uid`). Codes expire after 7 days and redemption is handled via an atomic Firestore transaction (`db.runTransaction()`) to prevent replay or race conditions.
+7. **Instant Revocation & Voluntary Departure:**
+   When an athlete revokes access or a staff member leaves a team, `revokeAccess` resets all module permissions to `'none'` and status to `'revoked'`. Firestore security rules immediately block all subcollection reads and writes in real time.
+8. **Immutable Audit Trail:**
+   Subcollection `relationships/{relId}/log/{logId}` records who, what, when, old and new values. Written strictly by Cloud Functions with the Admin SDK.
 
 ---
 
 ## 6. Cloud Functions & Workflow Lifecycle
 
-- **`createInvite`:** Athlete creates a 7-day cryptographic invite code (`APX-XXXXX`) embedded with preset permissions.
-- **`acceptInvite`:** Coach or specialist accepts the code, activating the relationship and creating the initial audit log entry.
-- **`updatePermissions`:** Athlete modifies permissions. The function validates athlete ownership and writes a detailed diff to the immutable `log` subcollection.
-- **`revokeAccess`:** Athlete revokes relationship. Sets all permissions to `'none'` and writes an audit log entry.
+- **`createInvite`:** Athlete creates a 7-day cryptographic invite code (`APX-XXXXX`) embedded with preset permissions. Authenticated, rate-limited, Zod-validated input, App Check verified.
+- **`acceptInvite`:** Coach or specialist redeems the code inside an atomic transaction, activating the relationship with exact permissions and appending an audit log. Single-use guaranteed.
+- **`updatePermissions`:** Athlete modifies permissions. The function validates athlete ownership (`relData.athleteId === request.auth.uid`), updates permissions, and writes a detailed diff to the immutable `log` subcollection.
+- **`revokeAccess`:** Athlete revokes relationship, or member voluntarily departs. Sets all permissions to `'none'` and status to `'revoked'`.
 - **`deleteUserData`:** GDPR Article 17 recursive purge of athlete profile, subcollections, relationships, and authentication account.

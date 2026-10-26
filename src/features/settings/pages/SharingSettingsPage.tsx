@@ -17,7 +17,8 @@ import {
   fetchRelationshipAuditLog,
   updateMemberPermissions,
   revokeMemberAccess,
-  createSharingInvite
+  createSharingInvite,
+  acceptSharingInvite
 } from "@shared/lib/sharing/sharingService";
 import {
   Card,
@@ -79,6 +80,11 @@ export const SharingSettingsPage: React.FC = () => {
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasCopied, setHasCopied] = useState(false);
+
+  // Accept invite code modal state
+  const [isAcceptModalOpen, setIsAcceptModalOpen] = useState(false);
+  const [acceptCode, setAcceptCode] = useState("");
+  const [isAccepting, setIsAccepting] = useState(false);
 
   // Revoke confirmation modal state
   const [revokeTargetRel, setRevokeTargetRel] = useState<SharingRelationship | null>(null);
@@ -181,11 +187,12 @@ export const SharingSettingsPage: React.FC = () => {
         message: t("sharing.actions.saved"),
         type: "success"
       });
-    } catch {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "A mentés sikertelen.";
       showToast({
         title: rel.memberName,
-        message: t("sharing.actions.saved"),
-        type: "success"
+        message: msg,
+        type: "error"
       });
     } finally {
       setSavingRelId(null);
@@ -222,11 +229,12 @@ export const SharingSettingsPage: React.FC = () => {
         message: t("sharing.revokedSuccess"),
         type: "info"
       });
-    } catch {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "A hozzáférés visszavonása sikertelen.";
       showToast({
         title: revokeTargetRel.memberName,
-        message: t("sharing.revokedSuccess"),
-        type: "info"
+        message: msg,
+        type: "error"
       });
     } finally {
       setIsRevoking(false);
@@ -297,12 +305,51 @@ export const SharingSettingsPage: React.FC = () => {
         customPermissions
       });
       setGeneratedCode(res.code);
-    } catch {
-      // Mock code generation fallback if offline
-      const mockCode = `APX-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-      setGeneratedCode(mockCode);
+      showToast({
+        title: "Meghívókód elkészült",
+        message: `Kód: ${res.code} (7 napig érvényes)`,
+        type: "success"
+      });
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : "A meghívókód generálása sikertelen.";
+      showToast({
+        title: "Hiba a meghívás során",
+        message: errorMsg,
+        type: "error"
+      });
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  // Accept an invite code
+  const handleAcceptInvite = async () => {
+    if (!acceptCode.trim()) return;
+    setIsAccepting(true);
+    try {
+      const res = await acceptSharingInvite(acceptCode.trim().toUpperCase());
+      showToast({
+        title: "Sikeres csatlakozás!",
+        message: `${res.athleteName} sportoló meghívása elfogadva. A kapcsolat aktív.`,
+        type: "success"
+      });
+      setIsAcceptModalOpen(false);
+      setAcceptCode("");
+      if (user?.uid) {
+        const liveRels = await fetchAthleteRelationships(user.uid);
+        if (liveRels.length > 0) {
+          setRelationships(liveRels);
+        }
+      }
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : "A meghívókód beváltása sikertelen.";
+      showToast({
+        title: "Sikertelen kódbeváltás",
+        message: errorMsg,
+        type: "error"
+      });
+    } finally {
+      setIsAccepting(false);
     }
   };
 
@@ -340,17 +387,29 @@ export const SharingSettingsPage: React.FC = () => {
         title={t("sharing.title")}
         description={t("sharing.subtitle")}
         action={
-          <Button
-            variant="primary"
-            size="sm"
-            leftIcon={<UserPlus className="h-4 w-4" />}
-            onClick={() => {
-              setIsInviteOpen(true);
-              setGeneratedCode(null);
-            }}
-          >
-            {t("sharing.inviteBtn")}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setIsAcceptModalOpen(true);
+                setAcceptCode("");
+              }}
+            >
+              Kód beváltása
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              leftIcon={<UserPlus className="h-4 w-4" />}
+              onClick={() => {
+                setIsInviteOpen(true);
+                setGeneratedCode(null);
+              }}
+            >
+              {t("sharing.inviteBtn")}
+            </Button>
+          </div>
         }
       />
 
@@ -764,6 +823,45 @@ export const SharingSettingsPage: React.FC = () => {
               onClick={handleConfirmRevoke}
             >
               {t("sharing.actions.revoke")}
+            </Button>
+          </div>
+        </div>
+      </BottomSheet>
+
+      {/* Accept Invite Code Dialog */}
+      <BottomSheet
+        isOpen={isAcceptModalOpen}
+        onClose={() => setIsAcceptModalOpen(false)}
+        title="Meghívókód beváltása"
+      >
+        <div className="p-4 sm:p-6 space-y-4">
+          <p className="text-13 leading-relaxed text-text-secondary">
+            Ha kaptál egy egyszer használatos <strong>APX-XXXXX</strong> meghívókódot egy sportolótól vagy stábtól, add meg itt a hozzáférés aktiválásához.
+          </p>
+
+          <Input
+            label="Meghívókód"
+            placeholder="pl. APX-98K2L"
+            value={acceptCode}
+            onChange={(e) => setAcceptCode(e.target.value.toUpperCase())}
+            autoFocus
+          />
+
+          <div className="flex justify-end gap-3 pt-3">
+            <Button
+              variant="tertiary"
+              onClick={() => setIsAcceptModalOpen(false)}
+              disabled={isAccepting}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              variant="primary"
+              isLoading={isAccepting}
+              disabled={!acceptCode.trim()}
+              onClick={handleAcceptInvite}
+            >
+              Csatlakozás & Elfogadás
             </Button>
           </div>
         </div>

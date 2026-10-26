@@ -1,4 +1,15 @@
-import { ModulePermissions, RelationshipStatus } from "@shared/types";
+/**
+ * NOTICE: ADVISORY UI EVALUATION ONLY
+ *
+ * This evaluator replicates the exact logic of firestore.rules strictly for client-side
+ * UI hints (such as rendering lock badges, read-only view states, and action disablement).
+ *
+ * IT IS NEVER A SECURITY BOUNDARY.
+ * Real zero-trust security is strictly enforced on the server by Firestore Security Rules
+ * and Firebase Cloud Functions (Admin SDK). Clients cannot bypass server enforcement.
+ */
+
+import { ModulePermissions, RelationshipStatus, SharingModule } from "@shared/types";
 
 export interface RulesAuthContext {
   uid: string;
@@ -50,7 +61,7 @@ export const evaluateFirestoreRules = (
   req: EvaluationRequest,
   db: MockDatabase
 ): { allowed: boolean; reason?: string } => {
-  const { auth, path, operation, resourceData, requestData } = req;
+  const { auth, path, operation, resourceData } = req;
   const segments = path.split("/").filter(Boolean);
 
   const isAuthenticated = Boolean(auth && auth.uid);
@@ -191,16 +202,14 @@ export const evaluateFirestoreRules = (
       const relDoc = db.relationships?.[relId];
       if (!relDoc) return { allowed: false };
       if (operation === "read") {
-        return { allowed: isAuthenticated && relDoc.athleteId === auth?.uid };
-      }
-      if (operation === "create" || operation === "write") {
         return {
           allowed:
             isAuthenticated &&
             (relDoc.athleteId === auth?.uid || relDoc.memberId === auth?.uid)
         };
       }
-      return { allowed: false };
+      // WRITES STRICTLY DENIED TO CLIENTS (Admin SDK / Cloud Functions only)
+      return { allowed: false, reason: "Audit log writes are restricted to Cloud Functions Admin SDK" };
     }
 
     // Main relationship document
@@ -213,59 +222,49 @@ export const evaluateFirestoreRules = (
       };
     }
 
-    if (operation === "create") {
-      const data = requestData || {};
-      if (!isAuthenticated) return { allowed: false };
+    // WRITES STRICTLY DENIED TO CLIENTS (Admin SDK / Cloud Functions only)
+    if (operation === "create" || operation === "update" || operation === "delete" || operation === "write") {
       return {
-        allowed: data.athleteId === auth?.uid || data.memberId === auth?.uid
+        allowed: false,
+        reason: "Direct client writes to relationships are prohibited; mutations require Cloud Functions"
       };
-    }
-
-    if (operation === "update" || operation === "write") {
-      if (!isAuthenticated || !relDoc) return { allowed: false };
-      // ONLY THE ATHLETE can update permissions or status
-      const isAthlete = relDoc.athleteId === auth?.uid;
-      const targetAthlete = requestData ? requestData.athleteId === auth?.uid : true;
-      return { allowed: isAthlete && targetAthlete };
-    }
-
-    if (operation === "delete") {
-      if (!isAuthenticated || !relDoc) return { allowed: false };
-      return { allowed: relDoc.athleteId === auth?.uid };
     }
   }
 
-  // 4. threads/{threadId} & messages
+  // 4. threads/{threadId} & messages (MESSAGES module)
   if (segments[0] === "threads") {
     const threadId = segments[1]!;
     const threadDoc = db.threads?.[threadId];
 
     if (segments.length === 2) {
-      if (operation === "read" || operation === "update") {
+      if (operation === "read") {
         if (!isAuthenticated || !threadDoc) return { allowed: false };
-        return {
-          allowed:
-            threadDoc.athleteId === auth?.uid ||
-            threadDoc.participantIds.includes(auth!.uid)
-        };
+        const isAthlete = threadDoc.athleteId === auth?.uid;
+        const isParticipantWithPerm =
+          threadDoc.participantIds.includes(auth!.uid) && canReadModule(threadDoc.athleteId, "messages");
+        return { allowed: isAthlete || isParticipantWithPerm };
       }
-      if (operation === "create") {
-        const data = requestData || {};
-        return {
-          allowed:
-            isAuthenticated &&
-            (data.athleteId === auth?.uid ||
-              (Array.isArray(data.participantIds) && data.participantIds.includes(auth!.uid)))
-        };
+      if (operation === "create" || operation === "update" || operation === "write") {
+        if (!isAuthenticated) return { allowed: false };
+        const athleteId = threadDoc ? threadDoc.athleteId : auth!.uid;
+        const isAthlete = athleteId === auth?.uid;
+        const isParticipantWithPerm = canWriteModule(athleteId, "messages");
+        return { allowed: isAthlete || isParticipantWithPerm };
       }
     }
 
     if (segments[2] === "messages") {
       if (!isAuthenticated || !threadDoc) return { allowed: false };
-      const isParticipant =
-        threadDoc.athleteId === auth?.uid || threadDoc.participantIds.includes(auth!.uid);
-      if (operation === "read" || operation === "create" || operation === "write") {
-        return { allowed: isParticipant };
+      const isAthlete = threadDoc.athleteId === auth?.uid;
+      if (operation === "read") {
+        return {
+          allowed: isAthlete || (threadDoc.participantIds.includes(auth!.uid) && canReadModule(threadDoc.athleteId, "messages"))
+        };
+      }
+      if (operation === "create" || operation === "write") {
+        return {
+          allowed: isAthlete || (threadDoc.participantIds.includes(auth!.uid) && canWriteModule(threadDoc.athleteId, "messages"))
+        };
       }
       return { allowed: false };
     }
@@ -273,30 +272,45 @@ export const evaluateFirestoreRules = (
 
   // 5. invites/{code}
   if (segments[0] === "invites") {
+    const code = segments[1]!;
+    const invite = resourceData || db.invites?.[code];
+
     if (operation === "read") {
-      return { allowed: isAuthenticated };
-    }
-    if (operation === "create") {
-      const data = requestData || {};
-      return { allowed: isAuthenticated && data.athleteId === auth?.uid };
-    }
-    if (operation === "update") {
-      const code = segments[1]!;
-      const invite = resourceData || db.invites?.[code];
-      const data = requestData || {};
+      // Only the athlete who created the invite may read their own invite document directly
       return {
-        allowed:
-          isAuthenticated &&
-          Boolean(invite && (invite.athleteId === auth?.uid || data.status === "accepted"))
+        allowed: isAuthenticated && Boolean(invite && invite.athleteId === auth?.uid)
       };
     }
-    if (operation === "delete") {
-      const code = segments[1]!;
-      const invite = resourceData || db.invites?.[code];
-      return { allowed: isAuthenticated && Boolean(invite && invite.athleteId === auth?.uid) };
+
+    // WRITES STRICTLY DENIED TO CLIENTS (Admin SDK / Cloud Functions only)
+    if (operation === "create" || operation === "update" || operation === "delete" || operation === "write") {
+      return {
+        allowed: false,
+        reason: "Invites can only be created and redeemed via Cloud Functions with the Admin SDK"
+      };
     }
   }
 
   // Default deny
   return { allowed: false, reason: "Default catch-all deny" };
+};
+
+/**
+ * UI helper to determine module lock status and access level for visual rendering.
+ * Does NOT substitute for server-side rules.
+ */
+export const getModuleUiAccess = (
+  rel: { status: RelationshipStatus; permissions: ModulePermissions } | null | undefined,
+  module: SharingModule
+): { hasAccess: boolean; canWrite: boolean; isLocked: boolean; level: "none" | "read" | "write" } => {
+  if (!rel || rel.status !== "active") {
+    return { hasAccess: false, canWrite: false, isLocked: true, level: "none" };
+  }
+  const level = rel.permissions[module] || "none";
+  return {
+    hasAccess: level === "read" || level === "write",
+    canWrite: level === "write",
+    isLocked: level === "none",
+    level
+  };
 };
