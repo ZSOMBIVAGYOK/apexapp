@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.parseImportedFile = exports.polarWebhook = exports.whoopWebhook = exports.garminWebhook = exports.ingestHealthData = exports.getFoodByBarcode = exports.searchFoods = exports.deleteUserData = exports.revokeAccess = exports.updatePermissions = exports.acceptInvite = exports.createInvite = exports.healthCheck = void 0;
+exports.copyAthleteWeek = exports.bulkAssignWorkout = exports.runAthleteAlertCheck = exports.parseImportedFile = exports.polarWebhook = exports.whoopWebhook = exports.garminWebhook = exports.ingestHealthData = exports.getFoodByBarcode = exports.searchFoods = exports.deleteUserData = exports.revokeAccess = exports.updatePermissions = exports.acceptInvite = exports.createInvite = exports.healthCheck = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
@@ -958,6 +958,219 @@ exports.parseImportedFile = (0, https_1.onCall)(async (request) => {
         success: true,
         createdCount,
         duplicateCount
+    };
+});
+// ============================================================================
+// COACH & SPECIALIST WORKSPACE CLOUD FUNCTIONS (STAGE 9)
+// ============================================================================
+/**
+ * Evaluates alerts for an athlete and creates alert notifications for permitted staff.
+ * Can be called directly or triggered daily.
+ */
+exports.runAthleteAlertCheck = (0, https_1.onCall)(async (request) => {
+    if (!request.auth) {
+        throw new https_1.HttpsError("unauthenticated", "Authentication required to run alert checks.");
+    }
+    const { athleteId } = request.data || {};
+    if (!athleteId) {
+        throw new https_1.HttpsError("invalid-argument", "athleteId is required.");
+    }
+    const db = admin.firestore();
+    // Verify caller is either the athlete themselves or an active staff member with permissions
+    const callerUid = request.auth.uid;
+    if (callerUid !== athleteId) {
+        const relSnap = await db.collection("relationships").doc(`${athleteId}_${callerUid}`).get();
+        if (!relSnap.exists || relSnap.data()?.status !== "active") {
+            throw new https_1.HttpsError("permission-denied", "Only active staff or the athlete can trigger alert checks.");
+        }
+    }
+    // Fetch athlete's recent days (last 7 days)
+    const daysSnap = await db
+        .collection(`athletes/${athleteId}/days`)
+        .orderBy("date", "desc")
+        .limit(7)
+        .get();
+    const dailyRecords = [];
+    daysSnap.forEach((doc) => dailyRecords.push(doc.data()));
+    const alerts = [];
+    const now = new Date().toISOString();
+    // Rule 1: Missed Check-ins (3+ consecutive days without check-in)
+    if (dailyRecords.length >= 3) {
+        const recent3 = dailyRecords.slice(0, 3);
+        const missedAll = recent3.every((d) => !d.wellness && !d.sleep && !d.checkInCompleted);
+        if (missedAll) {
+            alerts.push({
+                id: `alert_missed_${athleteId}_${Date.now()}`,
+                athleteId,
+                type: "missed_checkins",
+                module: "recovery",
+                severity: "caution",
+                title: "Hiányzó reggeli check-in",
+                message: "3 egymást követő napja nem érkezett reggeli check-in vagy wellness adat.",
+                createdAt: now,
+                status: "active"
+            });
+        }
+    }
+    // Rule 2: Readiness Red for 2+ days
+    if (dailyRecords.length >= 2) {
+        const recent2 = dailyRecords.slice(0, 2);
+        const redStreak = recent2.every((d) => (d.readinessScore && d.readinessScore < 40) || d.readinessZone === "rest");
+        if (redStreak) {
+            alerts.push({
+                id: `alert_red_${athleteId}_${Date.now()}`,
+                athleteId,
+                type: "readiness_red",
+                module: "recovery",
+                severity: "critical",
+                title: "Kritikusan alacsony readiness",
+                message: "A sportoló készenléti szintje 2 egymást követő napon a pihenő zónában van.",
+                createdAt: now,
+                status: "active"
+            });
+        }
+    }
+    // Rule 3: Reported Illness
+    const latestDay = dailyRecords[0];
+    if (latestDay?.illness) {
+        alerts.push({
+            id: `alert_illness_${athleteId}_${Date.now()}`,
+            athleteId,
+            type: "reported_illness",
+            module: "health",
+            severity: "critical",
+            title: "Megbetegedés jelentve",
+            message: "A sportoló betegséget/tüneteket jelölt meg a legutóbbi check-in során.",
+            createdAt: now,
+            status: "active"
+        });
+    }
+    // Write alerts to Firestore under athletes/{athleteId}/alerts/{alertId}
+    const batch = db.batch();
+    for (const alert of alerts) {
+        const alertRef = db.collection(`athletes/${athleteId}/alerts`).doc(alert.id);
+        batch.set(alertRef, alert, { merge: true });
+    }
+    await batch.commit();
+    return {
+        success: true,
+        alertsGenerated: alerts.length,
+        alerts
+    };
+});
+/**
+ * Bulk workout assignment to a group or multiple athletes
+ */
+exports.bulkAssignWorkout = (0, https_1.onCall)(async (request) => {
+    if (!request.auth) {
+        throw new https_1.HttpsError("unauthenticated", "Authentication required for bulk workout assignment.");
+    }
+    const coachUid = request.auth.uid;
+    const { athleteIds, workout } = request.data || {};
+    if (!Array.isArray(athleteIds) || athleteIds.length === 0 || !workout) {
+        throw new https_1.HttpsError("invalid-argument", "athleteIds array and workout object are required.");
+    }
+    const db = admin.firestore();
+    const batch = db.batch();
+    let assignedCount = 0;
+    const skippedAthletes = [];
+    for (const athleteId of athleteIds) {
+        // Check coach write permissions for training on this athlete
+        const relSnap = await db.collection("relationships").doc(`${athleteId}_${coachUid}`).get();
+        if (!relSnap.exists) {
+            skippedAthletes.push(athleteId);
+            continue;
+        }
+        const rel = relSnap.data();
+        if (rel?.status !== "active" || rel?.permissions?.training !== "write") {
+            skippedAthletes.push(athleteId);
+            continue;
+        }
+        const plannedId = `workout_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+        const plannedRef = db.collection(`athletes/${athleteId}/plannedWorkouts`).doc(plannedId);
+        batch.set(plannedRef, {
+            id: plannedId,
+            athleteId,
+            assignedBy: coachUid,
+            sport: workout.sport || "running",
+            title: workout.title || "Tervezett edzés",
+            date: workout.date || new Date().toISOString().split("T")[0],
+            duration: workout.durationMinutes || 60,
+            rpeTarget: workout.rpeTarget || 6,
+            notes: workout.description || "",
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        assignedCount++;
+    }
+    if (assignedCount > 0) {
+        await batch.commit();
+    }
+    return {
+        success: true,
+        assignedCount,
+        skippedCount: skippedAthletes.length,
+        skippedAthletes
+    };
+});
+/**
+ * Copy week schedule between athletes
+ */
+exports.copyAthleteWeek = (0, https_1.onCall)(async (request) => {
+    if (!request.auth) {
+        throw new https_1.HttpsError("unauthenticated", "Authentication required to copy athlete weeks.");
+    }
+    const coachUid = request.auth.uid;
+    const { sourceAthleteId, sourceWeekStart, targetAthleteIds, targetWeekStart } = request.data || {};
+    if (!sourceAthleteId || !sourceWeekStart || !Array.isArray(targetAthleteIds) || !targetWeekStart) {
+        throw new https_1.HttpsError("invalid-argument", "Missing required week copying parameters.");
+    }
+    const db = admin.firestore();
+    // Fetch source workouts for that week (sourceWeekStart to +7 days)
+    const sourceStart = new Date(sourceWeekStart);
+    const sourceEnd = new Date(sourceStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const sourceStartStr = sourceStart.toISOString().split("T")[0];
+    const sourceEndStr = sourceEnd.toISOString().split("T")[0];
+    const workoutsSnap = await db
+        .collection(`athletes/${sourceAthleteId}/plannedWorkouts`)
+        .where("date", ">=", sourceStartStr)
+        .where("date", "<", sourceEndStr)
+        .get();
+    const sourceWorkouts = [];
+    workoutsSnap.forEach((doc) => sourceWorkouts.push(doc.data()));
+    const batch = db.batch();
+    let copiedTotal = 0;
+    for (const targetId of targetAthleteIds) {
+        // Check permission
+        const relSnap = await db.collection("relationships").doc(`${targetId}_${coachUid}`).get();
+        if (!relSnap.exists || relSnap.data()?.status !== "active" || relSnap.data()?.permissions?.training !== "write") {
+            continue;
+        }
+        for (const w of sourceWorkouts) {
+            // Calculate day offset
+            const originalDate = new Date(w.date);
+            const dayOffsetMs = originalDate.getTime() - sourceStart.getTime();
+            const targetDate = new Date(new Date(targetWeekStart).getTime() + dayOffsetMs);
+            const targetDateStr = targetDate.toISOString().split("T")[0];
+            const newId = `copied_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+            const targetRef = db.collection(`athletes/${targetId}/plannedWorkouts`).doc(newId);
+            batch.set(targetRef, {
+                ...w,
+                id: newId,
+                athleteId: targetId,
+                date: targetDateStr,
+                assignedBy: coachUid,
+                createdAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+            copiedTotal++;
+        }
+    }
+    if (copiedTotal > 0) {
+        await batch.commit();
+    }
+    return {
+        success: true,
+        copiedTotal,
+        sourceWorkoutsCount: sourceWorkouts.length
     };
 });
 //# sourceMappingURL=index.js.map

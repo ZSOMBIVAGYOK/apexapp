@@ -502,6 +502,65 @@ All nutrition constants and formulas are documented in `src/shared/lib/nutrition
 - Detailed developer documentation in `docs/INTEGRATIONS.md`.
 
 ---
+
+## 13. Stage 9: Coach & Specialist Workspace ("Csapat" Section) (COMPLETED)
+
+### A. Roster Dashboard (`RosterDashboard.tsx`)
+- **Athlete Cards & Table Views:** Switchable grid card view and tabular roster with readiness dot (green/amber/red) and confidence rating, last check-in timestamp with relative time, 7-day load trend indicator, TSB form status, weekly compliance %, and open alerts badge.
+- **Filtering & Search:** Real-time search by athlete name and sport; filtering by sport and training group/team (`availableGroups`); filtering by status (`all`, `attention`, `active`); multi-criteria sorting (open alerts count, readiness ascending, weekly compliance %, alphabetical).
+- **Pinned Attention-Needed Section:** High-priority banner and card list pinned to the top of the dashboard highlighting athletes requiring immediate staff attention (readiness score $< 40$, active red readiness, open alerts, compliance $< 60\%$, or missed check-ins $\ge 3$ days).
+- **Empty States & Onboarding:** Coach with 0 athletes displays an inviting empty state with an athlete invitation trigger.
+
+### B. Athlete Detail View (`AthleteDetailView.tsx`)
+- **Permission-Gated Tabs:** Tabs for `Overview`, `Training`, `Recovery`, `Nutrition`, `Health`, `Notes`, `Messages`. Each tab verifies explicit permissions (`permissions[module] !== 'none'`). Hidden/unauthorized modules display a clear lock screen with "Nincs megosztva" and an explanation that the athlete has not granted access.
+- **Read vs Write Enforcement:** Write actions (e.g. assigning workouts, modifying nutrition targets, updating injury records) are only active if the staff member holds write permissions (`permissions[module] === 'write'`); otherwise the interface renders in high-fidelity read-only mode (e.g. read-only `SorenessBodyMap`).
+- **Mid-Session Access Revocation Lockout:** Automatic permission validation immediately locks the screen if the athlete revokes sharing during an active session.
+- **Specialist Auto-Landing Tabs:** Tailored landing views based on role:
+  - Dietitian $\rightarrow$ Nutrition
+  - Physiotherapist $\rightarrow$ Health (injuries, body map)
+  - Strength Coach $\rightarrow$ Training
+  - Sport Psychologist $\rightarrow$ Recovery
+  - Physician $\rightarrow$ Health
+  - Head/Assistant Coach $\rightarrow$ Overview
+
+### C. Alerts Engine (`alertsEngine.ts`) & Scheduled Cloud Function
+- **8 Proactive Clinical Rules Evaluated:**
+  1. `missed_checkin`: 3+ consecutive days without daily check-in.
+  2. `readiness_red_consecutive`: Red readiness score ($\le 39$) for 2+ consecutive days.
+  3. `acwr_spike`: Acute:Chronic Workload Ratio (ACWR) $> 1.5$ (coupled with load ramp $> 20\%$/week).
+  4. `sleep_deprivation`: Total sleep $< 6$ hours for 3 or more consecutive nights.
+  5. `rapid_weight_change`: $> 2\%$ body weight change within a 48-hour window.
+  6. `illness_injury_reported`: Athlete flagged active illness or reported pain/injury during check-in.
+  7. `low_compliance`: Weekly completed workout compliance $< 60\%$.
+  8. `low_energy_availability`: Sustained low caloric intake combined with high training load.
+- **Strict Permission Routing (`filterAlertsForStaff`):** Alerts are dispatched strictly to staff members whose relationship permissions cover the underlying domain:
+  - Training alerts $\rightarrow$ Staff with `training` read/write permission.
+  - Health/Illness alerts $\rightarrow$ Staff with `health` read/write permission (Coaches and Dietitians without health access do NOT receive injury/illness alerts).
+  - Nutrition alerts $\rightarrow$ Staff with `nutrition` read/write permission (Physios and general staff do NOT receive nutrition alerts).
+- **Alert Lifecycle Management:** Staff can acknowledge alerts, snooze for 24/48/72 hours, and annotate with resolution comments.
+- **Scheduled Cloud Function (`runAthleteAlertCheck`):** Daily automated evaluation across all active athlete rosters with push notification dispatch hook.
+
+### D. Multi-Staff Collaboration, Messaging & Activity Feed
+- **Per-Athlete Topic Threads:** Segmented messaging threads (`general`, `training`, `recovery`, `nutrition`, `health`) preventing clutter and ensuring domain-specific conversations. Read receipts and FCM notification hooks.
+- **Private Staff Notes vs Shared Athlete Notes:** Notes tab cleanly distinguishes athlete-visible notes from confidential internal staff notes (accessible only to authorized coaching staff).
+- **Staff Activity Audit Trail:** Unified chronological feed recording who modified what, workout assignments, target changes, and alert resolutions.
+
+### E. Bulk Tools for Coaches
+- **`InviteAthleteModal`:** Generates unique 6-character alphanumeric codes (`APX-XXXXX`) with expiration date and instant clipboard copy.
+- **`BulkAssignModal`:** Enables batch workout scheduling by group or multi-select athletes, specifying sport, target date, duration, target RPE, and workout descriptions.
+- **`CopyWeekModal`:** Clones a full training week from a source athlete to one or multiple target athletes with date offset recalculation.
+- **`WeeklyReviewModal`:** Guided carousel modal allowing coaches to step through each athlete sequentially, reviewing weekly load, compliance, readiness, and submitting weekly feedback.
+
+### F. Athlete-Side "Csapatom" Screen (`AthleteTeamView.tsx`)
+- Full athlete transparency: lists connected coaches and specialists, their assigned roles and specialties, quick message buttons, and direct link to permission sharing settings (`/sharing`).
+
+### G. Dual-Role Experience (`CoachPage.tsx`)
+- Full support for users holding both athlete and coach/specialist roles, with a persistent header toggle to instantly switch between the athlete cockpit and coach workspace. Responsive split-pane layout on desktop and single-pane drill-down on mobile.
+- Comprehensive unit test suite: **13/13 vitest tests passing** in `alertsEngine.test.ts` (133/133 total project tests passing), 0 TypeScript errors, 0 ESLint warnings.
+
+---
 > **Requirement:** At the completion of each subsequent stage, this document must be updated with the stage's achievements, architectural decisions, and updated status.
+
+
 
 

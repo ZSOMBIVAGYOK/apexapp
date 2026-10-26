@@ -150,3 +150,4 @@ export * from "./dataModel";
 export * from "./training";
 export * from "./nutrition";
 export * from "./devices";
+export * from "./coach";

@@ -148,14 +148,16 @@ const BODY_REGIONS: BodyRegion[] = [
 
 export interface SorenessBodyMapProps {
   selectedRegions: string[];
-  onChange: (regions: string[]) => void;
+  onChange?: (regions: string[]) => void;
   className?: string;
+  readOnly?: boolean;
 }
 
 export const SorenessBodyMap: React.FC<SorenessBodyMapProps> = ({
   selectedRegions,
   onChange,
-  className = ""
+  className = "",
+  readOnly = false
 }) => {
   const { i18n } = useTranslation();
   const [currentView, setCurrentView] = useState<"front" | "back">("front");
@@ -163,6 +165,7 @@ export const SorenessBodyMap: React.FC<SorenessBodyMapProps> = ({
   const isHu = i18n.language.startsWith("hu");
 
   const toggleRegion = (regionId: string) => {
+    if (readOnly || !onChange) return;
     if (selectedRegions.includes(regionId)) {
       onChange(selectedRegions.filter((id) => id !== regionId));
     } else {
@@ -171,6 +174,7 @@ export const SorenessBodyMap: React.FC<SorenessBodyMapProps> = ({
   };
 
   const handleClearAll = () => {
+    if (readOnly || !onChange) return;
     onChange([]);
   };
 
@@ -206,7 +210,7 @@ export const SorenessBodyMap: React.FC<SorenessBodyMapProps> = ({
           </button>
         </div>
 
-        {activeSelectedCount > 0 && (
+        {!readOnly && activeSelectedCount > 0 && (
           <button
             type="button"
             onClick={handleClearAll}
@@ -240,7 +244,11 @@ export const SorenessBodyMap: React.FC<SorenessBodyMapProps> = ({
           {visibleRegions.map((region) => {
             const isSelected = selectedRegions.includes(region.id);
             return (
-              <g key={region.id} className="cursor-pointer group" onClick={() => toggleRegion(region.id)}>
+              <g
+                key={region.id}
+                className={readOnly ? "cursor-default" : "cursor-pointer group"}
+                onClick={() => toggleRegion(region.id)}
+              >
                 <path
                   d={region.path}
                   className={`transition-all duration-150 ${
