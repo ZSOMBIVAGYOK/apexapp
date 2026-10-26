@@ -149,3 +149,4 @@ export interface SpecialistStaff {
 export * from "./dataModel";
 export * from "./training";
 export * from "./nutrition";
+export * from "./devices";

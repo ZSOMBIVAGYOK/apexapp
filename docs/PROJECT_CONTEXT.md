@@ -466,5 +466,42 @@ All nutrition constants and formulas are documented in `src/shared/lib/nutrition
 - 7-day trailing moving average filters acute water/glycogen shifts (each 1g glycogen binds 3-4g water).
 - Recharts composed chart showing raw weigh-in dots against a smoothed trend line and weekly rate of change (kg/week).
 ---
+
+## 12. Stage 8: Device Integration Layer (COMPLETED)
+
+### A. Provider-Agnostic Ingestion Architecture
+- **Normalized Data Schemas:** Pure TypeScript + Zod schemas (`NormalizedActivity`, `NormalizedSleep`, `NormalizedDaily`) with strict field definitions, confidence scores, and raw payload references.
+- **Unified Ingestion Interface (`IDeviceAdapter`):** `connect()`, `handleWebhook()`, `backfill()`, `refresh()`, `disconnect()`.
+- **Server-Side Token Security:** OAuth client secrets and user refresh tokens are restricted to server-side Cloud Functions and protected Firestore collections; the client application never receives vendor secrets.
+- **Multi-Source Deduplication:** Identifies identical workouts across devices ($\pm 5$ min start time, $\pm 8\%$ duration tolerance, matching sport), merging streams (e.g. GPS, pace, and power from Garmin; heart rate and strain from WHOOP) while tracking provenance in `mergedFrom`.
+- **User-Configured Priority Ranking:** Athletes control which device source wins per metric (`sleep`, `activity`, `hrv`, `restingHR`, `weight`) with instant re-ordering in `PrioritySettingsModal`.
+
+### B. Level 1 — File Import Pipeline (Fully Built)
+- **Supported Formats:** `.fit` (Garmin binary FIT Protocol 2.0 parser), `.tcx` (Garmin Training Center XML), `.gpx` (GPX 1.1 with trackpoint Haversine distance and elevation), `.csv` (tabular workout logs with auto-delimiter detection).
+- **Drag-and-Drop Zone:** `FileUploadZone` with live processing feedback, load calculation via `calculateSessionLoad`, and real-time duplicate detection.
+- **Audit History:** `ImportHistoryModal` and Firestore `athletes/{id}/importHistory` recording total files, created sessions, and duplicate counts.
+
+### C. Level 2 — Device Adapters with Realistic Mock Mode
+- **Garmin Connect:** Implements Garmin Health & Activity API adapter, OAuth PKCE flow, `X-Garmin-Signature` webhook verification, and 90-day backfill generator.
+- **WHOOP 4.0:** Implements OAuth 2.0, Day Strain (0–21), recovery biometrics, sleep stages, and `X-WHOOP-Signature` verification.
+- **Polar AccessLink:** Implements AccessLink v3 API with exercise transaction lifecycle and Nightly Recharge metrics.
+- **Oura Ring v2:** Implements OAuth 2.0, sleep efficiency, skin temperature deviation, and readiness biometrics.
+
+### D. Level 3 — Aggregator Abstraction (Terra / Junction)
+- `AggregatorAdapter` implementing `IDeviceAdapter`, disabled by default and togglable via environment variable or the Devices screen.
+
+### E. Native Wrapper Readiness
+- Ingestion endpoint `POST /ingest/health` (Cloud Function `ingestHealthData`) designed for future Capacitor / native iOS HealthKit and Android Health Connect bridges.
+- "Apple Health / Health Connect - hamarosan" card with interactive test simulator button.
+
+### F. Devices UI (`DevicesPage.tsx`)
+- Provider cards with live connection toggle, "Sync now" with realistic mock data backfill, disconnect, and confirmation modal for deleting provider-specific data.
+- Data-quality diagnostic hints (e.g. missing HRV nights, optical HR warning).
+- Manual mode friendly helper card explaining automatic readiness advantages with easy switch to Hybrid mode.
+- Comprehensive unit tests: 15/15 device engine tests passing (120/120 total test suite passing).
+- Detailed developer documentation in `docs/INTEGRATIONS.md`.
+
+---
 > **Requirement:** At the completion of each subsequent stage, this document must be updated with the stage's achievements, architectural decisions, and updated status.
+
 

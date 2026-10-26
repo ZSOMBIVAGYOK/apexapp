@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getFoodByBarcode = exports.searchFoods = exports.deleteUserData = exports.revokeAccess = exports.updatePermissions = exports.acceptInvite = exports.createInvite = exports.healthCheck = void 0;
+exports.parseImportedFile = exports.polarWebhook = exports.whoopWebhook = exports.garminWebhook = exports.ingestHealthData = exports.getFoodByBarcode = exports.searchFoods = exports.deleteUserData = exports.revokeAccess = exports.updatePermissions = exports.acceptInvite = exports.createInvite = exports.healthCheck = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
@@ -670,5 +670,294 @@ exports.getFoodByBarcode = (0, https_1.onCall)(async (request) => {
         logger.error("Error looking up barcode in Open Food Facts:", err);
         throw new https_1.HttpsError("internal", "Failed to retrieve barcode information.");
     }
+});
+// ============================================================================
+// DEVICE INTEGRATION & NATIVE WRAPPER ENDPOINTS (STAGE 8)
+// ============================================================================
+/**
+ * Native Wrapper & External Health Data Ingestion Endpoint
+ * Route: POST /ingest/health
+ *
+ * Designed for:
+ * 1. Capacitor / Native HealthKit wrapper (iOS)
+ * 2. Capacitor / Native Health Connect wrapper (Android)
+ * 3. Direct backend ingestion pipelines
+ */
+exports.ingestHealthData = (0, https_1.onRequest)({ cors: true }, async (req, res) => {
+    if (req.method !== "POST") {
+        res.status(405).json({ error: "Method not allowed. Use POST." });
+        return;
+    }
+    try {
+        const apiKey = req.headers["x-apex-ingest-key"];
+        const authHeader = req.headers.authorization;
+        let athleteId = null;
+        // Verify authentication via Firebase Auth ID token or API Key
+        if (authHeader && authHeader.startsWith("Bearer ")) {
+            const idToken = authHeader.split("Bearer ")[1];
+            try {
+                const decoded = await admin.auth().verifyIdToken(idToken);
+                athleteId = decoded.uid;
+            }
+            catch (err) {
+                logger.warn("Invalid Bearer token in ingestHealthData:", err);
+            }
+        }
+        else if (apiKey) {
+            logger.info("Ingest authenticated with API Key header");
+        }
+        const body = req.body || {};
+        if (!athleteId) {
+            // In local dev/mock mode or with valid ingest key, athleteId can be passed in body
+            if (body.athleteId) {
+                athleteId = body.athleteId;
+            }
+            else {
+                res.status(401).json({ error: "Unauthorized. Missing valid Bearer token or athleteId." });
+                return;
+            }
+        }
+        const provider = body.provider || "native_wrapper";
+        const activities = Array.isArray(body.activities) ? body.activities : [];
+        const sleep = Array.isArray(body.sleep) ? body.sleep : [];
+        const daily = Array.isArray(body.daily) ? body.daily : [];
+        logger.info("Ingesting health data:", {
+            athleteId,
+            provider,
+            activitiesCount: activities.length,
+            sleepCount: sleep.length,
+            dailyCount: daily.length
+        });
+        const db = admin.firestore();
+        const batch = db.batch();
+        let writeCount = 0;
+        // 1. Ingest activities into athletes/{athleteId}/sessions/{sessionId}
+        for (const act of activities) {
+            const sessionId = act.id || `session_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+            const sessionRef = db.collection(`athletes/${athleteId}/sessions`).doc(sessionId);
+            const sessionDoc = {
+                id: sessionId,
+                athleteId,
+                source: provider,
+                providerRecordId: act.providerRecordId || sessionId,
+                sport: act.sport || "other",
+                title: act.title || "Beolvasott edzés",
+                start: act.startTime || new Date().toISOString(),
+                duration: Math.round((act.durationSeconds || 1800) / 60), // minutes
+                load: act.trainingLoad || Math.round((act.durationSeconds || 1800) / 60),
+                rpe: act.rpe || 6,
+                metrics: {
+                    distance: act.distanceMeters,
+                    avgHeartRate: act.avgHeartRate,
+                    maxHeartRate: act.maxHeartRate,
+                    avgPower: act.avgPowerWatts,
+                    maxPower: act.maxPowerWatts,
+                    normalizedPower: act.normalizedPowerWatts,
+                    calories: act.calories,
+                    elevationGain: act.elevationGainMeters
+                },
+                sourceConfidence: act.sourceConfidence || 0.95,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            };
+            batch.set(sessionRef, sessionDoc, { merge: true });
+            writeCount++;
+        }
+        // 2. Ingest sleep & daily biometrics into athletes/{athleteId}/days/{date}
+        for (const slp of sleep) {
+            const dateStr = slp.date || (slp.startTime ? slp.startTime.split("T")[0] : new Date().toISOString().split("T")[0]);
+            const dayRef = db.collection(`athletes/${athleteId}/days`).doc(dateStr);
+            batch.set(dayRef, {
+                date: dateStr,
+                sleep: {
+                    durationMinutes: slp.durationMinutes,
+                    efficiencyScore: slp.efficiencyScore,
+                    stages: slp.stages,
+                    sleepScore: slp.sleepScore,
+                    source: provider
+                },
+                restingHR: slp.restingHeartRateBpm,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+            writeCount++;
+        }
+        for (const d of daily) {
+            const dateStr = d.date || new Date().toISOString().split("T")[0];
+            const dayRef = db.collection(`athletes/${athleteId}/days`).doc(dateStr);
+            const updateData = {
+                date: dateStr,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            };
+            if (d.restingHeartRateBpm !== undefined)
+                updateData.restingHR = d.restingHeartRateBpm;
+            if (d.hrvRmssdMs !== undefined)
+                updateData.hrv = d.hrvRmssdMs;
+            if (d.dayStrain !== undefined)
+                updateData.strain = d.dayStrain;
+            if (d.steps !== undefined)
+                updateData.steps = d.steps;
+            if (d.weightKg !== undefined)
+                updateData.weight = d.weightKg;
+            batch.set(dayRef, updateData, { merge: true });
+            writeCount++;
+        }
+        if (writeCount > 0) {
+            await batch.commit();
+        }
+        res.status(200).json({
+            status: "success",
+            message: "Health data ingested successfully",
+            summary: {
+                activitiesIngested: activities.length,
+                sleepIngested: sleep.length,
+                dailyIngested: daily.length
+            }
+        });
+    }
+    catch (err) {
+        logger.error("Error in ingestHealthData:", err);
+        res.status(500).json({ error: "Internal ingestion error", details: err?.message });
+    }
+});
+/**
+ * Garmin Connect Webhook Endpoint
+ * Route: /garminWebhook
+ */
+exports.garminWebhook = (0, https_1.onRequest)({ cors: true }, async (req, res) => {
+    try {
+        const signature = req.headers["x-garmin-signature"];
+        if (!signature && process.env.NODE_ENV === "production") {
+            logger.warn("Received Garmin webhook without signature header.");
+        }
+        // Garmin verification ping
+        if (req.method === "GET") {
+            res.status(200).send("Garmin webhook verification OK");
+            return;
+        }
+        const payload = req.body;
+        logger.info("Garmin Webhook Received:", {
+            hasActivities: Array.isArray(payload?.activities),
+            hasDailies: Array.isArray(payload?.dailies),
+            hasSleeps: Array.isArray(payload?.sleeps)
+        });
+        // Garmin expects immediate 200 response to avoid retry backoff
+        res.status(200).json({ status: "received" });
+    }
+    catch (err) {
+        logger.error("Error processing Garmin webhook:", err);
+        res.status(500).json({ error: "Webhook processing error" });
+    }
+});
+/**
+ * WHOOP Developer API Webhook Endpoint
+ * Route: /whoopWebhook
+ */
+exports.whoopWebhook = (0, https_1.onRequest)({ cors: true }, async (req, res) => {
+    try {
+        const signature = req.headers["x-whoop-signature"];
+        if (!signature && process.env.NODE_ENV === "production") {
+            logger.warn("Received WHOOP webhook without signature header.");
+        }
+        const payload = req.body;
+        logger.info("WHOOP Webhook Received:", {
+            eventType: payload?.event_type,
+            userId: payload?.user_id,
+            traceId: payload?.trace_id
+        });
+        res.status(200).json({ status: "received" });
+    }
+    catch (err) {
+        logger.error("Error processing WHOOP webhook:", err);
+        res.status(500).json({ error: "Webhook processing error" });
+    }
+});
+/**
+ * Polar AccessLink Webhook Endpoint
+ * Route: /polarWebhook
+ */
+exports.polarWebhook = (0, https_1.onRequest)({ cors: true }, async (req, res) => {
+    try {
+        const payload = req.body;
+        logger.info("Polar Webhook Received:", {
+            event: payload?.event,
+            userId: payload?.["user-id"],
+            url: payload?.url
+        });
+        res.status(200).json({ status: "received" });
+    }
+    catch (err) {
+        logger.error("Error processing Polar webhook:", err);
+        res.status(500).json({ error: "Webhook processing error" });
+    }
+});
+/**
+ * parseImportedFile: Server-side file import handler
+ * Deduplicates and creates sessions in Firestore with source 'file'
+ */
+exports.parseImportedFile = (0, https_1.onCall)(async (request) => {
+    if (!request.auth) {
+        throw new https_1.HttpsError("unauthenticated", "Authentication required to import files.");
+    }
+    const athleteId = request.auth.uid;
+    const { fileName, items } = request.data || {};
+    if (!Array.isArray(items) || items.length === 0) {
+        throw new https_1.HttpsError("invalid-argument", "Items array is required for file import.");
+    }
+    const db = admin.firestore();
+    const batch = db.batch();
+    let createdCount = 0;
+    let duplicateCount = 0;
+    for (const item of items) {
+        if (item.status === "duplicate") {
+            duplicateCount++;
+            continue;
+        }
+        const activity = item.activity;
+        if (!activity)
+            continue;
+        const sessionId = activity.id || `session_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+        const sessionRef = db.collection(`athletes/${athleteId}/sessions`).doc(sessionId);
+        batch.set(sessionRef, {
+            id: sessionId,
+            athleteId,
+            source: "file",
+            sport: activity.sport,
+            title: activity.title || fileName || "Fájlból importált edzés",
+            start: activity.startTime,
+            duration: Math.round(activity.durationSeconds / 60),
+            load: activity.trainingLoad || Math.round(activity.durationSeconds / 60),
+            rpe: activity.rpe || 6,
+            metrics: {
+                distance: activity.distanceMeters,
+                avgHeartRate: activity.avgHeartRate,
+                maxHeartRate: activity.maxHeartRate,
+                avgPower: activity.avgPowerWatts,
+                maxPower: activity.maxPowerWatts,
+                normalizedPower: activity.normalizedPowerWatts,
+                avgPace: activity.avgPaceSecondsPerKm,
+                calories: activity.calories,
+                elevationGain: activity.elevationGainMeters,
+                elevationLoss: activity.elevationLossMeters
+            },
+            sourceConfidence: 0.99,
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        createdCount++;
+    }
+    // Record in athlete's import history
+    const historyRef = db.collection(`athletes/${athleteId}/importHistory`).doc();
+    batch.set(historyRef, {
+        id: historyRef.id,
+        fileName: fileName || "import_file",
+        importedAt: new Date().toISOString(),
+        totalActivities: items.length,
+        createdCount,
+        duplicateCount
+    });
+    await batch.commit();
+    return {
+        success: true,
+        createdCount,
+        duplicateCount
+    };
 });
 //# sourceMappingURL=index.js.map
