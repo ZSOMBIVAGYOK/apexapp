@@ -1,6 +1,7 @@
 # Apex Project Context & Architecture Guide
 
 > **Working Title:** Apex  
+> **Visual Direction:** Professional elite-sport tool with Apple-level cleanliness. Calm, spacious, high-contrast, data-first, zero clutter. Think "pro cockpit": big numbers, quiet chrome, color only where it carries meaning.  
 > **Target Audience:** Athletes (dedicated hobbyists to Olympic-level competitors), Coaches, and Sports Specialists (Dietitian, Physiotherapist, Strength Coach, Sport Psychologist, Team Physician).  
 > **Platform Type:** Progressive Web Application (PWA) with offline-first capabilities.
 
@@ -19,7 +20,7 @@
            ▼                            ▼                           ▼
    ┌───────────────┐           ┌───────────────────┐      ┌──────────────────┐
    │ React Router  │           │  Zustand & Query  │      │  vite-plugin-pwa │
-   │ 8 Lazy Routes │           │ State Management  │      │ Service Worker   │
+   │ 9 Lazy Routes │           │ State Management  │      │ Service Worker   │
    │  Auth Guard   │           │ Client / Server   │      │ App-Shell Cache  │
    └───────────────┘           └────────┬──────────┘      └──────────────────┘
                                         │
@@ -38,17 +39,56 @@
 
 ---
 
-## 2. Directory Conventions & Feature-Based Architecture
+## 2. Design Tokens & Design System
 
-The codebase strictly enforces a modular, feature-based architecture:
+### A. Color Tokens
+Defined via CSS variables in [src/app/index.css](file:///Users/zsombi/Downloads/oly/src/app/index.css) and wired into [tailwind.config.js](file:///Users/zsombi/Downloads/oly/tailwind.config.js):
+- **Dark Theme (Default):**
+  - Background: `#0B0C0F` (`bg-primary`)
+  - Surface: `#14161B` (`bg-surface`)
+  - Elevated: `#1C1F26` (`bg-elevated`)
+  - Hairline Border: `rgba(255, 255, 255, 0.08)` (`border-hairline`)
+  - Text Primary: `#F5F6F8` (`text-primary`)
+  - Text Secondary: `#9AA1AD` (`text-secondary`)
+  - Text Tertiary: `#606877` (`text-tertiary`)
+- **Light Theme (Manual or System Override):**
+  - Background: `#F5F6F8` (`bg-primary`)
+  - Surface: `#FFFFFF` (`bg-surface`)
+  - Elevated: `#FFFFFF` with soft layered shadow (`bg-elevated`)
+  - Hairline Border: `rgba(0, 0, 0, 0.08)` (`border-hairline`)
+  - Text Primary: `#0B0C0F` (`text-primary`)
+  - Text Secondary: `#5B6270` (`text-secondary`)
+  - Text Tertiary: `#8B93A0` (`text-tertiary`)
+- **Accent (Brand):**
+  - Brand: `#3D7BFF`
+- **Semantic Status Colors:**
+  - *Strict Rule:* Used **ONLY** for readiness, alerts, and mechanical load status. Never for ornamental chrome.
+  - Ready / Optimal: `#34D399` (`status-ready`)
+  - Caution / Monitor: `#FBBF24` (`status-caution`)
+  - Rest / High Risk: `#F87171` (`status-rest`)
+
+### B. Typography & Numerals
+- **Typeface:** Inter (self-hosted / Google Fonts) with `-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text"` fallback.
+- **Tabular Numerals:** All metric numbers enforce `.tabular-nums` (`font-variant-numeric: tabular-nums`).
+- **Scale:** 12 / 14 / 16 / 20 / 28 / 40 / 64 pt scale. Large numbers use weight 600 and tight letter-spacing (`tracking-tight`).
+
+### C. Spacing, Geometry & Motion
+- **8pt Grid:** Radii 12 (`rounded-12`), 20 (`rounded-20`), 28 (`rounded-28`).
+- **Frosted Glass:** Backdrop blur with high-alpha surface backgrounds for mobile bottom bars and modal sheets.
+- **Motion:** 200ms ease-out transitions (`cubic-bezier(0.16, 1, 0.3, 1)`), count-up circular gauge animations, respecting `@media (prefers-reduced-motion: reduce)`.
+
+---
+
+## 3. Directory Conventions & Feature-Based Architecture
 
 ```
 src/
 ├── app/                  # Application root & shell
-│   ├── App.tsx           # Providers (QueryClient, Auth, Router)
-│   ├── AppLayout.tsx     # Shell: Mobile bottom nav, desktop sidebar, language switcher
-│   ├── index.css         # Tailwind directives & accessibility styles
+│   ├── App.tsx           # Providers (QueryClient, Auth, Theme, Router)
+│   ├── AppLayout.tsx     # Shell: Mobile bottom nav, desktop sidebar, top search bar
+│   ├── index.css         # CSS Tokens (Dark/Light), typography, tabular numbers
 │   ├── main.tsx          # React 18 DOM mount point
+│   ├── navigation.ts     # Role-aware navigation definitions (Athlete vs Coach/Specialist)
 │   └── routes.tsx        # Lazy-loaded route registry & ProtectedRoute guards
 │
 ├── features/             # Business domain features
@@ -61,13 +101,14 @@ src/
 │   ├── devices/          # Wearable sync (Garmin, WHOOP, Apple Health, Polar Flow)
 │   ├── coach/            # Multidisciplinary staff collaboration & feedback
 │   ├── insights/         # ACWR (Acute:Chronic Workload Ratio), Recharts graphs, trend analytics
-│   └── settings/         # Profile, language switch (HU/EN), emulator toggle, system diagnostics
+│   ├── settings/         # Profile, theme switch (Dark/Light/System), language switch (HU/EN)
+│   └── design/           # Dev-only styleguide showcasing all 26 components in both themes
 │
 ├── shared/               # Reusable platform code
 │   ├── hooks/            # Custom utilities (e.g. useDebounce)
-│   ├── lib/              # Infrastructure libraries (Firebase, i18n, PWA hooks, cn utility)
+│   ├── lib/              # Infrastructure libraries (Firebase, i18n, Theme, PWA hooks, cn utility)
 │   ├── types/            # TypeScript interfaces and domain models
-│   └── ui/               # PwaInstallBanner, PwaUpdateToast, OfflineIndicator, NotFoundPage
+│   └── ui/               # Complete 26-component design system
 │
 functions/                # Cloud Functions (TypeScript)
 │   └── src/index.ts      # Cloud Functions backend endpoints
@@ -81,39 +122,61 @@ public/                   # Static assets & PWA manifest
 
 ---
 
-## 3. Engineering & Design Rules
+## 4. UI Components Inventory (`src/shared/ui/`)
 
-1. **Mobile-First & PWA First:** Every view is engineered for thumb-friendly mobile interaction with bottom navigation, responsive breakpoints for tablet/desktop, and standalone display mode.
-2. **WCAG AA Accessibility:**
-   - Color contrast ratio >= 4.5:1.
-   - Screen-reader skip-to-content links.
-   - Proper semantic HTML `<main>`, `<header>`, `<nav>`, `<aside>`, `<section>` and ARIA attributes (`aria-live`, `aria-atomic`, `role="status"`).
-3. **Strict Localization (i18n):**
-   - No hardcoded UI strings.
-   - Hungarian (`hu.json`) is the default language; English (`en.json`) is fully supported.
-   - All interactive controls consume `useTranslation()`.
-4. **Interactive Fidelity:**
-   - No dead buttons: all interactive elements trigger state modifications, navigation, or feedback toasts.
-   - No lorem ipsum text: realistic athletic and sports science terminology throughout.
-5. **Security & Data Integrity:**
-   - Never commit production secrets.
-   - Strict Firestore security rules with athlete-owner validation and collaboration check functions.
+| Component | Responsibility & Features |
+|---|---|
+| `Button` | High-contrast, Apple-level quiet chrome, variants (primary, secondary, tertiary, ghost, danger), sizes (sm, md, lg), loading spinner, active scale feedback. |
+| `IconButton` | Compact accessible icon trigger with aria-label and tooltip support. |
+| `Card` | Canvas containers with surface, elevated, interactive variants, 1px hairline borders, 12/20/28 radii. |
+| `StatTile` | Big numbers (weight 600, tabular-nums), trend diffs, status dots, unit labels, source slot. |
+| `ProgressRing` | Circular readiness gauge with animated count-up, semantic color mapping, center value and labels. |
+| `SegmentedControl` | Apple-style sliding pill segmented control with keyboard arrow navigation. |
+| `Tabs` | WAI-ARIA tab list, tab panels, keyboard arrow navigation, line & pill variants. |
+| `BottomSheet` | Mobile drawer sliding from bottom with drag indicator; transforms into centered modal on desktop (>=1024px). |
+| `Input` | High-contrast input with floating label, clear button, error state, and leading/trailing icons. |
+| `NumberInput` | Metric input with stepper buttons (+/-), tabular numerals, keyboard up/down arrows. |
+| `Slider` | Smooth track with labelled steps/ticks (e.g. RPE 1-10, sleep hours), keyboard slider navigation. |
+| `Stepper` | Multi-step process indicator for onboarding and multi-stage workouts. |
+| `Select` | Custom styled dropdown select with keyboard navigation, option list, checkmarks. |
+| `Toggle` | iOS-style switch toggle with smooth spring animation, keyboard Space/Enter. |
+| `Chip` | Filter tag and selectable pill with dismissible option. |
+| `Avatar` | Profile image with initials fallback and status indicator dot. |
+| `Badge` | Micro-badges (neutral, brand, ready, caution, rest, outline) with optional dot. |
+| `Toast` & `toastStore` | App-wide notification toasts with status icons and auto-dismissal. |
+| `Skeleton` | Pulse placeholders for loading states (text, circular, rectangular, card, tile). |
+| `EmptyState` | Quiet empty state with icon, title, description, and primary action button. |
+| `ListRow` | Data row with leading icon, title, subtitle, right value, status badge, and chevron. |
+| `SectionHeader` | Clean section header with title, description, badge, and action slots. |
+| `ChartFrame` | Wrapper for charts with title, time range selector (7D / 28D / YTD), and loading/empty states. |
+| `CalendarPrimitives` | `WeekStrip` day selector with workout/readiness indicators for periodization. |
+| `SourceBadge` | Biometric data origin indicator: Manual, Garmin, WHOOP, File. |
+| `ConfidenceMeter` | Data accuracy and confidence level indicator (High / Medium / Low). |
 
 ---
 
-## 4. The 10 Build Stages Roadmap
+## 5. Screen State Architecture (Quality Bar)
+
+Every screen is required to support three states:
+1. **Loading State:** Skeleton layout matching the final page geometry to prevent content layout shifts.
+2. **Empty State:** Uncluttered `EmptyState` with descriptive copy and a clear call-to-action button (no dead buttons).
+3. **Error State:** High-contrast alert card with an actionable retry button (`Button variant="danger"`).
+
+---
+
+## 6. The 10 Build Stages Roadmap
 
 | Stage | Name | Description | Status |
 |---|---|---|---|
-| **Stage 1** | **Foundation & Scaffold** | Project scaffold, ESLint, Prettier, path aliases, Firebase config & emulators, PWA manifest, service worker caching, offline fallback, lazy routing shell, Hungarian/English i18n, and WCAG AA mobile-first UI shell. | **Completed (Current)** |
-| **Stage 2** | **Firebase Auth & Multi-Role Profiles** | Production Firebase Auth lifecycle, persistent athlete/coach profiles in Firestore, role-based claims, onboarding completion logic. | Upcoming |
-| **Stage 3** | **Morning Check-in & Readiness Engine** | Recovery score calculation engine, HRV and resting HR integration, daily subjective fatigue markers, persistent Firestore check-in collection. | Upcoming |
-| **Stage 4** | **Training Engine & Periodization** | Structured training blocks, interval timer, mechanical volume calculation, session completion logs, RPE-based load adjustment. | Upcoming |
-| **Stage 5** | **Nutrition & Hydration Tracking** | Macronutrient distribution, pre/post workout nutrient timing, hydration progress logger with custom water volume increments. | Upcoming |
-| **Stage 6** | **Wearable Devices & Sensor Sync** | Webhook and OAuth integrations with Garmin Connect, WHOOP 4.0, Apple HealthKit, and Polar Flow; background biometric syncing. | Upcoming |
-| **Stage 7** | **Coaching Staff & Specialist Hub** | Multi-user collaboration for dietitians, physiotherapists, strength coaches, psychologists, and physicians; athlete note sharing and invitation workflows. | Upcoming |
-| **Stage 8** | **Performance Analytics & ACWR Engine** | Acute:Chronic Workload Ratio (ACWR) safety index calculation, injury risk forecasting models, advanced Recharts trend graphs. | Upcoming |
-| **Stage 9** | **Push Notifications & Cloud Functions** | Firebase Cloud Messaging (FCM) web push notifications, automated daily check-in reminders, scheduled weekly digests via Cloud Functions. | Upcoming |
-| **Stage 10** | **Production Hardening, Auditing & Deployment** | Lighthouse PWA 100/100 audit, WCAG AA automated accessibility testing, security rules validation, production deployment to Firebase Hosting and Functions. | Upcoming |
+| **Stage 1** | **Foundation & Scaffold** | Project scaffold, ESLint, Prettier, path aliases, Firebase config & emulators, PWA manifest, service worker caching, offline fallback, lazy routing shell, Hungarian/English i18n, and WCAG AA mobile-first UI shell. | **Completed** |
+| **Stage 2** | **Design System & Cockpit App Shell** | Complete design tokens (Dark `#0B0C0F` default, Light `#F5F6F8`), 26 accessible components, Apple-clean cockpit layout, mobile 5-tab bar with collapsing header, desktop sidebar (>=1024px) with search & notifications, role-aware navigation (Athlete vs Coach/Specialist), dev-only `/design` styleguide. | **Completed (Current)** |
+| **Stage 3** | **Firebase Auth & Multi-Role Profiles** | Production Firebase Auth lifecycle, persistent athlete/coach profiles in Firestore, role-based claims, onboarding completion logic. | Upcoming |
+| **Stage 4** | **Morning Check-in & Readiness Engine** | Recovery score calculation engine, HRV and resting HR integration, daily subjective fatigue markers, persistent Firestore check-in collection. | Upcoming |
+| **Stage 5** | **Training Engine & Periodization** | Structured training blocks, interval timer, mechanical volume calculation, session completion logs, RPE-based load adjustment. | Upcoming |
+| **Stage 6** | **Nutrition & Hydration Tracking** | Macronutrient distribution, pre/post workout nutrient timing, hydration progress logger with custom water volume increments. | Upcoming |
+| **Stage 7** | **Wearable Devices & Sensor Sync** | Webhook and OAuth integrations with Garmin Connect, WHOOP 4.0, Apple HealthKit, and Polar Flow; background biometric syncing. | Upcoming |
+| **Stage 8** | **Coaching Staff & Specialist Hub** | Multi-user collaboration for dietitians, physiotherapists, strength coaches, psychologists, and physicians; athlete note sharing and invitation workflows. | Upcoming |
+| **Stage 9** | **Performance Analytics & ACWR Engine** | Acute:Chronic Workload Ratio (ACWR) safety index calculation, injury risk forecasting models, advanced Recharts trend graphs. | Upcoming |
+| **Stage 10** | **Push Notifications, Hardening & Deployment** | Firebase Cloud Messaging (FCM) web push notifications, automated daily check-in reminders, scheduled weekly digests via Cloud Functions, security auditing, and production deployment. | Upcoming |
 
 > **Requirement:** At the completion of each subsequent stage, this document must be updated with the stage's achievements, architectural decisions, and updated status.

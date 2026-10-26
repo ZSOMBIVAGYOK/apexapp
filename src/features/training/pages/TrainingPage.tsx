@@ -1,11 +1,24 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { TrainingSession } from "@shared/types";
-import { Dumbbell, Plus, CheckCircle2, Clock, Zap } from "lucide-react";
+import {
+  Card,
+  Button,
+  Badge,
+  SectionHeader,
+  BottomSheet,
+  Input,
+  NumberInput,
+  Slider,
+  WeekStrip,
+  showToast
+} from "@shared/ui";
+import { Plus, CheckCircle2, Clock, Zap, Play } from "lucide-react";
 
 export const TrainingPage: React.FC = () => {
   const { t } = useTranslation();
 
+  const [selectedDate, setSelectedDate] = useState("2026-10-26");
   const [sessions, setSessions] = useState<TrainingSession[]>([
     {
       id: "train-1",
@@ -41,14 +54,35 @@ export const TrainingPage: React.FC = () => {
     }
   ]);
 
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
-  const [newDuration, setNewDuration] = useState(45);
+  const [newDuration, setNewDuration] = useState(60);
   const [newRpe, setNewRpe] = useState(7);
+
+  const days = [
+    { date: "2026-10-26", dayNumber: 26, dayName: "H", isToday: true, readinessStatus: "ready" as const, hasWorkout: true },
+    { date: "2026-10-27", dayNumber: 27, dayName: "K", readinessStatus: "ready" as const, hasWorkout: true },
+    { date: "2026-10-28", dayNumber: 28, dayName: "Sze", readinessStatus: "caution" as const, hasWorkout: false },
+    { date: "2026-10-29", dayNumber: 29, dayName: "Cs", readinessStatus: "ready" as const, hasWorkout: true },
+    { date: "2026-10-30", dayNumber: 30, dayName: "P", readinessStatus: "rest" as const, hasWorkout: false },
+    { date: "2026-10-31", dayNumber: 31, dayName: "Szo", readinessStatus: "ready" as const, hasWorkout: true },
+    { date: "2026-11-01", dayNumber: 1, dayName: "V", readinessStatus: "ready" as const, hasWorkout: false }
+  ];
 
   const toggleComplete = (id: string) => {
     setSessions((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, completed: !s.completed } : s))
+      prev.map((s) => {
+        if (s.id === id) {
+          const next = !s.completed;
+          showToast({
+            title: next ? "Edzés teljesítve" : "Edzés státusz visszaállítva",
+            message: `${s.title}`,
+            type: next ? "success" : "info"
+          });
+          return { ...s, completed: next };
+        }
+        return s;
+      })
     );
   };
 
@@ -59,9 +93,9 @@ export const TrainingPage: React.FC = () => {
     const newSession: TrainingSession = {
       id: `train-${Date.now()}`,
       athleteId: "demo-athlete-001",
-      date: new Date().toISOString().split("T")[0] || "2026-10-26",
+      date: selectedDate,
       title: newTitle.trim(),
-      type: "endurance",
+      type: "threshold",
       durationMinutes: newDuration,
       targetIntensityRpe: newRpe,
       completed: false
@@ -69,152 +103,146 @@ export const TrainingPage: React.FC = () => {
 
     setSessions([newSession, ...sessions]);
     setNewTitle("");
-    setShowAddForm(false);
+    setIsSheetOpen(false);
+    showToast({
+      title: "Új edzés rögzítve",
+      message: `${newSession.title} hozzáadva a tervhez`,
+      type: "success"
+    });
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-brand-muted bg-brand-card p-6 shadow-xl">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-apex-500/10 text-apex-400">
-            <Dumbbell className="h-6 w-6" aria-hidden="true" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-100 sm:text-2xl">{t("training.title")}</h1>
-            <p className="text-xs text-slate-400 sm:text-sm">{t("training.subtitle")}</p>
-          </div>
-        </div>
+    <div className="space-y-6 pb-12">
+      <SectionHeader
+        title={t("training.title")}
+        description={t("training.subtitle")}
+        action={
+          <Button
+            variant="primary"
+            leftIcon={<Plus className="h-4 w-4" />}
+            onClick={() => setIsSheetOpen(true)}
+          >
+            {t("training.logSession")}
+          </Button>
+        }
+      />
 
-        <button
-          type="button"
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="inline-flex items-center gap-2 rounded-xl bg-apex-500 px-4 py-2.5 text-xs sm:text-sm font-bold text-brand-dark transition-all hover:bg-apex-400 shadow-md shadow-apex-500/20"
-        >
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          {t("training.logSession")}
-        </button>
-      </div>
-
-      {showAddForm && (
-        <form
-          onSubmit={handleAddSession}
-          className="rounded-2xl border border-apex-500/30 bg-slate-900/90 p-5 shadow-xl space-y-4"
-        >
-          <h2 className="text-sm font-bold text-slate-200">{t("training.logSession")}</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="sm:col-span-2">
-              <label htmlFor="session-title" className="block text-xs font-semibold text-slate-400 mb-1">
-                Megnevezés
-              </label>
-              <input
-                id="session-title"
-                type="text"
-                required
-                value={newTitle}
-                onChange={(e) => setNewTitle(e.target.value)}
-                placeholder="pl. 10x100m gyorsúszás felkészülés"
-                className="w-full rounded-lg border border-brand-muted bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:border-apex-500 focus:outline-none"
-              />
-            </div>
-            <div>
-              <label htmlFor="session-duration" className="block text-xs font-semibold text-slate-400 mb-1">
-                {t("training.duration")}
-              </label>
-              <input
-                id="session-duration"
-                type="number"
-                min="10"
-                value={newDuration}
-                onChange={(e) => setNewDuration(parseInt(e.target.value) || 0)}
-                className="w-full rounded-lg border border-brand-muted bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:border-apex-500 focus:outline-none"
-              />
-            </div>
-            <div>
-              <label htmlFor="session-rpe" className="block text-xs font-semibold text-slate-400 mb-1">
-                RPE (1-10)
-              </label>
-              <input
-                id="session-rpe"
-                type="number"
-                min="1"
-                max="10"
-                value={newRpe}
-                onChange={(e) => setNewRpe(parseInt(e.target.value) || 1)}
-                className="w-full rounded-lg border border-brand-muted bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:border-apex-500 focus:outline-none"
-              />
-            </div>
-          </div>
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setShowAddForm(false)}
-              className="rounded-lg px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200"
-            >
-              {t("common.cancel")}
-            </button>
-            <button
-              type="submit"
-              className="rounded-lg bg-apex-500 px-4 py-1.5 text-xs font-bold text-brand-dark hover:bg-apex-400"
-            >
-              {t("common.save")}
-            </button>
-          </div>
-        </form>
-      )}
+      {/* Week Calendar Strip */}
+      <WeekStrip
+        days={days}
+        selectedDate={selectedDate}
+        onSelectDate={setSelectedDate}
+        title="Heti Periodizáció"
+      />
 
       {/* Sessions List */}
       <div className="space-y-3">
         {sessions.map((session) => (
-          <div
+          <Card
             key={session.id}
-            className={`rounded-2xl border p-5 transition-all shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
-              session.completed
-                ? "border-emerald-500/20 bg-emerald-950/10 text-slate-300"
-                : "border-brand-muted bg-brand-card hover:border-slate-700"
+            variant={session.completed ? "surface" : "elevated"}
+            radius="20"
+            className={`p-5 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+              session.completed ? "opacity-75" : ""
             }`}
           >
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <span
-                  className={`rounded-md px-2 py-0.5 text-[11px] font-bold uppercase ${
-                    session.completed
-                      ? "bg-emerald-500/20 text-emerald-400"
-                      : "bg-apex-500/10 text-apex-400"
-                  }`}
+                <Badge
+                  variant={session.completed ? "ready" : "brand"}
+                  size="sm"
                 >
-                  {session.type}
-                </span>
-                <span className="text-xs text-slate-400">{session.date}</span>
+                  {session.type.toUpperCase()}
+                </Badge>
+                <span className="text-12 text-text-secondary">{session.date}</span>
+                {session.completed && (
+                  <Badge variant="ready" dot size="sm">
+                    Elvégezve
+                  </Badge>
+                )}
               </div>
-              <h2 className="text-base font-bold text-slate-100">{session.title}</h2>
-              <div className="flex items-center gap-4 text-xs text-slate-400">
+
+              <h3 className="text-16 font-bold text-text-primary">{session.title}</h3>
+
+              <div className="flex items-center gap-4 text-12 text-text-secondary">
                 <span className="flex items-center gap-1">
                   <Clock className="h-3.5 w-3.5" aria-hidden="true" />
                   {session.durationMinutes} perc
                 </span>
                 <span className="flex items-center gap-1">
-                  <Zap className="h-3.5 w-3.5 text-amber-400" aria-hidden="true" />
+                  <Zap className="h-3.5 w-3.5 text-status-caution" aria-hidden="true" />
                   RPE {session.targetIntensityRpe} / 10
                 </span>
-                {session.notes && <span className="italic text-slate-500">{session.notes}</span>}
+                {session.notes && (
+                  <span className="italic text-text-tertiary">{session.notes}</span>
+                )}
               </div>
             </div>
 
-            <button
-              type="button"
+            <Button
+              variant={session.completed ? "secondary" : "primary"}
+              size="sm"
+              leftIcon={
+                session.completed ? (
+                  <CheckCircle2 className="h-4 w-4 text-status-ready" />
+                ) : (
+                  <Play className="h-4 w-4" />
+                )
+              }
               onClick={() => toggleComplete(session.id)}
-              className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
-                session.completed
-                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                  : "bg-slate-800 text-slate-200 hover:bg-apex-500 hover:text-brand-dark"
-              }`}
             >
-              <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
               {session.completed ? t("training.completed") : t("training.startSession")}
-            </button>
-          </div>
+            </Button>
+          </Card>
         ))}
       </div>
+
+      {/* Log Session BottomSheet / Modal */}
+      <BottomSheet
+        isOpen={isSheetOpen}
+        onClose={() => setIsSheetOpen(false)}
+        title={t("training.logSession")}
+        description="Új edzésblokk ütemezése vagy manuális rögzítése az edzéstervbe."
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setIsSheetOpen(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button variant="primary" onClick={handleAddSession}>
+              {t("common.save")}
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleAddSession} className="space-y-4 py-2">
+          <Input
+            label="Edzés megnevezése"
+            required
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            placeholder="pl. 10x100m gyorsúszás felkészülés"
+          />
+
+          <NumberInput
+            label={t("training.duration")}
+            value={newDuration}
+            onChange={setNewDuration}
+            min={10}
+            max={300}
+            unit="perc"
+          />
+
+          <Slider
+            label="Tervezett Intenzitás (RPE)"
+            value={newRpe}
+            onChange={setNewRpe}
+            min={1}
+            max={10}
+            unit="/ 10"
+            statusColor={newRpe >= 8 ? "rest" : newRpe >= 5 ? "caution" : "ready"}
+          />
+        </form>
+      </BottomSheet>
     </div>
   );
 };

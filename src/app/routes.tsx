@@ -17,15 +17,16 @@ const DevicesPage = lazy(() => import("@features/devices/pages/DevicesPage"));
 const CoachPage = lazy(() => import("@features/coach/pages/CoachPage"));
 const InsightsPage = lazy(() => import("@features/insights/pages/InsightsPage"));
 const SettingsPage = lazy(() => import("@features/settings/pages/SettingsPage"));
+const DesignSystemPage = lazy(() => import("@features/design/pages/DesignSystemPage"));
 
 const SuspenseFallback: React.FC = () => (
   <div
     role="status"
     aria-live="polite"
-    className="flex min-h-[50vh] flex-col items-center justify-center text-slate-400"
+    className="flex min-h-[50vh] flex-col items-center justify-center text-text-secondary"
   >
-    <Loader2 className="h-8 w-8 animate-spin text-apex-500" aria-hidden="true" />
-    <span className="mt-3 text-xs font-medium">{i18n.t("common.loading")}</span>
+    <Loader2 className="h-8 w-8 animate-spin text-brand" aria-hidden="true" />
+    <span className="mt-3 text-12 font-medium">{i18n.t("common.loading")}</span>
   </div>
 );
 
@@ -115,6 +116,14 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <SettingsPage />
+          </Suspense>
+        )
+      },
+      {
+        path: "design",
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <DesignSystemPage />
           </Suspense>
         )
       },

@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@shared/lib/firebase";
 import { useAuthStore } from "@features/auth/authStore";
+import { Card, Button, Input, showToast } from "@shared/ui";
 import { Flame, Sparkles, LogIn, UserPlus, AlertCircle } from "lucide-react";
 import { z } from "zod";
 
@@ -40,6 +41,11 @@ export const AuthPage: React.FC = () => {
       } else {
         await signInWithEmailAndPassword(auth, email, password);
       }
+      showToast({
+        title: "Sikeres bejelentkezés",
+        message: "Üdvözlünk az Apex platformon!",
+        type: "success"
+      });
       navigate("/");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : t("auth.invalidCredentials");
@@ -51,24 +57,33 @@ export const AuthPage: React.FC = () => {
 
   const handleDemoLogin = () => {
     loginDemo("athlete");
+    showToast({
+      title: "Gyors Demó Mód",
+      message: "Bejelentkezve mint Kovács Zsombor (Olimpikon)",
+      type: "info"
+    });
     navigate("/");
   };
 
   return (
     <div className="flex min-h-[85vh] items-center justify-center px-4 py-8">
-      <div className="w-full max-w-md rounded-2xl border border-brand-muted bg-brand-card p-6 shadow-2xl sm:p-8">
-        <div className="text-center mb-6">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-apex-400 to-apex-600 text-brand-dark shadow-lg shadow-apex-500/20 mb-3">
-            <Flame className="h-7 w-7" aria-hidden="true" />
+      <Card variant="surface" radius="28" className="w-full max-w-md p-6 sm:p-8 space-y-6">
+        <div className="text-center space-y-2">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-20 bg-brand text-white shadow-sm">
+            <Flame className="h-6 w-6" aria-hidden="true" />
           </div>
-          <h1 className="text-2xl font-black text-slate-100">{t("auth.title")}</h1>
-          <p className="mt-1 text-xs text-slate-400 sm:text-sm">{t("auth.subtitle")}</p>
+          <h1 className="text-24 font-bold tracking-tight text-text-primary">
+            {t("auth.title")}
+          </h1>
+          <p className="text-12 text-text-secondary sm:text-14">
+            {t("auth.subtitle")}
+          </p>
         </div>
 
         {errorMsg && (
           <div
             role="alert"
-            className="mb-4 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300"
+            className="flex items-center gap-2 rounded-12 border border-status-rest/30 bg-status-rest/10 p-3 text-12 text-status-rest"
           >
             <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
             <span>{errorMsg}</span>
@@ -76,76 +91,59 @@ export const AuthPage: React.FC = () => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="auth-email" className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">
-              {t("auth.emailLabel")}
-            </label>
-            <input
-              id="auth-email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder={t("auth.emailPlaceholder")}
-              className="w-full rounded-xl border border-brand-muted bg-slate-900/80 px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 transition-colors focus:border-apex-500 focus:outline-none focus:ring-1 focus:ring-apex-500"
-            />
-          </div>
+          <Input
+            id="auth-email"
+            type="email"
+            label={t("auth.emailLabel")}
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder={t("auth.emailPlaceholder")}
+          />
 
-          <div>
-            <label htmlFor="auth-password" className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">
-              {t("auth.passwordLabel")}
-            </label>
-            <input
-              id="auth-password"
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={t("auth.passwordPlaceholder")}
-              className="w-full rounded-xl border border-brand-muted bg-slate-900/80 px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 transition-colors focus:border-apex-500 focus:outline-none focus:ring-1 focus:ring-apex-500"
-            />
-          </div>
+          <Input
+            id="auth-password"
+            type="password"
+            label={t("auth.passwordLabel")}
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder={t("auth.passwordPlaceholder")}
+          />
 
-          <button
+          <Button
             type="submit"
-            disabled={isSubmitting}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-apex-500 py-3 text-sm font-bold text-brand-dark shadow-lg shadow-apex-500/20 transition-all hover:bg-apex-400 disabled:opacity-50"
+            variant="primary"
+            fullWidth
+            isLoading={isSubmitting}
+            leftIcon={isRegistering ? <UserPlus className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
           >
-            {isRegistering ? (
-              <>
-                <UserPlus className="h-4 w-4" aria-hidden="true" />
-                {t("auth.submitRegister")}
-              </>
-            ) : (
-              <>
-                <LogIn className="h-4 w-4" aria-hidden="true" />
-                {t("auth.submitLogin")}
-              </>
-            )}
-          </button>
+            {isRegistering ? t("auth.submitRegister") : t("auth.submitLogin")}
+          </Button>
         </form>
 
-        <div className="mt-4 pt-4 border-t border-brand-muted text-center space-y-3">
+        <div className="pt-4 border-t border-border-hairline text-center space-y-3">
           <button
             type="button"
             onClick={() => setIsRegistering(!isRegistering)}
-            className="text-xs font-medium text-apex-400 hover:text-apex-300 transition-colors"
+            className="text-12 font-medium text-brand hover:underline"
           >
             {isRegistering ? t("auth.switchToLogin") : t("auth.switchToRegister")}
           </button>
 
           <div>
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              fullWidth
+              leftIcon={<Sparkles className="h-4 w-4 text-brand" />}
               onClick={handleDemoLogin}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-apex-500/30 bg-apex-500/10 py-2.5 text-xs font-semibold text-apex-400 transition-all hover:bg-apex-500/20"
             >
-              <Sparkles className="h-4 w-4" aria-hidden="true" />
               {t("auth.demoLogin")}
-            </button>
+            </Button>
           </div>
         </div>
-      </div>
+      </Card>
     </div>
   );
 };

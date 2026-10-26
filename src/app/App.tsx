@@ -3,6 +3,7 @@ import { RouterProvider } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { router } from "./routes";
 import { initAuthListener } from "@features/auth/authStore";
+import { initThemeListener } from "@shared/lib/theme/themeStore";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -16,8 +17,12 @@ const queryClient = new QueryClient({
 
 export const App: React.FC = () => {
   useEffect(() => {
-    const unsubscribe = initAuthListener();
-    return () => unsubscribe();
+    const unsubAuth = initAuthListener();
+    const unsubTheme = initThemeListener();
+    return () => {
+      unsubAuth();
+      unsubTheme();
+    };
   }, []);
 
   return (

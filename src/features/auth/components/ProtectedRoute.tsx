@@ -18,10 +18,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
       <div
         role="status"
         aria-live="polite"
-        className="flex min-h-screen flex-col items-center justify-center bg-brand-dark text-slate-200"
+        className="flex min-h-screen flex-col items-center justify-center bg-bg-primary text-text-primary"
       >
-        <Loader2 className="h-10 w-10 animate-spin text-apex-500" aria-hidden="true" />
-        <p className="mt-4 text-sm font-medium text-slate-400">{t("common.loading")}</p>
+        <Loader2 className="h-8 w-8 animate-spin text-brand" aria-hidden="true" />
+        <p className="mt-4 text-12 font-medium text-text-secondary">{t("common.loading")}</p>
       </div>
     );
   }

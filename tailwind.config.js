@@ -8,39 +8,84 @@ export default {
   theme: {
     extend: {
       colors: {
-        apex: {
-          50: "#f0fdf4",
-          100: "#dcfce7",
-          200: "#bbf7d0",
-          300: "#86efac",
-          400: "#4ade80",
-          500: "#22c55e",
-          600: "#16a34a",
-          700: "#15803d",
-          800: "#166534",
-          900: "#14532d",
-          950: "#052e16",
+        // Core Cockpit Canvas
+        bg: {
+          primary: "var(--bg-primary)",
+          surface: "var(--bg-surface)",
+          elevated: "var(--bg-elevated)",
         },
+        // Borders
+        border: {
+          hairline: "var(--border-hairline)",
+          subtle: "var(--border-subtle)",
+        },
+        // Typography
+        text: {
+          primary: "var(--text-primary)",
+          secondary: "var(--text-secondary)",
+          tertiary: "var(--text-tertiary)",
+        },
+        // Brand Accent
         brand: {
-          dark: "#0b0f19",
-          card: "#121826",
-          muted: "#1f293d",
-          accent: "#2563eb",
-          gold: "#eab308",
-          coral: "#f43f5e",
-        }
+          DEFAULT: "var(--accent-brand)",
+          hover: "var(--accent-brand-hover)",
+          subtle: "var(--accent-brand-subtle)",
+        },
+        // Semantic Status Colors (Used ONLY for readiness, alerts, load status)
+        status: {
+          ready: "var(--status-ready)",
+          "ready-subtle": "var(--status-ready-subtle)",
+          caution: "var(--status-caution)",
+          "caution-subtle": "var(--status-caution-subtle)",
+          rest: "var(--status-rest)",
+          "rest-subtle": "var(--status-rest-subtle)",
+        },
       },
       fontFamily: {
         sans: [
+          "Inter",
           "-apple-system",
           "BlinkMacSystemFont",
+          '"SF Pro Display"',
+          '"SF Pro Text"',
           "Segoe UI",
           "Roboto",
-          "Helvetica Neue",
-          "Arial",
-          "sans-serif"
-        ]
-      }
+          "sans-serif",
+        ],
+        mono: [
+          '"SF Mono"',
+          "Menlo",
+          "Monaco",
+          "Consolas",
+          "monospace",
+        ],
+      },
+      fontSize: {
+        // Strict 12/14/16/20/28/40/64 Scale
+        "12": ["12px", { lineHeight: "16px", letterSpacing: "0" }],
+        "14": ["14px", { lineHeight: "20px", letterSpacing: "-0.006em" }],
+        "16": ["16px", { lineHeight: "24px", letterSpacing: "-0.011em" }],
+        "20": ["20px", { lineHeight: "28px", letterSpacing: "-0.017em" }],
+        "28": ["28px", { lineHeight: "36px", letterSpacing: "-0.022em" }],
+        "40": ["40px", { lineHeight: "48px", letterSpacing: "-0.028em" }],
+        "64": ["64px", { lineHeight: "72px", letterSpacing: "-0.035em" }],
+      },
+      borderRadius: {
+        "12": "12px",
+        "20": "20px",
+        "28": "28px",
+      },
+      boxShadow: {
+        sm: "var(--shadow-sm)",
+        elevated: "var(--shadow-elevated)",
+        sheet: "var(--shadow-sheet)",
+      },
+      transitionTimingFunction: {
+        "apex-out": "cubic-bezier(0.16, 1, 0.3, 1)",
+      },
+      transitionDuration: {
+        "200": "200ms",
+      },
     },
   },
   plugins: [],

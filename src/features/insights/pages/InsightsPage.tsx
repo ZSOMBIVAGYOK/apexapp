@@ -1,6 +1,12 @@
-import React from "react";
+import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BarChart3, TrendingUp, AlertTriangle } from "lucide-react";
+import {
+  StatTile,
+  ChartFrame,
+  SectionHeader,
+  Badge
+} from "@shared/ui";
+import { useThemeStore } from "@shared/lib/theme/themeStore";
 import {
   ResponsiveContainer,
   LineChart,
@@ -35,122 +41,123 @@ const readinessData = [
 
 export const InsightsPage: React.FC = () => {
   const { t } = useTranslation();
+  const { resolvedTheme } = useThemeStore();
+  const [timeRange, setTimeRange] = useState("7D");
+
+  const isDark = resolvedTheme === "dark";
+  const gridColor = isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)";
+  const textColor = isDark ? "#9AA1AD" : "#5B6270";
+  const tooltipBg = isDark ? "#14161B" : "#FFFFFF";
+  const tooltipBorder = isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(0, 0, 0, 0.1)";
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-brand-muted bg-brand-card p-6 shadow-xl">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
-            <BarChart3 className="h-6 w-6" aria-hidden="true" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-100 sm:text-2xl">{t("insights.title")}</h1>
-            <p className="text-xs text-slate-400 sm:text-sm">{t("insights.subtitle")}</p>
-          </div>
-        </div>
-      </div>
+    <div className="space-y-6 pb-12">
+      <SectionHeader
+        title={t("insights.title")}
+        description={t("insights.subtitle")}
+        badge={<Badge variant="ready" dot>ACWR: 1.12 (Optimális)</Badge>}
+      />
 
-      {/* ACWR Status Banner */}
+      {/* 3 Cockpit Metric Tiles */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-5 shadow-lg">
-          <div className="flex items-center justify-between text-emerald-400 mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              {t("insights.acwr")}
-            </span>
-            <TrendingUp className="h-5 w-5" aria-hidden="true" />
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-black text-emerald-400">1.12</span>
-            <span className="text-xs text-emerald-300 font-bold">Optimális</span>
-          </div>
-          <p className="mt-2 text-xs text-slate-400">{t("insights.acwrOptimal")}</p>
-        </div>
+        <StatTile
+          label={t("insights.acwr")}
+          value="1.12"
+          status="ready"
+          trend={{ direction: "up", value: "0.8 - 1.3 között", isGood: true }}
+          subtext="Optimális adaptációs zóna"
+        />
 
-        <div className="rounded-2xl border border-brand-muted bg-brand-card p-5 shadow-lg">
-          <div className="flex items-center justify-between text-blue-400 mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              {t("insights.weeklyLoad")}
-            </span>
-            <BarChart3 className="h-5 w-5" aria-hidden="true" />
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-black text-slate-100">805</span>
-            <span className="text-xs text-slate-400">TSS (7 nap)</span>
-          </div>
-          <p className="mt-2 text-xs text-slate-400">+4.5% az előző heti bázishoz képest</p>
-        </div>
+        <StatTile
+          label={t("insights.weeklyLoad")}
+          value="805"
+          unit="TSS"
+          status="neutral"
+          trend={{ direction: "up", value: "+4.5%", isGood: true }}
+          subtext="Előző hét: 770 TSS"
+        />
 
-        <div className="rounded-2xl border border-amber-500/20 bg-amber-950/10 p-5 shadow-lg">
-          <div className="flex items-center justify-between text-amber-400 mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Sérüléskockázat
-            </span>
-            <AlertTriangle className="h-5 w-5" aria-hidden="true" />
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-black text-amber-300">Alacsony</span>
-          </div>
-          <p className="mt-2 text-xs text-slate-400">Progresszív adaptációs fázis</p>
-        </div>
+        <StatTile
+          label="Sérüléskockázat"
+          value="Alacsony"
+          status="ready"
+          trend={{ direction: "neutral", value: "Biztonságos" }}
+          subtext="Progresszív heti terhelésnövekedés"
+        />
       </div>
 
-      {/* Workload & ACWR Recharts */}
+      {/* Recharts Workload & Readiness Visualizers */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="rounded-2xl border border-brand-muted bg-brand-card p-6 shadow-xl">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-200 mb-4">
-            Akut Terhelés vs. Krónikus Bázis (TSS)
-          </h2>
+        <ChartFrame
+          title="Akut Terhelés vs. Krónikus Bázis (TSS)"
+          subtitle="7 napos fáradtság összevetése a 28 napos fitnesz bázissal"
+          timeRanges={["7D", "14D", "28D", "YTD"]}
+          selectedRange={timeRange}
+          onRangeChange={setTimeRange}
+          legend={
+            <div className="flex items-center gap-3">
+              <span className="flex items-center gap-1.5 text-text-secondary">
+                <span className="h-2 w-2 rounded-full bg-status-ready" /> Akut
+              </span>
+              <span className="flex items-center gap-1.5 text-text-secondary">
+                <span className="h-2 w-2 rounded-full bg-brand" /> Krónikus
+              </span>
+            </div>
+          }
+        >
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={workloadData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1f293d" />
-                <XAxis dataKey="day" stroke="#94a3b8" fontSize={12} />
-                <YAxis stroke="#94a3b8" fontSize={12} />
+                <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+                <XAxis dataKey="day" stroke={textColor} fontSize={12} />
+                <YAxis stroke={textColor} fontSize={12} />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: "#121826",
-                    borderColor: "#1f293d",
-                    color: "#f8fafc",
-                    borderRadius: "0.5rem"
+                    backgroundColor: tooltipBg,
+                    borderColor: tooltipBorder,
+                    color: isDark ? "#F5F6F8" : "#0B0C0F",
+                    borderRadius: "0.75rem",
+                    boxShadow: "0 4px 20px -2px rgba(0,0,0,0.15)"
                   }}
                 />
-                <Bar dataKey="acute" fill="#22c55e" radius={[4, 4, 0, 0]} name="Akut terhelés" />
-                <Bar dataKey="chronic" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Krónikus bázis" />
+                <Bar dataKey="acute" fill="#34D399" radius={[6, 6, 0, 0]} name="Akut terhelés" />
+                <Bar dataKey="chronic" fill="#3D7BFF" radius={[6, 6, 0, 0]} name="Krónikus bázis" />
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </ChartFrame>
 
-        <div className="rounded-2xl border border-brand-muted bg-brand-card p-6 shadow-xl">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-200 mb-4">
-            {t("insights.readinessTrend")}
-          </h2>
+        <ChartFrame
+          title={t("insights.readinessTrend")}
+          subtitle="Napi regenerációs index ingadozása a hét során"
+        >
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={readinessData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1f293d" />
-                <XAxis dataKey="day" stroke="#94a3b8" fontSize={12} />
-                <YAxis domain={[50, 100]} stroke="#94a3b8" fontSize={12} />
+                <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+                <XAxis dataKey="day" stroke={textColor} fontSize={12} />
+                <YAxis domain={[50, 100]} stroke={textColor} fontSize={12} />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: "#121826",
-                    borderColor: "#1f293d",
-                    color: "#f8fafc",
-                    borderRadius: "0.5rem"
+                    backgroundColor: tooltipBg,
+                    borderColor: tooltipBorder,
+                    color: isDark ? "#F5F6F8" : "#0B0C0F",
+                    borderRadius: "0.75rem",
+                    boxShadow: "0 4px 20px -2px rgba(0,0,0,0.15)"
                   }}
                 />
                 <Line
                   type="monotone"
                   dataKey="score"
-                  stroke="#4ade80"
-                  strokeWidth={3}
-                  dot={{ fill: "#22c55e", r: 4 }}
+                  stroke="#34D399"
+                  strokeWidth={2.5}
+                  dot={{ fill: "#34D399", r: 4 }}
                   name="Regenerációs pont"
                 />
               </LineChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </ChartFrame>
       </div>
     </div>
   );

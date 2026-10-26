@@ -27,7 +27,7 @@ export const OfflineIndicator: React.FC = () => {
     <div
       role="status"
       aria-live="polite"
-      className="bg-amber-500/10 border-b border-amber-500/30 px-3 py-1.5 text-center text-xs font-medium text-amber-300 flex items-center justify-center gap-2"
+      className="bg-status-caution/15 border-b border-status-caution/30 px-3 py-1.5 text-center text-12 font-medium text-status-caution flex items-center justify-center gap-2"
     >
       <WifiOff className="h-3.5 w-3.5" aria-hidden="true" />
       <span>{t("pwa.offlineBanner")}</span>

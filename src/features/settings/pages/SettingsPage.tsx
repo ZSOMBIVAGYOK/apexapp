@@ -1,125 +1,232 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuthStore } from "@features/auth/authStore";
-import { Settings, Globe, Shield, User, Cpu } from "lucide-react";
+import { useThemeStore } from "@shared/lib/theme/themeStore";
+import {
+  Card,
+  Button,
+  SegmentedControl,
+  Avatar,
+  Badge,
+  SectionHeader,
+  showToast
+} from "@shared/ui";
+import {
+  Globe,
+  Shield,
+  Palette,
+  Users,
+  Cpu,
+  LogOut,
+  ExternalLink
+} from "lucide-react";
 
 export const SettingsPage: React.FC = () => {
   const { t, i18n } = useTranslation();
-  const { user } = useAuthStore();
+  const { user, signOut, setUserProfile } = useAuthStore();
+  const { theme, setTheme } = useThemeStore();
+  const navigate = useNavigate();
 
-  const changeLanguage = (lang: string) => {
+  const handleLanguageChange = (lang: string) => {
     i18n.changeLanguage(lang);
+    showToast({
+      title: "Nyelv beállítva",
+      message: lang === "hu" ? "Magyar nyelv aktív" : "English language set",
+      type: "info"
+    });
+  };
+
+  const handleThemeChange = (newTheme: "dark" | "light" | "system") => {
+    setTheme(newTheme);
+    showToast({
+      title: "Megjelenés módosítva",
+      message: `Téma: ${newTheme === "dark" ? "Sötét" : newTheme === "light" ? "Világos" : "Rendszer követése"}`,
+      type: "info"
+    });
+  };
+
+  const handleRoleChange = (role: "athlete" | "coach") => {
+    if (!user) return;
+    setUserProfile({
+      ...user,
+      role,
+      updatedAt: new Date().toISOString()
+    });
+    showToast({
+      title: "Szerepkör frissítve",
+      message: `Navigációs mód: ${role === "coach" ? "Edző / Szakember" : "Sportoló"}`,
+      type: "success"
+    });
   };
 
   const isEmulatorActive = import.meta.env.VITE_USE_FIREBASE_EMULATORS === "true";
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <div className="rounded-2xl border border-brand-muted bg-brand-card p-6 shadow-xl">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-800 text-slate-300">
-            <Settings className="h-6 w-6" aria-hidden="true" />
+    <div className="mx-auto max-w-3xl space-y-8 pb-12">
+      {/* Header */}
+      <SectionHeader
+        title={t("settings.title")}
+        description={t("settings.subtitle")}
+        action={
+          <Button
+            variant="tertiary"
+            size="sm"
+            leftIcon={<ExternalLink className="h-3.5 w-3.5" />}
+            onClick={() => navigate("/design")}
+          >
+            Design Styleguide
+          </Button>
+        }
+      />
+
+      {/* User Profile Card */}
+      <Card variant="surface" radius="20" className="p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Avatar
+              name={user?.displayName || "Sportoló"}
+              size="lg"
+              status="ready"
+            />
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-16 font-bold text-text-primary">
+                  {user?.displayName || "Kovács Zsombor"}
+                </h3>
+                <Badge variant="brand" size="sm">
+                  {user?.role === "coach" ? "Vezetőedző" : "Sportoló"}
+                </Badge>
+              </div>
+              <p className="text-12 text-text-secondary mt-0.5">
+                {user?.email || "olimpikon@apex.hu"} • {user?.sport || "Triatlon"}
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-100 sm:text-2xl">{t("settings.title")}</h1>
-            <p className="text-xs text-slate-400 sm:text-sm">{t("settings.subtitle")}</p>
+
+          <div className="flex items-center gap-2">
+            <Link to="/onboarding">
+              <Button variant="secondary" size="sm">
+                Profil szerkesztése
+              </Button>
+            </Link>
+            <Button
+              variant="danger"
+              size="sm"
+              leftIcon={<LogOut className="h-3.5 w-3.5" />}
+              onClick={async () => {
+                await signOut();
+                navigate("/auth");
+              }}
+            >
+              Kijelentkezés
+            </Button>
           </div>
         </div>
+      </Card>
 
-        <div className="space-y-6">
-          {/* User Profile Card */}
-          <section aria-labelledby="profile-heading" className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+      {/* Preferences Section: Theme, Language, Role Mode */}
+      <div className="space-y-4">
+        <h3 className="text-14 font-semibold uppercase tracking-wider text-text-secondary">
+          Megjelenés & Testreszabás
+        </h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Theme Selector */}
+          <Card variant="surface" radius="20" className="p-5 space-y-3">
+            <div className="flex items-center gap-2 text-text-primary">
+              <Palette className="h-4 w-4 text-brand" aria-hidden="true" />
+              <h4 className="text-14 font-bold">Téma (Dark / Light / Rendszer)</h4>
+            </div>
+            <p className="text-12 text-text-secondary">
+              Apple-szintű tiszta felület, sötét vagy világos módban.
+            </p>
+            <SegmentedControl
+              options={[
+                { value: "dark", label: "Sötét" },
+                { value: "light", label: "Világos" },
+                { value: "system", label: "Rendszer" }
+              ]}
+              value={theme}
+              onChange={(val) => handleThemeChange(val as "dark" | "light" | "system")}
+              fullWidth
+            />
+          </Card>
+
+          {/* Language Selector */}
+          <Card variant="surface" radius="20" className="p-5 space-y-3">
+            <div className="flex items-center gap-2 text-text-primary">
+              <Globe className="h-4 w-4 text-brand" aria-hidden="true" />
+              <h4 className="text-14 font-bold">{t("settings.languagePref")}</h4>
+            </div>
+            <p className="text-12 text-text-secondary">
+              Válassz a magyar (alapértelmezett) és angol nyelv között.
+            </p>
+            <SegmentedControl
+              options={[
+                { value: "hu", label: "Magyar (HU)" },
+                { value: "en", label: "English (EN)" }
+              ]}
+              value={i18n.language.startsWith("hu") ? "hu" : "en"}
+              onChange={handleLanguageChange}
+              fullWidth
+            />
+          </Card>
+
+          {/* Role Navigation Mode Switcher */}
+          <Card variant="surface" radius="20" className="p-5 space-y-3 md:col-span-2">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-apex-500/20 text-apex-400 font-bold">
-                  <User className="h-5 w-5" aria-hidden="true" />
-                </div>
-                <div>
-                  <h2 id="profile-heading" className="text-sm font-bold text-slate-100">
-                    {user?.displayName || "Sportoló"}
-                  </h2>
-                  <p className="text-xs text-slate-400">{user?.email || "olimpikon@apex.hu"}</p>
-                </div>
+              <div className="flex items-center gap-2 text-text-primary">
+                <Users className="h-4 w-4 text-brand" aria-hidden="true" />
+                <h4 className="text-14 font-bold">Szerepkör-alapú navigáció (Role Mode)</h4>
               </div>
-              <Link
-                to="/onboarding"
-                className="rounded-lg border border-brand-muted bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition-colors"
-              >
-                Módosítás
-              </Link>
+              <Badge variant="outline" size="sm">
+                Dinamikus Cockpit
+              </Badge>
             </div>
-          </section>
-
-          {/* Language Selection */}
-          <section aria-labelledby="language-heading" className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-3">
-            <div className="flex items-center gap-2 text-slate-200">
-              <Globe className="h-4 w-4 text-apex-400" aria-hidden="true" />
-              <h2 id="language-heading" className="text-sm font-bold">
-                {t("settings.languagePref")}
-              </h2>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => changeLanguage("hu")}
-                className={`rounded-xl border p-3 text-center text-xs font-bold transition-all ${
-                  i18n.language.startsWith("hu")
-                    ? "border-apex-500 bg-apex-500/10 text-apex-400"
-                    : "border-brand-muted bg-slate-950 text-slate-400 hover:text-slate-200"
-                }`}
-              >
-                {t("common.hungarian")} (HU)
-              </button>
-              <button
-                type="button"
-                onClick={() => changeLanguage("en")}
-                className={`rounded-xl border p-3 text-center text-xs font-bold transition-all ${
-                  i18n.language.startsWith("en")
-                    ? "border-apex-500 bg-apex-500/10 text-apex-400"
-                    : "border-brand-muted bg-slate-950 text-slate-400 hover:text-slate-200"
-                }`}
-              >
-                {t("common.english")} (EN)
-              </button>
-            </div>
-          </section>
-
-          {/* System & Firebase Status */}
-          <section aria-labelledby="system-heading" className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-3">
-            <div className="flex items-center gap-2 text-slate-200">
-              <Cpu className="h-4 w-4 text-cyan-400" aria-hidden="true" />
-              <h2 id="system-heading" className="text-sm font-bold">
-                Rendszer & Architektúra
-              </h2>
-            </div>
-
-            <div className="space-y-2 text-xs text-slate-400">
-              <div className="flex justify-between items-center py-1 border-b border-slate-800">
-                <span>{t("settings.version")}</span>
-                <span className="font-mono text-slate-200">v0.1.0-alpha (Phase 1)</span>
-              </div>
-              <div className="flex justify-between items-center py-1 border-b border-slate-800">
-                <span>{t("settings.offlineMode")}</span>
-                <span className="text-emerald-400 font-semibold flex items-center gap-1">
-                  <Shield className="h-3 w-3" aria-hidden="true" />
-                  Service Worker Aktív
-                </span>
-              </div>
-              <div className="flex justify-between items-center py-1">
-                <span>Firebase Emulator csatlakozás</span>
-                <span
-                  className={`font-semibold ${
-                    isEmulatorActive ? "text-amber-400" : "text-slate-400"
-                  }`}
-                >
-                  {isEmulatorActive ? "Emulátor mód" : "Éles Firebase Cloud"}
-                </span>
-              </div>
-            </div>
-          </section>
+            <p className="text-12 text-text-secondary">
+              A sportolók 5 fület látnak (Ma, Terv, Étrend, Regeneráció, Profil). Edzői és szakemberi módban megjelenik a <strong>Csapat (Team)</strong> menüpont.
+            </p>
+            <SegmentedControl
+              options={[
+                { value: "athlete", label: "Sportoló nézet (5 tab)" },
+                { value: "coach", label: "Edző / Szakember nézet (+ Csapat)" }
+              ]}
+              value={user?.role === "coach" ? "coach" : "athlete"}
+              onChange={(val) => handleRoleChange(val as "athlete" | "coach")}
+              fullWidth
+            />
+          </Card>
         </div>
       </div>
+
+      {/* System & Architecture Diagnostics */}
+      <Card variant="surface" radius="20" className="p-6 space-y-4">
+        <div className="flex items-center gap-2 text-text-primary">
+          <Cpu className="h-4 w-4 text-brand" aria-hidden="true" />
+          <h4 className="text-14 font-bold">Rendszer & Architektúra</h4>
+        </div>
+
+        <div className="space-y-3 text-12 divide-y divide-border-hairline">
+          <div className="flex justify-between items-center pt-2">
+            <span className="text-text-secondary">{t("settings.version")}</span>
+            <span className="font-mono text-text-primary font-medium">v0.2.0 (Design System Shell)</span>
+          </div>
+          <div className="flex justify-between items-center pt-2">
+            <span className="text-text-secondary">{t("settings.offlineMode")}</span>
+            <span className="text-status-ready font-medium flex items-center gap-1">
+              <Shield className="h-3.5 w-3.5" aria-hidden="true" />
+              Service Worker & Gyorsítótár Aktív
+            </span>
+          </div>
+          <div className="flex justify-between items-center pt-2">
+            <span className="text-text-secondary">Firebase Csatlakozás</span>
+            <Badge variant={isEmulatorActive ? "caution" : "ready"} dot size="sm">
+              {isEmulatorActive ? "Emulátor Mód" : "Éles Firebase Cloud"}
+            </Badge>
+          </div>
+        </div>
+      </Card>
     </div>
   );
 };
