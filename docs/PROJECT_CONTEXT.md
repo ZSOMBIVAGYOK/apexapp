@@ -415,7 +415,56 @@ Every screen is required to support three states:
    - Wizard to generate rule-based periodized training plans from race goals.
 
 ---
-
+## 11. Nutrition Module Architecture & Guidelines
+### A. Scientific Foundation & Literature Citations
+All nutrition constants and formulas are documented in `src/shared/lib/nutrition/nutritionConstants.ts` with direct sports-nutrition literature citations:
+1. **Basal Metabolic Rate (BMR):**
+- **Mifflin-St Jeor (1990):** Default equation based on weight, height, age, and sex ($BMR_{male} = 10W + 6.25H - 5A + 5$; $BMR_{female} = 10W + 6.25H - 5A - 161$).
+- **Cunningham (1980):** Activated when athlete body fat % / Lean Body Mass (LBM) is available: $BMR = 500 + 22 \times LBM_{kg}$.
+2. **Energy Expenditure (TDEE):**
+- Non-exercise activity thermogenesis (NEAT + TEF) baseline factor ($1.25 \times BMR$).
+- Dynamic Exercise Energy Expenditure (EEE) calculated from training load (TSS / sRPE) and session duration.
+3. **Periodized Macronutrients by Day Type (ACSM/IOC/ISSN Guidelines):**
+- `rest`: Carbs 2.5 g/kg (2.0 - 3.0), Protein 1.8 g/kg (1.6 - 2.0), Fat $\ge 1.0$ g/kg. Plate: 1/4 carb, 1/4 protein, 1/2 vegetables.
+- `light`: Carbs 4.0 g/kg (3.0 - 5.0), Protein 1.8 g/kg (1.6 - 2.0). Plate: 30% carb, 30% protein, 40% vegetables.
+- `moderate`: Carbs 6.0 g/kg (5.0 - 7.0), Protein 1.9 g/kg (1.7 - 2.2). Plate: 40% carb, 30% protein, 30% vegetables.
+- `hard`: Carbs 8.5 g/kg (7.0 - 10.0), Protein 2.0 g/kg (1.8 - 2.4). Plate: 1/2 carb, 1/4 protein, 1/4 vegetables.
+- `competition`: Carbs 10.0 g/kg (8.0 - 12.0), Protein 1.6 g/kg (moderate to avoid GI fullness), controlled fat (0.7 - 1.0 g/kg).
+4. **Intra-Workout Carbohydrate Tiers (Jeukendrup 2014):**
+- $<45$ min: 0 g/h (plain water/electrolytes).
+- $45-75$ min: up to 30 g/h or carb mouth rinse.
+- $75-150$ min: 30-60 g/h single-source carbohydrate (glucose/maltodextrin).
+- $>150$ min: 60-90 g/h multiple-transportable carbohydrate mixture (2:1 glucose:fructose ratio).
+5. **Hydration & Electrolytes (Sawka et al. 2007):**
+- Baseline fluid 35 ml/kg/day + 600 ml/h of training (multiplied by 1.35 in hot/humid conditions).
+- Sodium replacement ~450 mg/h for sessions $>60$ min or hot conditions.
+6. **Post-Workout Recovery Window (Kerksick et al. 2017 ISSN):**
+- Rapid glycogen restoration: 1.0-1.2 g/kg carbs within 0-2 hours.
+- Muscle protein synthesis: 0.3-0.4 g/kg high-biological value protein (20-35g) with $\ge 2.5$g leucine.
+### B. Sensitive-Use Safeguards & Non-Moralizing Design
+- **"Hide Calorie Numbers" Mode:** Toggle that replaces numeric kcal displays with Plate Method shares (Carbs %, Protein %, Vegetables %) and portion sizes (Small, Medium, Large).
+- **Non-Moralizing Language:** Zero shaming words ("jó/rossz étel", "bűnözés", "csaló étkezés", "túl sok"). Purely performance, fuel, and recovery terminology.
+- **Low Energy Availability (LEA / REDs) Notice:** Conservative heuristic checking for $\ge 3$ consecutive days of severe caloric deficit ($<60\%$ of target) under meaningful training load. Phrased as a gentle suggestion to consult a sports dietitian or team physician, explicitly disclaiming that it does not constitute a medical diagnosis.
+### C. Anti-Doping Compliance (WADA Strict Liability)
+- **Permanent, Un-dismissible Alert Banner:** Cites WADA Strict Liability principle: the athlete is strictly responsible for any substance in their specimen. No supplement can be guaranteed 100% free of contamination.
+- **Batch Number Tracking (Tételszám):** Required for all logged supplements to enable audit trails against lab contamination batches.
+- **Third-Party Lab Certification Badges:** Informed Sport (LGC), Kölner Liste (Cologne List), NSF Certified for Sport, BSCG.
+### D. Two Logging Modes & Honest Micronutrient Coverage
+- **Quick Mode:** Small / Medium / Large portions, Plate Method shares, and photo notes for manual/beginner athletes.
+- **Precise Mode:** Exact gram weights, quick steppers (+10g, +50g, +100g), and BarcodeDetector scanner integration with manual fallback.
+- **Honest Coverage Display:** When a food label omits micronutrients, the app honestly displays an "Adathiányos" tag instead of displaying misleading 0mg values.
+### E. Food Data Cloud Functions Proxy & Caching
+- `searchFoods` callable Cloud Function proxying Open Food Facts and USDA FoodData Central with Firestore `foodCache` collection caching (7-day TTL).
+- `getFoodByBarcode` callable Cloud Function with Firestore cache.
+- Built-in curated sports nutrition food database (`CURATED_SPORTS_FOODS`) in `FoodService` providing instant offline responsiveness.
+### F. Dietitian Collaboration Mode
+- Specialists with `permissions.nutrition !== 'none'` see the athlete's nutrition diary.
+- Target Provenance stamp (`setBy: { id, name, role, title }`) clearly displays when targets were set by a sports dietitian.
+- Clinical comment threads attached to any logged meal.
+- Dietitian Meal Plan creator assigning periodized meal structures and plate suggestions into the athlete's Étrend tab.
+### G. Body Metrics 7-Day Moving Average Smoothing
+- 7-day trailing moving average filters acute water/glycogen shifts (each 1g glycogen binds 3-4g water).
+- Recharts composed chart showing raw weigh-in dots against a smoothed trend line and weekly rate of change (kg/week).
+---
 > **Requirement:** At the completion of each subsequent stage, this document must be updated with the stage's achievements, architectural decisions, and updated status.
-
 

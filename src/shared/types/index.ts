@@ -20,8 +20,7 @@ export type SupportMode = "solo" | "coach" | "specialist";
 
 export type UnitSystem = "metric" | "imperial";
 
-export type NutritionGoal = "maintain" | "lose" | "gain" | "performance";
-
+import type { NutritionGoal } from "./nutrition";
 export interface HealthDataConsent {
   accepted: boolean;
   version: string;
@@ -149,3 +148,4 @@ export interface SpecialistStaff {
 
 export * from "./dataModel";
 export * from "./training";
+export * from "./nutrition";

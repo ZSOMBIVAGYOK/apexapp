@@ -276,9 +276,20 @@
     "waterUnit": "liters",
     "preWorkout": "Pre-Workout Fuel",
     "postWorkout": "Post-Workout Recovery",
+    "intraWorkout": "Intra-Workout",
     "plateRatio": "Plate Ratio (Protein : Carbohydrates : Vegetables)",
-    "plateViewActive": "Plate-based view active (calorie numbers hidden)"
+    "plateViewActive": "Plate-based view active (calorie numbers hidden)",
+    "hideCalories": "Hide Calorie Numbers",
+    "sessionFuelling": "Session Fuelling Strategy",
+    "supplements": "Supplements",
+    "bodyMetrics": "Body Composition",
+    "dietitianPlan": "Dietitian Meal Plan",
+    "batchNumber": "Batch Number (LOT)",
+    "antiDopingNotice": "WADA Strict Liability Notice",
+    "honestCoverage": "Micronutrient Coverage",
+    "missingData": "Missing Label Data"
   },
+
   "devices": {
     "title": "Devices & Sensors",
     "subtitle": "Synchronize biometric metrics with wearable sports devices.",

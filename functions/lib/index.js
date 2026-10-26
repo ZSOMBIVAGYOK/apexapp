@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteUserData = exports.revokeAccess = exports.updatePermissions = exports.acceptInvite = exports.createInvite = exports.healthCheck = void 0;
+exports.getFoodByBarcode = exports.searchFoods = exports.deleteUserData = exports.revokeAccess = exports.updatePermissions = exports.acceptInvite = exports.createInvite = exports.healthCheck = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
@@ -399,6 +399,276 @@ exports.deleteUserData = (0, https_1.onCall)(async (request) => {
     catch (error) {
         logger.error(`Error deleting user data for ${uid}:`, error);
         throw new https_1.HttpsError("internal", "Failed to permanently delete user data. Please try again or contact support.");
+    }
+});
+/**
+ * Open Food Facts and USDA FoodData Central Cloud Functions Proxy
+ * Provides search and barcode lookup with Firestore caching to avoid rate limits.
+ */
+exports.searchFoods = (0, https_1.onCall)(async (request) => {
+    const query = (request.data?.query || "").trim();
+    if (!query || query.length < 2) {
+        return { foods: [] };
+    }
+    const source = request.data?.source || "all";
+    const pageSize = Math.min(25, Math.max(5, request.data?.pageSize || 15));
+    const cacheKey = `search_${source}_${encodeURIComponent(query).toLowerCase().slice(0, 100)}`;
+    const db = admin.firestore();
+    const cacheRef = db.collection("foodCache").doc(cacheKey);
+    try {
+        const cachedSnap = await cacheRef.get();
+        if (cachedSnap.exists) {
+            const cachedData = cachedSnap.data();
+            const ageMs = Date.now() - (cachedData?.cachedAt?.toMillis() || 0);
+            // Cache valid for 7 days
+            if (ageMs < 7 * 24 * 60 * 60 * 1000 && Array.isArray(cachedData?.foods)) {
+                logger.info(`Cache hit for food search: "${query}"`);
+                return { foods: cachedData.foods, fromCache: true };
+            }
+        }
+    }
+    catch (cacheErr) {
+        logger.warn("Food search cache lookup error:", cacheErr);
+    }
+    const results = [];
+    // 1. Open Food Facts
+    if (source === "all" || source === "off") {
+        try {
+            const offUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=${pageSize}`;
+            const offRes = await fetch(offUrl, {
+                headers: { "User-Agent": "ApexAthleticsPWA/1.0 (contact@apex-athletics.app)" }
+            });
+            if (offRes.ok) {
+                const offJson = await offRes.json();
+                const products = offJson.products || [];
+                for (const p of products) {
+                    if (!p.product_name)
+                        continue;
+                    const nutriments = p.nutriments || {};
+                    const calories = Math.round(nutriments["energy-kcal_100g"] ??
+                        nutriments["energy-kcal"] ??
+                        (nutriments["energy_100g"] ? nutriments["energy_100g"] / 4.184 : 0));
+                    const protein = +(nutriments.proteins_100g ?? nutriments.proteins ?? 0);
+                    const carbs = +(nutriments.carbohydrates_100g ?? nutriments.carbohydrates ?? 0);
+                    const fat = +(nutriments.fat_100g ?? nutriments.fat ?? 0);
+                    // Track missing nutrients honestly
+                    const missing = [];
+                    if (nutriments.fiber_100g === undefined)
+                        missing.push("fiber");
+                    if (nutriments.sodium_100g === undefined)
+                        missing.push("sodium");
+                    if (nutriments.calcium_100g === undefined)
+                        missing.push("calcium");
+                    if (nutriments.iron_100g === undefined)
+                        missing.push("iron");
+                    if (nutriments["vitamin-d_100g"] === undefined)
+                        missing.push("vitamin_d");
+                    const trackedCount = 12;
+                    const reportedCount = trackedCount - missing.length;
+                    const coverageScore = Math.round((reportedCount / trackedCount) * 100);
+                    results.push({
+                        id: `off_${p.code || Math.random().toString(36).slice(2)}`,
+                        name: p.product_name,
+                        brand: p.brands || undefined,
+                        barcode: p.code || undefined,
+                        source: "off",
+                        servingSizeGrams: 100,
+                        servingUnit: "100g",
+                        caloriesPer100g: calories,
+                        proteinPer100g: protein,
+                        carbsPer100g: carbs,
+                        fatPer100g: fat,
+                        microsPer100g: {
+                            fiberGrams: nutriments.fiber_100g !== undefined ? +nutriments.fiber_100g : undefined,
+                            sugarGrams: nutriments.sugars_100g !== undefined ? +nutriments.sugars_100g : undefined,
+                            saturatedFatGrams: nutriments["saturated-fat_100g"] !== undefined ? +nutriments["saturated-fat_100g"] : undefined,
+                            sodiumMg: nutriments.sodium_100g !== undefined ? Math.round(+nutriments.sodium_100g * 1000) : undefined,
+                            potassiumMg: nutriments.potassium_100g !== undefined ? Math.round(+nutriments.potassium_100g * 1000) : undefined,
+                            calciumMg: nutriments.calcium_100g !== undefined ? Math.round(+nutriments.calcium_100g * 1000) : undefined,
+                            ironMg: nutriments.iron_100g !== undefined ? Math.round(+nutriments.iron_100g * 1000) : undefined,
+                            vitaminDMcg: nutriments["vitamin-d_100g"] !== undefined ? +nutriments["vitamin-d_100g"] * 1000000 : undefined
+                        },
+                        coverageScore,
+                        missingNutrients: missing,
+                        imageUrl: p.image_front_small_url || p.image_url
+                    });
+                }
+            }
+        }
+        catch (offErr) {
+            logger.warn("Open Food Facts search error:", offErr);
+        }
+    }
+    // 2. USDA FoodData Central
+    const usdaApiKey = process.env.USDA_API_KEY || "DEMO_KEY";
+    if ((source === "all" || source === "usda") && results.length < pageSize) {
+        try {
+            const usdaUrl = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(query)}&pageSize=${pageSize}&api_key=${usdaApiKey}`;
+            const usdaRes = await fetch(usdaUrl);
+            if (usdaRes.ok) {
+                const usdaJson = await usdaRes.json();
+                const foods = usdaJson.foods || [];
+                for (const f of foods) {
+                    const nutrients = {};
+                    for (const n of f.foodNutrients || []) {
+                        if (n.nutrientName) {
+                            nutrients[n.nutrientName.toLowerCase()] = n.value;
+                        }
+                    }
+                    const calories = Math.round(nutrients["energy"] || nutrients["energy (kcal)"] || 0);
+                    const protein = +(nutrients["protein"] || 0);
+                    const carbs = +(nutrients["carbohydrate, by difference"] || 0);
+                    const fat = +(nutrients["total lipid (fat)"] || 0);
+                    const missing = [];
+                    if (nutrients["fiber, total dietary"] === undefined)
+                        missing.push("fiber");
+                    if (nutrients["sodium, na"] === undefined)
+                        missing.push("sodium");
+                    if (nutrients["calcium, ca"] === undefined)
+                        missing.push("calcium");
+                    if (nutrients["iron, fe"] === undefined)
+                        missing.push("iron");
+                    if (nutrients["vitamin d (d2 + d3)"] === undefined)
+                        missing.push("vitamin_d");
+                    const trackedCount = 12;
+                    const reportedCount = trackedCount - missing.length;
+                    const coverageScore = Math.round((reportedCount / trackedCount) * 100);
+                    results.push({
+                        id: `usda_${f.fdcId}`,
+                        name: f.description,
+                        brand: f.brandOwner || f.brandName || undefined,
+                        source: "usda",
+                        servingSizeGrams: 100,
+                        servingUnit: "100g",
+                        caloriesPer100g: calories,
+                        proteinPer100g: protein,
+                        carbsPer100g: carbs,
+                        fatPer100g: fat,
+                        microsPer100g: {
+                            fiberGrams: nutrients["fiber, total dietary"],
+                            sugarGrams: nutrients["sugars, total including nlea"],
+                            saturatedFatGrams: nutrients["fatty acids, total saturated"],
+                            sodiumMg: nutrients["sodium, na"],
+                            potassiumMg: nutrients["potassium, k"],
+                            calciumMg: nutrients["calcium, ca"],
+                            ironMg: nutrients["iron, fe"],
+                            vitaminDMcg: nutrients["vitamin d (d2 + d3)"]
+                        },
+                        coverageScore,
+                        missingNutrients: missing
+                    });
+                }
+            }
+        }
+        catch (usdaErr) {
+            logger.warn("USDA search error:", usdaErr);
+        }
+    }
+    // Save to cache asynchronously
+    if (results.length > 0) {
+        cacheRef
+            .set({
+            query,
+            source,
+            foods: results,
+            cachedAt: admin.firestore.FieldValue.serverTimestamp()
+        })
+            .catch((e) => logger.warn("Failed to write food search cache:", e));
+    }
+    return { foods: results, fromCache: false };
+});
+/**
+ * Barcode lookup via Open Food Facts with Firestore caching
+ */
+exports.getFoodByBarcode = (0, https_1.onCall)(async (request) => {
+    const barcode = (request.data?.barcode || "").trim();
+    if (!barcode) {
+        throw new https_1.HttpsError("invalid-argument", "Barcode is required.");
+    }
+    const db = admin.firestore();
+    const cacheRef = db.collection("foodCache").doc(`barcode_${barcode}`);
+    try {
+        const cachedSnap = await cacheRef.get();
+        if (cachedSnap.exists) {
+            const cachedData = cachedSnap.data();
+            if (cachedData?.food) {
+                logger.info(`Cache hit for barcode: ${barcode}`);
+                return { food: cachedData.food, fromCache: true };
+            }
+        }
+    }
+    catch (cacheErr) {
+        logger.warn("Barcode cache lookup error:", cacheErr);
+    }
+    try {
+        const url = `https://world.openfoodfacts.org/api/v2/product/${barcode}.json`;
+        const res = await fetch(url, {
+            headers: { "User-Agent": "ApexAthleticsPWA/1.0 (contact@apex-athletics.app)" }
+        });
+        if (!res.ok) {
+            return { food: null, message: "Barcode not found in Open Food Facts" };
+        }
+        const data = await res.json();
+        if (data.status !== 1 || !data.product) {
+            return { food: null, message: "Product not found" };
+        }
+        const p = data.product;
+        const nutriments = p.nutriments || {};
+        const calories = Math.round(nutriments["energy-kcal_100g"] ??
+            nutriments["energy-kcal"] ??
+            (nutriments["energy_100g"] ? nutriments["energy_100g"] / 4.184 : 0));
+        const protein = +(nutriments.proteins_100g ?? nutriments.proteins ?? 0);
+        const carbs = +(nutriments.carbohydrates_100g ?? nutriments.carbohydrates ?? 0);
+        const fat = +(nutriments.fat_100g ?? nutriments.fat ?? 0);
+        const missing = [];
+        if (nutriments.fiber_100g === undefined)
+            missing.push("fiber");
+        if (nutriments.sodium_100g === undefined)
+            missing.push("sodium");
+        if (nutriments.calcium_100g === undefined)
+            missing.push("calcium");
+        if (nutriments.iron_100g === undefined)
+            missing.push("iron");
+        if (nutriments["vitamin-d_100g"] === undefined)
+            missing.push("vitamin_d");
+        const food = {
+            id: `off_${barcode}`,
+            name: p.product_name || "Ismeretlen termék",
+            brand: p.brands || undefined,
+            barcode,
+            source: "off",
+            servingSizeGrams: 100,
+            servingUnit: "100g",
+            caloriesPer100g: calories,
+            proteinPer100g: protein,
+            carbsPer100g: carbs,
+            fatPer100g: fat,
+            microsPer100g: {
+                fiberGrams: nutriments.fiber_100g !== undefined ? +nutriments.fiber_100g : undefined,
+                sugarGrams: nutriments.sugars_100g !== undefined ? +nutriments.sugars_100g : undefined,
+                saturatedFatGrams: nutriments["saturated-fat_100g"] !== undefined ? +nutriments["saturated-fat_100g"] : undefined,
+                sodiumMg: nutriments.sodium_100g !== undefined ? Math.round(+nutriments.sodium_100g * 1000) : undefined,
+                potassiumMg: nutriments.potassium_100g !== undefined ? Math.round(+nutriments.potassium_100g * 1000) : undefined,
+                calciumMg: nutriments.calcium_100g !== undefined ? Math.round(+nutriments.calcium_100g * 1000) : undefined,
+                ironMg: nutriments.iron_100g !== undefined ? Math.round(+nutriments.iron_100g * 1000) : undefined,
+                vitaminDMcg: nutriments["vitamin-d_100g"] !== undefined ? +nutriments["vitamin-d_100g"] * 1000000 : undefined
+            },
+            coverageScore: Math.round(((12 - missing.length) / 12) * 100),
+            missingNutrients: missing,
+            imageUrl: p.image_front_small_url || p.image_url
+        };
+        cacheRef
+            .set({
+            barcode,
+            food,
+            cachedAt: admin.firestore.FieldValue.serverTimestamp()
+        })
+            .catch((e) => logger.warn("Failed to write barcode cache:", e));
+        return { food, fromCache: false };
+    }
+    catch (err) {
+        logger.error("Error looking up barcode in Open Food Facts:", err);
+        throw new https_1.HttpsError("internal", "Failed to retrieve barcode information.");
     }
 });
 //# sourceMappingURL=index.js.map

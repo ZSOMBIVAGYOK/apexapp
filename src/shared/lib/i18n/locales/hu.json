@@ -276,9 +276,20 @@
     "waterUnit": "liter",
     "preWorkout": "Edzés előtti étkezés",
     "postWorkout": "Edzés utáni regeneráció",
+    "intraWorkout": "Edzés közben",
     "plateRatio": "Tányérarányok (Fehérje : Szénhidrát : Zöldség)",
-    "plateViewActive": "Tányéralapú nézet aktív (számmentes módban)"
+    "plateViewActive": "Tányéralapú nézet aktív (számmentes módban)",
+    "hideCalories": "Kalóriaszámok elrejtése",
+    "sessionFuelling": "Edzés körüli táplálkozás",
+    "supplements": "Táplálékkiegészítők",
+    "bodyMetrics": "Testösszetétel",
+    "dietitianPlan": "Dietetikusi terv",
+    "batchNumber": "Tételszám (Batch Number)",
+    "antiDopingNotice": "WADA Objektív Felelősség (Strict Liability)",
+    "honestCoverage": "Mikrotápanyag fedettség",
+    "missingData": "Adathiányos címke"
   },
+
   "devices": {
     "title": "Eszközintegráció & Szenzorok",
     "subtitle": "Szinkronizáld biometrikus adataidat viselhető okoseszközökkel.",
