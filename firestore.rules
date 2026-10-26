@@ -1,0 +1,58 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Check if the current authenticated user has an active specialist/coach relationship
+    function isSpecialistFor(athleteId) {
+      return isAuthenticated() && (
+        exists(/databases/$(database)/documents/collaborations/$(request.auth.uid + '_' + athleteId)) ||
+        exists(/databases/$(database)/documents/collaborations/$(athleteId + '_' + request.auth.uid))
+      );
+    }
+
+    // Users profile collection
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (isOwner(userId) || isSpecialistFor(userId));
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if false; // Soft deletes preferred
+
+      // Subcollections: checkin, training, nutrition, devices, insights
+      match /{subcollection}/{docId} {
+        allow read: if isAuthenticated() && (isOwner(userId) || isSpecialistFor(userId));
+        allow create, update: if isAuthenticated() && (isOwner(userId) || isSpecialistFor(userId));
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    // Collaborations collection between athletes and specialists/coaches
+    match /collaborations/{collabId} {
+      allow read: if isAuthenticated() && (
+        resource.data.athleteId == request.auth.uid ||
+        resource.data.specialistId == request.auth.uid
+      );
+      allow create: if isAuthenticated() && (
+        request.resource.data.athleteId == request.auth.uid ||
+        request.resource.data.specialistId == request.auth.uid
+      );
+      allow update, delete: if isAuthenticated() && (
+        resource.data.athleteId == request.auth.uid ||
+        resource.data.specialistId == request.auth.uid
+      );
+    }
+
+    // Default catch-all rule: Deny everything else
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
