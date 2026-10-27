@@ -69,7 +69,10 @@ const INITIAL_SUPPLEMENTS: SupplementLogEntry[] = [
 ];
 
 export const SupplementsTab: React.FC = () => {
-  const [supplements, setSupplements] = useState<SupplementLogEntry[]>(INITIAL_SUPPLEMENTS);
+  const [supplements, setSupplements] = useState<SupplementLogEntry[]>(() => {
+    if (import.meta.env.PROD) return [];
+    return INITIAL_SUPPLEMENTS;
+  });
   const [showAddModal, setShowAddModal] = useState(false);
 
   // Form state
@@ -80,6 +83,15 @@ export const SupplementsTab: React.FC = () => {
   const [timing, setTiming] = useState<SupplementLogEntry["timing"]>("morning");
   const [cert, setCert] = useState<ThirdPartyCertification>("informed_sport");
   const [notes, setNotes] = useState("");
+
+  const handleDelete = (id: string) => {
+    if (!window.confirm("Biztosan törölni szeretnéd ezt a kiegészítőt?")) return;
+    setSupplements((prev) => prev.filter((s) => s.id !== id));
+    showToast({
+      title: "Kiegészítő törölve",
+      type: "info"
+    });
+  };
 
   const handleAddSupplement = (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,14 +122,6 @@ export const SupplementsTab: React.FC = () => {
       title: "Kiegészítő rögzítve",
       message: `${newEntry.name} (Tételszám: ${newEntry.batchNumber})`,
       type: "success"
-    });
-  };
-
-  const handleDelete = (id: string) => {
-    setSupplements(supplements.filter((s) => s.id !== id));
-    showToast({
-      title: "Kiegészítő törölve",
-      type: "info"
     });
   };
 
@@ -200,11 +204,23 @@ export const SupplementsTab: React.FC = () => {
       </div>
 
       {/* List of Supplements */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {supplements.map((sup) => {
-          const certInfo = THIRD_PARTY_CERTS[sup.thirdPartyCert];
-          return (
-            <Card key={sup.id} variant="surface" radius="20" className="p-5 space-y-4">
+      {supplements.length === 0 ? (
+        <Card variant="surface" radius="20" className="p-8 text-center space-y-3">
+          <ShieldCheck className="w-8 h-8 text-text-tertiary mx-auto" />
+          <h4 className="text-15 font-bold text-text-primary">Még nincs rögzített táplálékkiegészítő</h4>
+          <p className="text-12 text-text-secondary max-w-md mx-auto">
+            Rögzítsd a szedett vitaminokat, fehérjéket és kiegészítőket tételszámmal és minősítéssel a doppingbiztonság érdekében.
+          </p>
+          <Button variant="primary" size="sm" onClick={() => setShowAddModal(true)} leftIcon={<Plus className="w-3.5 h-3.5" />}>
+            Első kiegészítő hozzáadása
+          </Button>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {supplements.map((sup) => {
+            const certInfo = THIRD_PARTY_CERTS[sup.thirdPartyCert];
+            return (
+              <Card key={sup.id} variant="surface" radius="20" className="p-5 space-y-4">
               <div className="flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-2">
@@ -277,7 +293,8 @@ export const SupplementsTab: React.FC = () => {
             </Card>
           );
         })}
-      </div>
+        </div>
+      )}
 
       {/* Add Supplement BottomSheet */}
       <BottomSheet

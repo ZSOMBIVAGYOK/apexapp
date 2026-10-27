@@ -200,7 +200,10 @@ export const MealDetailModal: React.FC<MealDetailModalProps> = ({
 
                   <button
                     type="button"
-                    onClick={() => onDeleteItem(item.id)}
+                    onClick={() => {
+                      if (!window.confirm("Biztosan törölni szeretnéd ezt az ételt az étkezésből?")) return;
+                      if (onDeleteItem) onDeleteItem(item.id);
+                    }}
                     className="p-2 text-text-tertiary hover:text-status-rest transition-colors rounded-8 hover:bg-status-rest/10"
                     title="Törlés"
                   >

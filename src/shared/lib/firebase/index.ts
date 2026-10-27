@@ -23,6 +23,7 @@ export const firestore = getFirestore(app);
 export const db = firestore;
 export const storage = getStorage(app);
 export const functions = getFunctions(app);
+export { sanitizeForFirestore } from "./sanitize";
 
 // Connect emulators in local testing if flagged
 if (import.meta.env.VITE_USE_FIREBASE_EMULATORS === "true") {

@@ -90,11 +90,32 @@ export const TrainingPage: React.FC = () => {
     const saved = localStorage.getItem(`apex_competitions_${athleteId}`);
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       } catch (e) {
         // fallback
       }
     }
+
+    // If user entered a target competition in onboarding or profile, use it as the A-race!
+    if (user?.targetCompetition) {
+      return [
+        {
+          id: `comp-user-${athleteId}`,
+          title: user.targetCompetition,
+          date: user.targetCompetitionDate || defaultARaceDate,
+          priority: "A",
+          sport: user.mainSport || user.sport || "running",
+          distance: ""
+        }
+      ];
+    }
+
+    // In production or for real users without competitions: start COMPLETELY EMPTY
+    if (import.meta.env.PROD || athleteId !== "demo-athlete-001") {
+      return [];
+    }
+
     const bRaceDate = new Date();
     bRaceDate.setDate(bRaceDate.getDate() + 6 * 7);
 
@@ -122,20 +143,34 @@ export const TrainingPage: React.FC = () => {
   // Season Phases
   const [phases, setPhases] = useState<SeasonPhase[]>(() => {
     const primaryARace = competitions.find((c) => c.priority === "A");
+    if (!primaryARace) {
+      return [];
+    }
     return generateBackwardPeriodization({
-      aRaceDate: primaryARace ? primaryARace.date : defaultARaceDate,
+      aRaceDate: primaryARace.date,
       targetPeakWeeklyHours: 10
     });
   });
 
-  // Thresholds & Zones
-  const [thresholds, setThresholds] = useState<AthleteThresholds>(() => ({
-    maxHr: 194,
-    lthr: 172,
-    ftp: 285,
-    thresholdPaceSeconds: 255, // 4:15/km
-    criticalSwimSpeedSeconds: 85 // 1:25/100m
-  }));
+  // Thresholds & Zones: only demo athlete gets hardcoded numbers, real users start empty
+  const [thresholds, setThresholds] = useState<AthleteThresholds>(() => {
+    if (import.meta.env.PROD || athleteId !== "demo-athlete-001") {
+      return {
+        maxHr: 190,
+        lthr: 165,
+        ftp: 250,
+        thresholdPaceSeconds: 300,
+        criticalSwimSpeedSeconds: 100
+      };
+    }
+    return {
+      maxHr: 194,
+      lthr: 172,
+      ftp: 285,
+      thresholdPaceSeconds: 255, // 4:15/km
+      criticalSwimSpeedSeconds: 85 // 1:25/100m
+    };
+  });
 
   const [zones, setZones] = useState<AthleteTrainingZones>(() =>
     calculateAllZones(thresholds)

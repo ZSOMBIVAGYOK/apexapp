@@ -15,7 +15,7 @@ import {
   CartesianGrid,
   Legend
 } from "recharts";
-import { Plus, TrendingDown, TrendingUp, Minus, Info } from "lucide-react";
+import { Plus, TrendingDown, TrendingUp, Minus, Info, Scale } from "lucide-react";
 
 
 const INITIAL_BODY_METRICS: BodyMetricEntry[] = [
@@ -37,13 +37,16 @@ const INITIAL_BODY_METRICS: BodyMetricEntry[] = [
 ];
 
 export const BodyMetricsTab: React.FC = () => {
-  const [entries, setEntries] = useState<BodyMetricEntry[]>(INITIAL_BODY_METRICS);
+  const [entries, setEntries] = useState<BodyMetricEntry[]>(() => {
+    if (import.meta.env.PROD) return [];
+    return INITIAL_BODY_METRICS;
+  });
   const [showLogModal, setShowLogModal] = useState(false);
 
   // Form state
-  const [newWeight, setNewWeight] = useState(71.7);
-  const [newBodyFat, setNewBodyFat] = useState<number | undefined>(12.0);
-  const [newWaist, setNewWaist] = useState<number | undefined>(81);
+  const [newWeight, setNewWeight] = useState(70);
+  const [newBodyFat, setNewBodyFat] = useState<number | undefined>(undefined);
+  const [newWaist, setNewWaist] = useState<number | undefined>(undefined);
 
   const smoothedPoints = calculateSmoothedBodyMetrics(entries);
   const changeRate = calculateWeeklyWeightChangeRate(smoothedPoints);
@@ -102,12 +105,12 @@ export const BodyMetricsTab: React.FC = () => {
           </span>
           <div className="flex items-baseline gap-2 mt-1">
             <span className="text-28 font-bold text-text-primary tabular-nums">
-              {latest?.smoothedWeightKg ?? 71.7}
+              {latest ? (latest.smoothedWeightKg ?? latest.weightKg) : "—"}
             </span>
-            <span className="text-14 text-text-secondary font-medium">kg</span>
+            {latest && <span className="text-14 text-text-secondary font-medium">kg</span>}
           </div>
           <span className="text-11 text-text-tertiary block mt-1">
-            Legutóbbi nyers mérés: {latest?.weightKg} kg
+            {latest ? `Legutóbbi nyers mérés: ${latest.weightKg} kg` : "Még nincs rögzített mérés"}
           </span>
         </Card>
 
@@ -116,20 +119,26 @@ export const BodyMetricsTab: React.FC = () => {
             Heti változás üteme
           </span>
           <div className="flex items-center gap-2 mt-1">
-            {changeRate.trend === "losing" ? (
-              <TrendingDown className="w-6 h-6 text-brand" />
-            ) : changeRate.trend === "gaining" ? (
-              <TrendingUp className="w-6 h-6 text-status-caution" />
+            {entries.length >= 2 ? (
+              <>
+                {changeRate.trend === "losing" ? (
+                  <TrendingDown className="w-6 h-6 text-brand" />
+                ) : changeRate.trend === "gaining" ? (
+                  <TrendingUp className="w-6 h-6 text-status-caution" />
+                ) : (
+                  <Minus className="w-6 h-6 text-text-tertiary" />
+                )}
+                <span className="text-28 font-bold text-text-primary tabular-nums">
+                  {changeRate.weeklyRateKg > 0 ? `+${changeRate.weeklyRateKg}` : changeRate.weeklyRateKg}
+                </span>
+                <span className="text-14 text-text-secondary font-medium">kg / hét</span>
+              </>
             ) : (
-              <Minus className="w-6 h-6 text-text-tertiary" />
+              <span className="text-20 font-bold text-text-tertiary tabular-nums">—</span>
             )}
-            <span className="text-28 font-bold text-text-primary tabular-nums">
-              {changeRate.weeklyRateKg > 0 ? `+${changeRate.weeklyRateKg}` : changeRate.weeklyRateKg}
-            </span>
-            <span className="text-14 text-text-secondary font-medium">kg / hét</span>
           </div>
           <span className="text-11 text-text-tertiary block mt-1">
-            Elemzett időszak: {changeRate.daysAnalyzed} nap
+            {entries.length >= 2 ? `Elemzett időszak: ${changeRate.daysAnalyzed} nap` : "Legalább 2 mérés szükséges a trendhez"}
           </span>
         </Card>
 
@@ -139,18 +148,32 @@ export const BodyMetricsTab: React.FC = () => {
           </span>
           <div className="flex items-baseline gap-2 mt-1">
             <span className="text-28 font-bold text-text-primary tabular-nums">
-              {latest?.smoothedBodyFatPct ?? 12.0}
+              {latest?.smoothedBodyFatPct ?? latest?.bodyFatPct ?? "—"}
             </span>
-            <span className="text-14 text-text-secondary font-medium">%</span>
+            {(latest?.smoothedBodyFatPct || latest?.bodyFatPct) && (
+              <span className="text-14 text-text-secondary font-medium">%</span>
+            )}
           </div>
           <span className="text-11 text-text-tertiary block mt-1">
-            Sportolói kategória: optimális versenykondíció
+            {latest ? "Sportolói kategória: kondíció követve" : "Nincs adat"}
           </span>
         </Card>
       </div>
 
       {/* 7-Day Smoothed Weight Chart */}
-      <Card variant="surface" radius="20" className="p-6 space-y-4">
+      {entries.length === 0 ? (
+        <Card variant="surface" radius="20" className="p-8 text-center space-y-3">
+          <Scale className="w-8 h-8 text-text-tertiary mx-auto" />
+          <h4 className="text-15 font-bold text-text-primary">Még nincs rögzített testsúlymérés</h4>
+          <p className="text-12 text-text-secondary max-w-md mx-auto">
+            A napi reggeli testsúlymérés rögzítésével az Apex kisimítja a vízháztartás kilengéseit, és megmutatja a valós testtömeg trendet.
+          </p>
+          <Button variant="primary" size="sm" onClick={() => setShowLogModal(true)} leftIcon={<Plus className="w-3.5 h-3.5" />}>
+            Első mérés rögzítése
+          </Button>
+        </Card>
+      ) : (
+        <Card variant="surface" radius="20" className="p-6 space-y-4">
         <div className="flex items-center justify-between">
           <div>
             <h4 className="text-14 font-bold text-text-primary">
@@ -241,6 +264,7 @@ export const BodyMetricsTab: React.FC = () => {
           </span>
         </div>
       </Card>
+      )}
 
       {/* Log Measurement Modal */}
       <BottomSheet

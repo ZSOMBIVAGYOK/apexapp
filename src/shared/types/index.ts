@@ -42,6 +42,9 @@ export interface UserProfile {
   dataMode: DataMode;
   supportMode: SupportMode[];
   onboardingCompleted: boolean;
+  onboardingStep?: number;
+  onboardingCompletedAt?: string;
+  onboardingVersion?: string;
   consent: {
     healthData: HealthDataConsent;
   };

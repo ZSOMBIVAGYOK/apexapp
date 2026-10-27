@@ -15,13 +15,14 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   allowIncompleteOnboarding = false
 }) => {
-  const { user, firebaseUser, isLoading, signOut } = useAuthStore();
+  const { user, firebaseUser, isLoading, isProfileLoading, signOut } = useAuthStore();
   const location = useLocation();
   const { t } = useTranslation();
   const [isResending, setIsResending] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
 
-  if (isLoading) {
+  // App Start Gating: wait until BOTH the Firebase Auth state AND the Firestore profile are fully resolved
+  if (isLoading || isProfileLoading) {
     return (
       <div
         role="status"
@@ -154,9 +155,15 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     !user.onboardingCompleted &&
     !allowIncompleteOnboarding &&
     location.pathname !== "/onboarding" &&
-    location.pathname !== "/privacy"
+    location.pathname !== "/privacy" &&
+    location.pathname !== "/terms"
   ) {
     return <Navigate to="/onboarding" replace />;
+  }
+
+  // If user HAS completed onboarding, never show the onboarding wizard again
+  if (user.onboardingCompleted && location.pathname === "/onboarding") {
+    return <Navigate to="/" replace />;
   }
 
   return children;

@@ -43,8 +43,12 @@ import { BodyMetricsTab } from "../components/BodyMetricsTab";
 import { DietitianPlanModal } from "../components/DietitianPlanModal";
 import { HydrationTrackerCard } from "../components/HydrationTrackerCard";
 import { useAuthStore } from "@features/auth/authStore";
-
-const NUTRITION_STORAGE_KEY = "apex_daily_nutrition_data";
+import {
+  normalizeNutritionMeals,
+  CANONICAL_MEAL_TYPES,
+  createDefaultMeal
+} from "@shared/lib/nutrition";
+import { getUserStorageKey } from "@shared/lib/storage/userStorage";
 
 export const NutritionPage: React.FC = () => {
   const { t } = useTranslation();
@@ -73,10 +77,10 @@ export const NutritionPage: React.FC = () => {
     const isRealUser = import.meta.env.PROD || user?.uid !== "demo-athlete-001";
     return calculateDailyNutritionTarget({
       date: new Date().toISOString().split("T")[0]!,
-      weightKg: 72,
-      heightCm: 180,
-      ageYears: 26,
-      sex: "male",
+      weightKg: user?.weightKg || 70,
+      heightCm: user?.heightCm || 175,
+      ageYears: 25,
+      sex: user?.sex === "female" ? "female" : "male",
       bodyFatPct: 12,
       dayType: "moderate",
       sessionDurationMinutes: 0,
@@ -101,23 +105,16 @@ export const NutritionPage: React.FC = () => {
 
   // Daily meals log
   const [meals, setMeals] = useState<Record<MealType, LoggedMeal>>(() => {
+    const storageKey = getUserStorageKey("daily_nutrition_data", user?.uid);
     try {
-      const raw = localStorage.getItem(NUTRITION_STORAGE_KEY);
-      if (raw) return JSON.parse(raw);
+      const raw = localStorage.getItem(storageKey);
+      if (raw) return normalizeNutritionMeals(JSON.parse(raw));
     } catch {
       // fallback
     }
 
     if (import.meta.env.PROD || user?.uid !== "demo-athlete-001") {
-      return {
-        breakfast: { id: "meal_bf", mealType: "breakfast", time: "08:00", items: [], totalCalories: 0, totalProteinGrams: 0, totalCarbsGrams: 0, totalFatGrams: 0, createdAt: new Date().toISOString() },
-        morning_snack: { id: "meal_ms", mealType: "morning_snack", time: "10:30", items: [], totalCalories: 0, totalProteinGrams: 0, totalCarbsGrams: 0, totalFatGrams: 0, createdAt: new Date().toISOString() },
-        during_training: { id: "meal_dt", mealType: "during_training", time: "12:00", items: [], totalCalories: 0, totalProteinGrams: 0, totalCarbsGrams: 0, totalFatGrams: 0, createdAt: new Date().toISOString() },
-        lunch: { id: "meal_lu", mealType: "lunch", time: "13:30", items: [], totalCalories: 0, totalProteinGrams: 0, totalCarbsGrams: 0, totalFatGrams: 0, createdAt: new Date().toISOString() },
-        afternoon_snack: { id: "meal_as", mealType: "afternoon_snack", time: "16:30", items: [], totalCalories: 0, totalProteinGrams: 0, totalCarbsGrams: 0, totalFatGrams: 0, createdAt: new Date().toISOString() },
-        dinner: { id: "meal_di", mealType: "dinner", time: "19:30", items: [], totalCalories: 0, totalProteinGrams: 0, totalCarbsGrams: 0, totalFatGrams: 0, createdAt: new Date().toISOString() },
-        evening_snack: { id: "meal_es", mealType: "evening_snack", time: "21:30", items: [], totalCalories: 0, totalProteinGrams: 0, totalCarbsGrams: 0, totalFatGrams: 0, createdAt: new Date().toISOString() }
-      };
+      return normalizeNutritionMeals(null);
     }
 
     return {
@@ -407,11 +404,12 @@ export const NutritionPage: React.FC = () => {
   // Persist meals
   useEffect(() => {
     try {
-      localStorage.setItem(NUTRITION_STORAGE_KEY, JSON.stringify(meals));
+      const storageKey = getUserStorageKey("daily_nutrition_data", user?.uid);
+      localStorage.setItem(storageKey, JSON.stringify(meals));
     } catch {
       // ignore
     }
-  }, [meals]);
+  }, [meals, user?.uid]);
 
   // Persist hide calories setting
   const toggleHideCalories = (val: boolean) => {
@@ -427,15 +425,16 @@ export const NutritionPage: React.FC = () => {
   };
 
   // Calculate day totals
-  const totalCalories = Object.values(meals).reduce((sum, m) => sum + m.totalCalories, 0);
+  const mealList = Object.values(meals || {});
+  const totalCalories = mealList.reduce((sum, m) => sum + (m?.totalCalories || 0), 0);
   const totalProtein = Math.round(
-    Object.values(meals).reduce((sum, m) => sum + m.totalProteinGrams, 0)
+    mealList.reduce((sum, m) => sum + (m?.totalProteinGrams || 0), 0)
   );
   const totalCarbs = Math.round(
-    Object.values(meals).reduce((sum, m) => sum + m.totalCarbsGrams, 0)
+    mealList.reduce((sum, m) => sum + (m?.totalCarbsGrams || 0), 0)
   );
   const totalFat = Math.round(
-    Object.values(meals).reduce((sum, m) => sum + m.totalFatGrams, 0)
+    mealList.reduce((sum, m) => sum + (m?.totalFatGrams || 0), 0)
   );
 
   // Check for Low Energy Availability (LEA) condition
@@ -459,12 +458,12 @@ export const NutritionPage: React.FC = () => {
 
   const handleAddFoodItem = (mealType: MealType, loggedItem: LoggedFoodItem) => {
     setMeals((prev) => {
-      const currentMeal = prev[mealType];
-      const nextItems = [...currentMeal.items, loggedItem];
-      const nextTotalCal = nextItems.reduce((acc, i) => acc + i.calories, 0);
-      const nextTotalProt = +(nextItems.reduce((acc, i) => acc + i.proteinGrams, 0)).toFixed(1);
-      const nextTotalCarb = +(nextItems.reduce((acc, i) => acc + i.carbsGrams, 0)).toFixed(1);
-      const nextTotalFat = +(nextItems.reduce((acc, i) => acc + i.fatGrams, 0)).toFixed(1);
+      const currentMeal = prev[mealType] || createDefaultMeal(mealType);
+      const nextItems = [...(currentMeal.items || []), loggedItem];
+      const nextTotalCal = nextItems.reduce((acc, i) => acc + (i.calories || 0), 0);
+      const nextTotalProt = +(nextItems.reduce((acc, i) => acc + (i.proteinGrams || 0), 0)).toFixed(1);
+      const nextTotalCarb = +(nextItems.reduce((acc, i) => acc + (i.carbsGrams || 0), 0)).toFixed(1);
+      const nextTotalFat = +(nextItems.reduce((acc, i) => acc + (i.fatGrams || 0), 0)).toFixed(1);
 
       return {
         ...prev,
@@ -485,12 +484,12 @@ export const NutritionPage: React.FC = () => {
     const mealKey = inspectingMeal.mealType;
 
     setMeals((prev) => {
-      const currentMeal = prev[mealKey];
-      const nextItems = currentMeal.items.filter((i) => i.id !== itemId);
-      const nextTotalCal = nextItems.reduce((acc, i) => acc + i.calories, 0);
-      const nextTotalProt = +(nextItems.reduce((acc, i) => acc + i.proteinGrams, 0)).toFixed(1);
-      const nextTotalCarb = +(nextItems.reduce((acc, i) => acc + i.carbsGrams, 0)).toFixed(1);
-      const nextTotalFat = +(nextItems.reduce((acc, i) => acc + i.fatGrams, 0)).toFixed(1);
+      const currentMeal = prev[mealKey] || createDefaultMeal(mealKey);
+      const nextItems = (currentMeal.items || []).filter((i) => i.id !== itemId);
+      const nextTotalCal = nextItems.reduce((acc, i) => acc + (i.calories || 0), 0);
+      const nextTotalProt = +(nextItems.reduce((acc, i) => acc + (i.proteinGrams || 0), 0)).toFixed(1);
+      const nextTotalCarb = +(nextItems.reduce((acc, i) => acc + (i.carbsGrams || 0), 0)).toFixed(1);
+      const nextTotalFat = +(nextItems.reduce((acc, i) => acc + (i.fatGrams || 0), 0)).toFixed(1);
 
       const updated = {
         ...currentMeal,
@@ -527,7 +526,7 @@ export const NutritionPage: React.FC = () => {
     };
 
     setMeals((prev) => {
-      const current = prev[mealKey];
+      const current = prev[mealKey] || createDefaultMeal(mealKey);
       const updated = {
         ...current,
         dietitianComments: [...(current.dietitianComments || []), newComment]
@@ -851,89 +850,86 @@ export const NutritionPage: React.FC = () => {
               </h3>
             </div>
 
-            {(["breakfast", "during_training", "lunch", "snack", "dinner"] as MealType[]).map(
-              (mType) => {
-                const meal = meals[mType];
-                const hasItems = meal && meal.items.length > 0;
+            {CANONICAL_MEAL_TYPES.map((mType) => {
+              const meal = meals[mType] || createDefaultMeal(mType);
+              const hasItems = Array.isArray(meal?.items) && meal.items.length > 0;
 
-                return (
-                  <Card
-                    key={mType}
-                    variant="surface"
-                    radius="20"
-                    className="p-5 space-y-4 hover:border-border-subtle transition-colors"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-14 font-bold text-text-primary">
-                          {mealLabels[mType]}
-                        </span>
-                        <span className="text-12 text-text-tertiary">
-                          {meal.time}
-                        </span>
-                        {meal.dietitianComments && meal.dietitianComments.length > 0 && (
-                          <Badge variant="ready" size="sm">
-                            Dietetikusi megjegyzés
-                          </Badge>
-                        )}
-
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        {!hideCalories && (
-                          <span className="text-14 font-bold text-text-primary tabular-nums">
-                            {meal.totalCalories} kcal
-                          </span>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          leftIcon={<Plus className="w-3.5 h-3.5" />}
-                          onClick={() => {
-                            setAddFoodMealType(mType);
-                            setShowAddFoodModal(true);
-                          }}
-                        >
-                          Étel hozzáadása
-                        </Button>
-                      </div>
+              return (
+                <Card
+                  key={mType}
+                  variant="surface"
+                  radius="20"
+                  className="p-5 space-y-4 hover:border-border-subtle transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-14 font-bold text-text-primary">
+                        {mealLabels[mType] || mType}
+                      </span>
+                      <span className="text-12 text-text-tertiary">
+                        {meal?.time || "—"}
+                      </span>
+                      {meal?.dietitianComments && meal.dietitianComments.length > 0 && (
+                        <Badge variant="ready" size="sm">
+                          Dietetikusi megjegyzés
+                        </Badge>
+                      )}
                     </div>
 
-                    {/* Items inside this meal */}
-                    {hasItems ? (
-                      <div
-                        onClick={() => setInspectingMeal(meal)}
-                        className="space-y-1.5 cursor-pointer group"
+                    <div className="flex items-center gap-3">
+                      {!hideCalories && (
+                        <span className="text-14 font-bold text-text-primary tabular-nums">
+                          {meal?.totalCalories ?? 0} kcal
+                        </span>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        leftIcon={<Plus className="w-3.5 h-3.5" />}
+                        onClick={() => {
+                          setAddFoodMealType(mType);
+                          setShowAddFoodModal(true);
+                        }}
                       >
-                        {meal.items.map((item) => (
-                          <div
-                            key={item.id}
-                            className="p-3 rounded-12 bg-bg-elevated border border-border-hairline flex items-center justify-between group-hover:border-border-subtle transition-colors"
-                          >
-                            <div className="min-w-0 pr-2">
-                              <span className="text-13 font-semibold text-text-primary block truncate">
-                                {item.name}
-                              </span>
-                              <div className="text-11 text-text-secondary mt-0.5">
-                                {item.servingGrams}g {!hideCalories ? `• ${item.calories} kcal ` : ""}
-                                (F: {item.proteinGrams}g, Sz: {item.carbsGrams}g, Zs: {item.fatGrams}g)
-                              </div>
-                            </div>
-                            <div className="text-11 text-brand font-medium">
-                              Részletek &raquo;
+                        Étel hozzáadása
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Items inside this meal */}
+                  {hasItems ? (
+                    <div
+                      onClick={() => setInspectingMeal(meal)}
+                      className="space-y-1.5 cursor-pointer group"
+                    >
+                      {meal.items.map((item) => (
+                        <div
+                          key={item.id}
+                          className="p-3 rounded-12 bg-bg-elevated border border-border-hairline flex items-center justify-between group-hover:border-border-subtle transition-colors"
+                        >
+                          <div className="min-w-0 pr-2">
+                            <span className="text-13 font-semibold text-text-primary block truncate">
+                              {item.name}
+                            </span>
+                            <div className="text-11 text-text-secondary mt-0.5">
+                              {item.servingGrams}g {!hideCalories ? `• ${item.calories} kcal ` : ""}
+                              (F: {item.proteinGrams}g, Sz: {item.carbsGrams}g, Zs: {item.fatGrams}g)
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="p-4 rounded-12 bg-bg-elevated/40 border border-dashed border-border-hairline text-center text-12 text-text-secondary">
-                        Még nem rögzítettél ételt ehhez az étkezéshez.
-                      </div>
-                    )}
-                  </Card>
-                );
-              }
-            )}
+                          <div className="text-11 text-brand font-medium">
+                            Részletek &raquo;
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-4 rounded-12 bg-bg-elevated/40 border border-dashed border-border-hairline text-center text-12 text-text-secondary">
+                      Még nem rögzítettél ételt ehhez az étkezéshez.
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
           </div>
         </div>
       )}
@@ -1020,7 +1016,7 @@ export const NutritionPage: React.FC = () => {
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-11 font-bold text-brand uppercase tracking-wider">
-                          {mealLabels[m.mealType]}
+                          {mealLabels[m.mealType] || m.mealType}
                         </span>
                         <span className="text-11 text-text-secondary">
                           Szénhidrát: ~{m.targetCarbsGrams}g • Fehérje: ~{m.targetProteinGrams}g
@@ -1040,8 +1036,18 @@ export const NutritionPage: React.FC = () => {
               </div>
             </Card>
           ) : (
-            <Card variant="surface" radius="20" className="p-8 text-center text-text-secondary">
-              Nincs jelenleg aktív dietetikusi étrendterv kiadva.
+            <Card variant="surface" radius="20" className="p-8 text-center space-y-3">
+              <p className="text-14 text-text-secondary">
+                Még nincs aktív étrendterved. A dietetikusod vagy te magad is rögzíthetsz tervet a céljaidhoz.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                leftIcon={<Plus className="w-4 h-4" />}
+                onClick={() => setShowDietitianPlanModal(true)}
+              >
+                Új étrendterv rögzítése
+              </Button>
             </Card>
           )}
         </div>

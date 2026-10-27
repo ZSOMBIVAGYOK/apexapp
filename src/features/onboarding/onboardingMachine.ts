@@ -74,10 +74,10 @@ export type OnboardingAction =
 export const defaultOnboardingData: OnboardingData = {
   roles: ["athlete"],
   specialties: [],
-  mainSports: ["Triatlon"],
-  sports: ["Triatlon"],
-  mainSport: "Triatlon",
-  level: "national",
+  mainSports: [],
+  sports: [],
+  mainSport: "",
+  level: "hobby",
   dataMode: "hybrid",
   supportMode: ["solo"],
   trainingDays: [1, 2, 3, 4, 5],
@@ -224,18 +224,22 @@ export const onboardingReducer = (
 };
 
 /**
- * Converts collected onboarding data to a partial UserProfile for persistence
+ * Converts collected onboarding data to a partial UserProfile for persistence.
+ * Guarantees no undefined values are generated, and tracks onboardingStep.
  */
 export const onboardingDataToUserProfile = (
-  data: OnboardingData
+  data: Partial<OnboardingData>,
+  isFinal: boolean = true,
+  stepNumber: number = 7
 ): Partial<UserProfile> => {
-  const primaryRole = data.roles[0] || "athlete";
-  const selectedSports = data.sports && data.sports.length > 0 ? data.sports : data.mainSports;
+  const primaryRole = (data.roles && data.roles[0]) || "athlete";
+  const selectedSports =
+    (data.sports && data.sports.length > 0 ? data.sports : data.mainSports) || [];
   const primarySport =
     data.mainSport ||
     (data.sports && data.sports[0]) ||
-    data.mainSports[0] ||
-    "Triatlon";
+    (data.mainSports && data.mainSports[0]) ||
+    "";
 
   const trainingDays =
     data.trainingDays && data.trainingDays.length > 0
@@ -245,44 +249,54 @@ export const onboardingDataToUserProfile = (
         : [1, 2, 3, 4, 5];
   const trainingDaysCount = trainingDays.length;
 
-  return {
-    roles: data.roles,
+  const result: Partial<UserProfile> = {
+    roles: data.roles || ["athlete"],
     role: primaryRole,
-    specialties: data.specialties,
-    discipline: data.specialties[0],
     sports: selectedSports,
     sport: primarySport,
     mainSport: primarySport,
-    level: data.level,
-    birthDate: data.birthDate,
-    sex: data.sex,
-    heightCm: data.heightCm,
-    weightKg: data.weightKg,
-    goals: data.goals,
-    targetCompetition: data.targetCompetition,
-    targetCompetitionDate: data.targetCompetitionDate,
-    dataMode: data.dataMode,
-    supportMode: data.supportMode,
-    supportInviteEmail: data.supportInviteEmail,
-    supportInviteCode: data.supportInviteCode,
-    sleepHoursBaseline: data.sleepHoursBaseline,
     trainingDays,
     trainingDaysPerWeek: trainingDaysCount,
-    restingHeartRateBaseline: data.restingHeartRateBaseline,
-    currentInjuries: data.currentInjuries,
-    dietaryPreferences: data.dietaryPreferences,
-    allergiesIntolerances: data.allergiesIntolerances,
-    nutritionGoal: data.nutritionGoal,
-    plateBasedViewOnly: data.plateBasedViewOnly,
-    consent: {
+    onboardingStep: stepNumber,
+    onboardingCompleted: isFinal && Boolean(data.consentAccepted)
+  };
+
+  if (data.specialties && data.specialties.length > 0) result.specialties = data.specialties;
+  if (data.level) result.level = data.level;
+  if (data.dataMode) result.dataMode = data.dataMode;
+  if (data.supportMode) result.supportMode = data.supportMode;
+  if (data.dietaryPreferences) result.dietaryPreferences = data.dietaryPreferences;
+  if (data.allergiesIntolerances) result.allergiesIntolerances = data.allergiesIntolerances;
+  if (data.nutritionGoal) result.nutritionGoal = data.nutritionGoal;
+  if (typeof data.plateBasedViewOnly === "boolean") result.plateBasedViewOnly = data.plateBasedViewOnly;
+
+  if (data.specialties && data.specialties[0]) result.discipline = data.specialties[0];
+  if (data.birthDate) result.birthDate = data.birthDate;
+  if (data.sex) result.sex = data.sex;
+  if (typeof data.heightCm === "number") result.heightCm = data.heightCm;
+  if (typeof data.weightKg === "number") result.weightKg = data.weightKg;
+  if (data.goals) result.goals = data.goals;
+  if (data.targetCompetition) result.targetCompetition = data.targetCompetition.trim();
+  if (data.targetCompetitionDate) result.targetCompetitionDate = data.targetCompetitionDate;
+  if (data.supportInviteEmail) result.supportInviteEmail = data.supportInviteEmail.trim();
+  if (data.supportInviteCode) result.supportInviteCode = data.supportInviteCode.trim();
+  if (typeof data.sleepHoursBaseline === "number") result.sleepHoursBaseline = data.sleepHoursBaseline;
+  if (typeof data.restingHeartRateBaseline === "number") result.restingHeartRateBaseline = data.restingHeartRateBaseline;
+  if (data.currentInjuries) result.currentInjuries = data.currentInjuries;
+
+  if (isFinal && data.consentAccepted) {
+    result.consent = {
       healthData: {
         accepted: data.consentAccepted,
-        version: data.consentVersion,
+        version: data.consentVersion || CONSENT_VERSION,
         timestamp: data.consentTimestamp || new Date().toISOString()
       }
-    },
-    onboardingCompleted: true
-  };
+    };
+    result.onboardingCompletedAt = new Date().toISOString();
+    result.onboardingVersion = "1.0.0";
+  }
+
+  return result;
 };
 
 // Local storage draft persistence

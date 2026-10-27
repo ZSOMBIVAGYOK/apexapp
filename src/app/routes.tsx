@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import { AppLayout } from "./AppLayout";
 import { ProtectedRoute } from "@features/auth/components/ProtectedRoute";
 import { NotFoundPage } from "@shared/ui/NotFoundPage";
+import { ErrorBoundary } from "@shared/ui/ErrorBoundary";
 import { Loader2 } from "lucide-react";
 import i18n from "@shared/lib/i18n";
 
@@ -63,9 +64,11 @@ export const router = createBrowserRouter([
     path: "/onboarding",
     element: (
       <ProtectedRoute allowIncompleteOnboarding>
-        <Suspense fallback={<SuspenseFallback />}>
-          <OnboardingPage />
-        </Suspense>
+        <ErrorBoundary fallbackTitle="Hiba történt a regisztrációs varázslóban">
+          <Suspense fallback={<SuspenseFallback />}>
+            <OnboardingPage />
+          </Suspense>
+        </ErrorBoundary>
       </ProtectedRoute>
     )
   },
@@ -73,7 +76,9 @@ export const router = createBrowserRouter([
     path: "/",
     element: (
       <ProtectedRoute>
-        <AppLayout />
+        <ErrorBoundary>
+          <AppLayout />
+        </ErrorBoundary>
       </ProtectedRoute>
     ),
     children: [

@@ -1,10 +1,13 @@
 import { create } from "zustand";
 import { User, onAuthStateChanged } from "firebase/auth";
-import { auth } from "@shared/lib/firebase";
+import { doc, onSnapshot, Unsubscribe } from "firebase/firestore";
+import { auth, firestore } from "@shared/lib/firebase";
 import { UserProfile, UserRole } from "@shared/types";
+import { useSyncStatusStore } from "@shared/lib/sync/syncStatusStore";
 import {
   fetchOrInitUserProfile,
   saveUserProfileToFirestore,
+  normalizeUserProfile,
   signOutAuth
 } from "./authService";
 
@@ -12,6 +15,7 @@ interface AuthState {
   user: UserProfile | null;
   firebaseUser: User | null;
   isLoading: boolean;
+  isProfileLoading: boolean;
   isDemoUser: boolean;
   setUserProfile: (profile: UserProfile | null) => void;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
@@ -20,17 +24,22 @@ interface AuthState {
   signOut: () => Promise<void>;
 }
 
+let activeProfileUnsubscribe: Unsubscribe | null = null;
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   firebaseUser: null,
   isLoading: true,
+  isProfileLoading: true,
   isDemoUser: false,
 
   setUserProfile: (profile) => set({ user: profile }),
 
   updateProfile: async (updates) => {
     const current = get().user;
-    if (!current) return;
+    if (!current) {
+      throw new Error("Nincs bejelentkezett felhasználó a profil mentéséhez.");
+    }
 
     const updatedProfile: UserProfile = {
       ...current,
@@ -38,10 +47,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       updatedAt: new Date().toISOString()
     };
 
+    // Optimistic local update
     set({ user: updatedProfile });
 
     if (!get().isDemoUser && current.uid) {
-      await saveUserProfileToFirestore(current.uid, updates);
+      useSyncStatusStore.getState().setSyncing();
+      try {
+        await saveUserProfileToFirestore(current.uid, updates);
+        useSyncStatusStore.getState().setSaved();
+      } catch (err: any) {
+        useSyncStatusStore.getState().setError(
+          err?.message || "Nem sikerült menteni a változtatásokat.",
+          () => get().updateProfile(updates)
+        );
+        throw err;
+      }
     }
   },
 
@@ -62,6 +82,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       dataMode: "hybrid",
       supportMode: ["solo", "coach"],
       onboardingCompleted: true,
+      onboardingStep: 7,
       consent: {
         healthData: {
           accepted: true,
@@ -81,20 +102,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       user: demoProfile,
       firebaseUser: null,
       isLoading: false,
+      isProfileLoading: false,
       isDemoUser: true
     });
   },
 
   signOut: async () => {
+    if (activeProfileUnsubscribe) {
+      activeProfileUnsubscribe();
+      activeProfileUnsubscribe = null;
+    }
+
     try {
       await signOutAuth();
     } catch {
       // Ignore in demo mode or offline
     }
+
     set({
       user: null,
       firebaseUser: null,
       isLoading: false,
+      isProfileLoading: false,
       isDemoUser: false
     });
   }
@@ -105,52 +134,61 @@ export const initAuthListener = () => {
   return onAuthStateChanged(auth, async (fbUser) => {
     const currentDemo = useAuthStore.getState().isDemoUser;
     if (currentDemo) {
-      // Preserve demo session if active
       return;
     }
 
+    if (activeProfileUnsubscribe) {
+      activeProfileUnsubscribe();
+      activeProfileUnsubscribe = null;
+    }
+
     if (fbUser) {
-      useAuthStore.setState({ firebaseUser: fbUser, isLoading: true });
+      useAuthStore.setState({
+        firebaseUser: fbUser,
+        isLoading: false,
+        isProfileLoading: true
+      });
+
       try {
+        // Initial fresh fetch or initialization
         const profile = await fetchOrInitUserProfile(fbUser);
         useAuthStore.setState({
           user: profile,
-          isLoading: false
+          isProfileLoading: false
         });
-      } catch {
-        // Fallback minimal profile
-        useAuthStore.setState({
-          user: {
-            uid: fbUser.uid,
-            email: fbUser.email,
-            displayName: fbUser.displayName || fbUser.email?.split("@")[0] || "Sportoló",
-            photoURL: fbUser.photoURL || null,
-            locale: "hu",
-            units: "metric",
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Budapest",
-            roles: ["athlete"],
-            role: "athlete",
-            dataMode: "hybrid",
-            supportMode: ["solo"],
-            onboardingCompleted: false,
-            consent: {
-              healthData: {
-                accepted: false,
-                version: "1.0.0",
-                timestamp: ""
-              }
-            },
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
+
+        // Attach realtime Firestore listener so multiple tabs/devices stay in sync
+        const userDocRef = doc(firestore, "users", fbUser.uid);
+        activeProfileUnsubscribe = onSnapshot(
+          userDocRef,
+          (docSnap) => {
+            if (docSnap.exists()) {
+              const remoteProfile = normalizeUserProfile(docSnap.data(), fbUser);
+              useAuthStore.setState({
+                user: remoteProfile,
+                isProfileLoading: false
+              });
+            }
           },
-          isLoading: false
+          (err) => {
+            // eslint-disable-next-line no-console
+            console.warn("Firestore user sync notice:", err);
+          }
+        );
+      } catch {
+        // Safe fallback
+        const fallback = normalizeUserProfile(null, fbUser);
+        useAuthStore.setState({
+          user: fallback,
+          isProfileLoading: false
         });
       }
     } else {
       useAuthStore.setState({
         firebaseUser: null,
         user: null,
-        isLoading: false
+        isLoading: false,
+        isProfileLoading: false
       });
     }
   });

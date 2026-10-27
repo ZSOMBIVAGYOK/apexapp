@@ -80,23 +80,48 @@ export const OnboardingPage: React.FC = () => {
   const [state, dispatch] = useReducer(
     onboardingReducer,
     createInitialOnboardingState({
-      mainSports: user?.sport ? [user.sport] : ["Triatlon"]
+      mainSports: user?.sports?.length ? user.sports : (user?.sport ? [user.sport] : []),
+      sports: user?.sports?.length ? user.sports : (user?.sport ? [user.sport] : []),
+      mainSport: user?.sport || user?.mainSport || "",
+      roles: user?.roles?.length ? user.roles : ["athlete"],
+      dataMode: user?.dataMode || "hybrid",
+      supportMode: user?.supportMode?.length ? user.supportMode : ["solo"],
+      birthDate: user?.birthDate,
+      sex: user?.sex,
+      heightCm: user?.heightCm,
+      weightKg: user?.weightKg,
+      goals: user?.goals,
+      targetCompetition: user?.targetCompetition,
+      targetCompetitionDate: user?.targetCompetitionDate,
+      sleepHoursBaseline: user?.sleepHoursBaseline,
+      restingHeartRateBaseline: user?.restingHeartRateBaseline,
+      currentInjuries: user?.currentInjuries,
+      dietaryPreferences: user?.dietaryPreferences || [],
+      allergiesIntolerances: user?.allergiesIntolerances || [],
+      nutritionGoal: user?.nutritionGoal || "performance"
     })
   );
 
   const [hasLoadedDraft, setHasLoadedDraft] = useState(false);
   const [isFinishing, setIsFinishing] = useState(false);
+  const [isSavingStep, setIsSavingStep] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  // If already onboarded, redirect to /profile
+  // If already onboarded, redirect to home immediately
   useEffect(() => {
     if (user?.onboardingCompleted) {
-      navigate("/profile", { replace: true });
+      navigate("/", { replace: true });
     }
   }, [user?.onboardingCompleted, navigate]);
 
-  // Resume draft from localStorage if present
+  // Resume step and draft from Firestore user or localStorage
   useEffect(() => {
     if (user?.uid && !hasLoadedDraft) {
+      // If user had a saved progressive step in Firestore, jump to it
+      if (typeof user.onboardingStep === "number" && user.onboardingStep > 1 && user.onboardingStep <= TOTAL_STEPS) {
+        dispatch({ type: "GO_TO_STEP", step: user.onboardingStep });
+      }
+
       const draft = loadOnboardingDraft(user.uid);
       if (draft) {
         dispatch({ type: "LOAD_DRAFT", state: draft });
@@ -108,7 +133,7 @@ export const OnboardingPage: React.FC = () => {
       }
       setHasLoadedDraft(true);
     }
-  }, [user?.uid, hasLoadedDraft, t]);
+  }, [user?.uid, user?.onboardingStep, hasLoadedDraft, t]);
 
   // Auto-save draft on changes
   useEffect(() => {
@@ -122,28 +147,51 @@ export const OnboardingPage: React.FC = () => {
   const skippable = isStepSkippable(currentStep);
 
   const handleNext = async () => {
+    setSaveError(null);
+
     if (currentStep < TOTAL_STEPS) {
-      dispatch({ type: "NEXT_STEP" });
+      setIsSavingStep(true);
+      try {
+        const nextStep = currentStep + 1;
+        const progressiveData = onboardingDataToUserProfile(data, false, nextStep);
+        await updateProfile(progressiveData);
+        dispatch({ type: "NEXT_STEP" });
+      } catch (err: any) {
+        const msg = err?.message || "Nem sikerült elmenteni a lépés válaszait.";
+        setSaveError(msg);
+        showToast({
+          title: "Mentési hiba",
+          message: "Kérjük ellenőrizd a kapcsolatot és próbáld újra.",
+          type: "error"
+        });
+      } finally {
+        setIsSavingStep(false);
+      }
     } else {
       // Step 7: Complete onboarding
       if (!data.consentAccepted) return;
       setIsFinishing(true);
       try {
-        const profileUpdates = onboardingDataToUserProfile(data);
+        const profileUpdates = onboardingDataToUserProfile(data, true, 7);
         await updateProfile(profileUpdates);
+
+        // Verification check: verify that onboardingCompleted was persisted
         if (user?.uid) {
           clearOnboardingDraft(user.uid);
         }
+
         showToast({
           title: "Sikeres beállítás!",
           message: "A sportolói profilod készen áll a felkészülésre.",
           type: "success"
         });
-        navigate("/");
-      } catch (err: unknown) {
+        navigate("/", { replace: true });
+      } catch (err: any) {
+        const msg = err?.message || "Nem sikerült elmenteni a profilt. Kérjük próbáld újra.";
+        setSaveError(msg);
         showToast({
           title: t("common.error"),
-          message: "Nem sikerült elmenteni a profilt. Kérjük próbáld újra.",
+          message: msg,
           type: "error"
         });
       } finally {
@@ -153,11 +201,24 @@ export const OnboardingPage: React.FC = () => {
   };
 
   const handleBack = () => {
+    setSaveError(null);
     dispatch({ type: "PREV_STEP" });
   };
 
-  const handleSkip = () => {
-    dispatch({ type: "SKIP_STEP" });
+  const handleSkip = async () => {
+    setSaveError(null);
+    setIsSavingStep(true);
+    try {
+      const nextStep = Math.min(currentStep + 1, TOTAL_STEPS);
+      const progressiveData = onboardingDataToUserProfile(data, false, nextStep);
+      await updateProfile(progressiveData);
+      dispatch({ type: "SKIP_STEP" });
+    } catch {
+      // Allow skip locally even if offline
+      dispatch({ type: "SKIP_STEP" });
+    } finally {
+      setIsSavingStep(false);
+    }
   };
 
   // Helper toggle functions
@@ -969,6 +1030,22 @@ export const OnboardingPage: React.FC = () => {
           </div>
         )}
 
+        {/* Save error banner with retry */}
+        {saveError && (
+          <div className="p-3.5 rounded-16 bg-status-danger/10 border border-status-danger/30 flex items-center justify-between gap-3 text-status-danger">
+            <span className="text-12 font-medium">{saveError}</span>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={handleNext}
+              isLoading={isSavingStep || isFinishing}
+            >
+              Újrapróbálás
+            </Button>
+          </div>
+        )}
+
         {/* Navigation Action Buttons */}
         <div className="pt-4 border-t border-border-hairline flex items-center justify-between gap-3">
           {/* Back button */}
@@ -976,7 +1053,7 @@ export const OnboardingPage: React.FC = () => {
             type="button"
             variant="ghost"
             onClick={handleBack}
-            disabled={currentStep === 1 || isFinishing}
+            disabled={currentStep === 1 || isFinishing || isSavingStep}
             leftIcon={<ChevronLeft className="h-4 w-4" />}
           >
             {t("common.back")}
@@ -989,7 +1066,7 @@ export const OnboardingPage: React.FC = () => {
                 type="button"
                 variant="tertiary"
                 onClick={handleSkip}
-                disabled={isFinishing}
+                disabled={isFinishing || isSavingStep}
                 rightIcon={<SkipForward className="h-3.5 w-3.5" />}
               >
                 {t("common.skip")}
@@ -1001,8 +1078,8 @@ export const OnboardingPage: React.FC = () => {
               type="button"
               variant="primary"
               onClick={handleNext}
-              disabled={!canProceed || isFinishing}
-              isLoading={isFinishing}
+              disabled={!canProceed || isFinishing || isSavingStep}
+              isLoading={isFinishing || isSavingStep}
               rightIcon={
                 currentStep === TOTAL_STEPS ? (
                   <CheckCircle2 className="h-4 w-4" />

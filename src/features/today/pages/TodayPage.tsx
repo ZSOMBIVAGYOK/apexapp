@@ -394,7 +394,7 @@ export const TodayPage: React.FC = () => {
         </div>
       )}
 
-      {isCoachMode && (
+      {isCoachMode && athleteId === "demo-athlete-001" && (
         <Card variant="surface" radius="20" className="p-4 border-l-4 border-l-brand flex items-start gap-3">
           <MessageSquare className="h-5 w-5 text-brand shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
@@ -409,21 +409,39 @@ export const TodayPage: React.FC = () => {
         </Card>
       )}
 
-      {isSoloMode && !isCoachMode && (
-        <div className="flex items-center gap-3 p-3.5 rounded-16 border border-border-hairline bg-surface text-12 text-text-secondary">
+      {isSoloMode && (
+        <div className="flex items-center gap-3 p-3.5 rounded-16 border border-border-hairline bg-surface text-12 text-text-secondary flex-wrap">
           <Sparkles className="h-4 w-4 text-brand shrink-0" />
           <span>
-            {isHu
-              ? "Solo adaptív generátor: A célversenyedig 11 hét van hátra. A mai cél: bázis állóképesség fenntartása."
-              : "Solo plan engine: 11 weeks until A-race. Focus today: base aerobic stamina preservation."}
+            {user?.targetCompetition ? (
+              user.targetCompetitionDate ? (
+                (() => {
+                  const diffDays = Math.ceil((new Date(user.targetCompetitionDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                  const diffWeeks = Math.max(0, Math.ceil(diffDays / 7));
+                  return isHu
+                    ? `Célverseny: ${user.targetCompetition} (${diffWeeks > 0 ? `${diffWeeks} hét van hátra` : `${Math.max(0, diffDays)} nap van hátra`}).`
+                    : `Target race: ${user.targetCompetition} (${diffWeeks > 0 ? `${diffWeeks} weeks left` : `${Math.max(0, diffDays)} days left`}).`;
+                })()
+              ) : (
+                isHu
+                  ? `Célverseny: ${user.targetCompetition}.`
+                  : `Target race: ${user.targetCompetition}.`
+              )
+            ) : (
+              isHu
+                ? "Még nem adtál meg célversenyt. Állíts be egyet a profilodban vagy az edzéstervben!"
+                : "No target race set yet. Add one in your profile or training plan!"
+            )}
           </span>
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => navigate("/training")}
+            onClick={() => navigate(user?.targetCompetition ? "/training" : "/profile")}
             className="ml-auto text-11 h-7"
           >
-            {isHu ? "Terv megnyitása" : "Open plan"}
+            {user?.targetCompetition
+              ? (isHu ? "Terv megnyitása" : "Open plan")
+              : (isHu ? "Célverseny megadása" : "Set target race")}
           </Button>
         </div>
       )}

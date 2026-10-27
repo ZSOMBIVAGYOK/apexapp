@@ -35,7 +35,7 @@ export const SoloPlanGeneratorWizard: React.FC<SoloPlanGeneratorWizardProps> = (
   })();
 
   const [sport, setSport] = useState<SportType>("running");
-  const [goal, setGoal] = useState<string>(isHu ? "Budapest Maraton 3:30-as célidővel" : "Marathon Sub 3:30");
+  const [goal, setGoal] = useState<string>("");
   const [aRaceDate, setARaceDate] = useState<string>(defaultRaceDate);
   const [level, setLevel] = useState<"hobby" | "competitive" | "national" | "olympic">("competitive");
   const [daysPerWeek, setDaysPerWeek] = useState<number>(4);

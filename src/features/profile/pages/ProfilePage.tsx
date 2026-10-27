@@ -57,20 +57,21 @@ export const ProfilePage: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
 
   // Form local drafts for each section
+  // Form local drafts for each section
   // 1. Basic
   const [displayName, setDisplayName] = useState(user?.displayName || "");
   const [birthDate, setBirthDate] = useState(user?.birthDate || "");
   const [sex, setSex] = useState(user?.sex || "prefer_not_to_say");
-  const [heightCm, setHeightCm] = useState(user?.heightCm || 180);
-  const [weightKg, setWeightKg] = useState(user?.weightKg || 74);
+  const [heightCm, setHeightCm] = useState(user?.heightCm || 175);
+  const [weightKg, setWeightKg] = useState(user?.weightKg || 70);
 
   // 2. Sports
-  const [sports, setSports] = useState<string[]>(user?.sports || (user?.sport ? [user.sport] : ["triathlon"]));
-  const [mainSport, setMainSport] = useState<string>(user?.mainSport || user?.sport || "triathlon");
-  const [level, setLevel] = useState<AthleteLevel>(user?.level || "national");
+  const [sports, setSports] = useState<string[]>(user?.sports || (user?.sport ? [user.sport] : []));
+  const [mainSport, setMainSport] = useState<string>(user?.mainSport || user?.sport || "");
+  const [level, setLevel] = useState<AthleteLevel>(user?.level || "hobby");
 
   // 3. Training Days
-  const [trainingDays, setTrainingDays] = useState<number[]>(user?.trainingDays || [1, 2, 3, 4, 5]);
+  const [trainingDays, setTrainingDays] = useState<number[]>(user?.trainingDays || []);
   const [sleepHoursBaseline, setSleepHoursBaseline] = useState(user?.sleepHoursBaseline || 8);
   const [restingHr, setRestingHr] = useState(user?.restingHeartRateBaseline || 48);
   const [injuries, setInjuries] = useState(user?.currentInjuries || "");
@@ -100,14 +101,14 @@ export const ProfilePage: React.FC = () => {
       setDisplayName(user?.displayName || "");
       setBirthDate(user?.birthDate || "");
       setSex(user?.sex || "prefer_not_to_say");
-      setHeightCm(user?.heightCm || 180);
-      setWeightKg(user?.weightKg || 74);
+      setHeightCm(user?.heightCm || 175);
+      setWeightKg(user?.weightKg || 70);
     } else if (section === "sports") {
-      setSports(user?.sports || (user?.sport ? [user.sport] : ["triathlon"]));
-      setMainSport(user?.mainSport || user?.sport || "triathlon");
-      setLevel(user?.level || "national");
+      setSports(user?.sports || (user?.sport ? [user.sport] : []));
+      setMainSport(user?.mainSport || user?.sport || "");
+      setLevel(user?.level || "hobby");
     } else if (section === "trainingDays") {
-      setTrainingDays(user?.trainingDays || [1, 2, 3, 4, 5]);
+      setTrainingDays(user?.trainingDays || []);
       setSleepHoursBaseline(user?.sleepHoursBaseline || 8);
       setRestingHr(user?.restingHeartRateBaseline || 48);
       setInjuries(user?.currentInjuries || "");
@@ -128,6 +129,76 @@ export const ProfilePage: React.FC = () => {
       setUnits(user?.units || "metric");
     }
     setActiveSection(section);
+  };
+
+  const hasUnsavedChanges = (): boolean => {
+    if (!activeSection) return false;
+    if (activeSection === "basic") {
+      return (
+        displayName !== (user?.displayName || "") ||
+        birthDate !== (user?.birthDate || "") ||
+        sex !== (user?.sex || "prefer_not_to_say") ||
+        heightCm !== (user?.heightCm || 175) ||
+        weightKg !== (user?.weightKg || 70)
+      );
+    }
+    if (activeSection === "sports") {
+      const origSports = user?.sports || (user?.sport ? [user.sport] : []);
+      return (
+        sports.length !== origSports.length ||
+        sports.some((s) => !origSports.includes(s)) ||
+        mainSport !== (user?.mainSport || user?.sport || "") ||
+        level !== (user?.level || "hobby")
+      );
+    }
+    if (activeSection === "trainingDays") {
+      const origDays = user?.trainingDays || [];
+      return (
+        trainingDays.length !== origDays.length ||
+        trainingDays.some((d) => !origDays.includes(d)) ||
+        sleepHoursBaseline !== (user?.sleepHoursBaseline || 8) ||
+        restingHr !== (user?.restingHeartRateBaseline || 48) ||
+        injuries !== (user?.currentInjuries || "")
+      );
+    }
+    if (activeSection === "goals") {
+      return (
+        targetCompetition !== (user?.targetCompetition || "") ||
+        targetCompetitionDate !== (user?.targetCompetitionDate || "") ||
+        goals !== (user?.goals || "")
+      );
+    }
+    if (activeSection === "nutrition") {
+      return (
+        nutritionGoal !== (user?.nutritionGoal || "performance") ||
+        plateBasedViewOnly !== (user?.plateBasedViewOnly || false) ||
+        JSON.stringify(dietaryPreferences) !== JSON.stringify(user?.dietaryPreferences || []) ||
+        JSON.stringify(allergiesIntolerances) !== JSON.stringify(user?.allergiesIntolerances || [])
+      );
+    }
+    if (activeSection === "support") {
+      return (
+        dataMode !== (user?.dataMode || "hybrid") ||
+        JSON.stringify(supportMode) !== JSON.stringify(user?.supportMode || ["solo"])
+      );
+    }
+    if (activeSection === "locale") {
+      return (
+        locale !== (user?.locale || "hu") ||
+        units !== (user?.units || "metric")
+      );
+    }
+    return false;
+  };
+
+  const handleRequestClose = () => {
+    if (hasUnsavedChanges()) {
+      const confirmed = window.confirm(
+        "Nem mentett módosításaid vannak. Biztosan be akarod zárni mentés nélkül?"
+      );
+      if (!confirmed) return;
+    }
+    setActiveSection(null);
   };
 
   const handleSaveSection = async () => {
@@ -185,7 +256,7 @@ export const ProfilePage: React.FC = () => {
       }
 
       showToast({
-        title: "Mentve",
+        title: "Mentve ✓",
         message: "A profil módosításai sikeresen frissítve lettek.",
         type: "success"
       });
@@ -257,11 +328,15 @@ export const ProfilePage: React.FC = () => {
               </p>
               <div className="flex items-center gap-2 mt-1">
                 <Badge variant="brand" size="sm">
-                  {getSportById(user?.mainSport || user?.sport || "triathlon")?.nameHu || user?.sport || "Triatlon"}
+                  {user?.mainSport || user?.sport
+                    ? getSportById(user.mainSport || user.sport || "")?.nameHu || user.mainSport || user.sport
+                    : "Sportág nincs megadva"}
                 </Badge>
-                <span className="text-11 text-text-tertiary uppercase font-mono">
-                  {user?.level || "national"} szint
-                </span>
+                {user?.level && (
+                  <span className="text-11 text-text-tertiary uppercase font-mono">
+                    {user.level} szint
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -336,28 +411,34 @@ export const ProfilePage: React.FC = () => {
 
           <div className="mt-4 pt-3 border-t border-border-hairline space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              {(user?.sports && user.sports.length > 0 ? user.sports : [user?.sport || "triathlon"]).map((sId) => {
-                const def = getSportById(sId);
-                const isMain = (user?.mainSport || user?.sport) === sId;
-                return (
-                  <div
-                    key={sId}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-12 text-13 font-medium border ${
-                      isMain
-                        ? "border-brand bg-brand/15 text-text-primary ring-1 ring-brand"
-                        : "border-border-hairline bg-bg-surface text-text-primary"
-                    }`}
-                  >
-                    <span>{def?.icon || "🏅"}</span>
-                    <span>{def?.nameHu || sId}</span>
-                    {isMain && (
-                      <span className="text-10 font-bold text-brand uppercase tracking-wider ml-1">
-                        (Fő sport)
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
+              {user?.sports && user.sports.length > 0 ? (
+                user.sports.map((sId) => {
+                  const def = getSportById(sId);
+                  const isMain = (user?.mainSport || user?.sport) === sId;
+                  return (
+                    <div
+                      key={sId}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-12 text-13 font-medium border ${
+                        isMain
+                          ? "border-brand bg-brand/15 text-text-primary ring-1 ring-brand"
+                          : "border-border-hairline bg-bg-surface text-text-primary"
+                      }`}
+                    >
+                      <span>{def?.icon || "🏅"}</span>
+                      <span>{def?.nameHu || sId}</span>
+                      {isMain && (
+                        <span className="text-10 font-bold text-brand uppercase tracking-wider ml-1">
+                          (Fő sport)
+                        </span>
+                      )}
+                    </div>
+                  );
+                })
+              ) : (
+                <span className="text-13 text-text-tertiary italic">
+                  Még nincs megadva sportág. Kattints a &ldquo;Szerkesztés&rdquo; gombra a választáshoz!
+                </span>
+              )}
             </div>
           </div>
         </Card>
@@ -387,7 +468,7 @@ export const ProfilePage: React.FC = () => {
           <div className="mt-4 pt-3 border-t border-border-hairline space-y-3">
             <div>
               <span className="text-11 text-text-tertiary uppercase font-semibold block mb-1">
-                Tervezett edzésnapok ({user?.trainingDays?.length || user?.trainingDaysPerWeek || 5} nap / hét):
+                Tervezett edzésnapok ({user?.trainingDays?.length ?? 0} nap / hét):
               </span>
               <div className="flex gap-1.5">
                 {[
@@ -399,7 +480,7 @@ export const ProfilePage: React.FC = () => {
                   { d: 6, label: "Sz" },
                   { d: 7, label: "V" }
                 ].map(({ d, label }) => {
-                  const isSelected = (user?.trainingDays || [1, 2, 3, 4, 5]).includes(d);
+                  const isSelected = (user?.trainingDays || []).includes(d);
                   return (
                     <span
                       key={d}
@@ -605,7 +686,7 @@ export const ProfilePage: React.FC = () => {
       {/* MODAL 1: Basic Info */}
       <BottomSheet
         isOpen={activeSection === "basic"}
-        onClose={() => setActiveSection(null)}
+        onClose={handleRequestClose}
         title="Alapadatok szerkesztése"
       >
         <div className="space-y-4">
@@ -660,7 +741,7 @@ export const ProfilePage: React.FC = () => {
           </div>
 
           <div className="flex justify-end gap-2 pt-3 border-t border-border-hairline">
-            <Button variant="secondary" onClick={() => setActiveSection(null)}>
+            <Button variant="secondary" onClick={handleRequestClose}>
               Mégse
             </Button>
             <Button variant="primary" onClick={handleSaveSection} isLoading={isSaving}>
@@ -673,7 +754,7 @@ export const ProfilePage: React.FC = () => {
       {/* MODAL 2: Sports */}
       <BottomSheet
         isOpen={activeSection === "sports"}
-        onClose={() => setActiveSection(null)}
+        onClose={handleRequestClose}
         title="Sportágak és versenyszint"
       >
         <div className="space-y-5">
@@ -705,7 +786,7 @@ export const ProfilePage: React.FC = () => {
           </div>
 
           <div className="flex justify-end gap-2 pt-3 border-t border-border-hairline">
-            <Button variant="secondary" onClick={() => setActiveSection(null)}>
+            <Button variant="secondary" onClick={handleRequestClose}>
               Mégse
             </Button>
             <Button variant="primary" onClick={handleSaveSection} isLoading={isSaving}>
@@ -718,7 +799,7 @@ export const ProfilePage: React.FC = () => {
       {/* MODAL 3: Training Days */}
       <BottomSheet
         isOpen={activeSection === "trainingDays"}
-        onClose={() => setActiveSection(null)}
+        onClose={handleRequestClose}
         title="Edzésnapok és elérhetőség"
       >
         <div className="space-y-5">
@@ -760,7 +841,7 @@ export const ProfilePage: React.FC = () => {
           />
 
           <div className="flex justify-end gap-2 pt-3 border-t border-border-hairline">
-            <Button variant="secondary" onClick={() => setActiveSection(null)}>
+            <Button variant="secondary" onClick={handleRequestClose}>
               Mégse
             </Button>
             <Button variant="primary" onClick={handleSaveSection} isLoading={isSaving}>
@@ -773,7 +854,7 @@ export const ProfilePage: React.FC = () => {
       {/* MODAL 4: Goals */}
       <BottomSheet
         isOpen={activeSection === "goals"}
-        onClose={() => setActiveSection(null)}
+        onClose={handleRequestClose}
         title="Célok és versenyek"
       >
         <div className="space-y-4">
@@ -799,7 +880,7 @@ export const ProfilePage: React.FC = () => {
           />
 
           <div className="flex justify-end gap-2 pt-3 border-t border-border-hairline">
-            <Button variant="secondary" onClick={() => setActiveSection(null)}>
+            <Button variant="secondary" onClick={handleRequestClose}>
               Mégse
             </Button>
             <Button variant="primary" onClick={handleSaveSection} isLoading={isSaving}>
@@ -812,7 +893,7 @@ export const ProfilePage: React.FC = () => {
       {/* MODAL 5: Nutrition */}
       <BottomSheet
         isOpen={activeSection === "nutrition"}
-        onClose={() => setActiveSection(null)}
+        onClose={handleRequestClose}
         title="Étrend alapok szerkesztése"
       >
         <div className="space-y-4">
@@ -898,7 +979,7 @@ export const ProfilePage: React.FC = () => {
           </div>
 
           <div className="flex justify-end gap-2 pt-3 border-t border-border-hairline">
-            <Button variant="secondary" onClick={() => setActiveSection(null)}>
+            <Button variant="secondary" onClick={handleRequestClose}>
               Mégse
             </Button>
             <Button variant="primary" onClick={handleSaveSection} isLoading={isSaving}>
@@ -911,7 +992,7 @@ export const ProfilePage: React.FC = () => {
       {/* MODAL 6: Support */}
       <BottomSheet
         isOpen={activeSection === "support"}
-        onClose={() => setActiveSection(null)}
+        onClose={handleRequestClose}
         title="Adatforrás és stáb támogatás"
       >
         <div className="space-y-4">
@@ -962,7 +1043,7 @@ export const ProfilePage: React.FC = () => {
           </div>
 
           <div className="flex justify-end gap-2 pt-3 border-t border-border-hairline">
-            <Button variant="secondary" onClick={() => setActiveSection(null)}>
+            <Button variant="secondary" onClick={handleRequestClose}>
               Mégse
             </Button>
             <Button variant="primary" onClick={handleSaveSection} isLoading={isSaving}>
@@ -975,7 +1056,7 @@ export const ProfilePage: React.FC = () => {
       {/* MODAL 7: Locale & Units */}
       <BottomSheet
         isOpen={activeSection === "locale"}
-        onClose={() => setActiveSection(null)}
+        onClose={handleRequestClose}
         title="Nyelv és mértékegység"
       >
         <div className="space-y-4">
@@ -1010,7 +1091,7 @@ export const ProfilePage: React.FC = () => {
           </div>
 
           <div className="flex justify-end gap-2 pt-3 border-t border-border-hairline">
-            <Button variant="secondary" onClick={() => setActiveSection(null)}>
+            <Button variant="secondary" onClick={handleRequestClose}>
               Mégse
             </Button>
             <Button variant="primary" onClick={handleSaveSection} isLoading={isSaving}>

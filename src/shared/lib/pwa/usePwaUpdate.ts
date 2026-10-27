@@ -7,8 +7,16 @@ export function usePwaUpdate() {
     updateServiceWorker
   } = useRegisterSW({
     onRegistered(r) {
-      // eslint-disable-next-line no-console
-      console.info("PWA Service Worker registered:", r?.scope);
+      // Check for updates on window focus
+      if (r && typeof window !== "undefined") {
+        window.addEventListener("focus", () => {
+          r.update().catch(() => {});
+        });
+        // Check every 30 minutes
+        setInterval(() => {
+          r.update().catch(() => {});
+        }, 30 * 60 * 1000);
+      }
     },
     onRegisterError(error) {
       // eslint-disable-next-line no-console

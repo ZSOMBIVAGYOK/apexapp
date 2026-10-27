@@ -26,6 +26,8 @@ import { PwaUpdateToast } from "@shared/ui/PwaUpdateToast";
 import { PwaInstallBanner } from "@shared/ui/PwaInstallBanner";
 import { OfflineIndicator } from "@shared/ui/OfflineIndicator";
 import { NotificationCenter } from "@shared/ui/NotificationCenter";
+import { SyncStatusBadge } from "@shared/ui/SyncStatusBadge";
+import { ErrorBoundary } from "@shared/ui/ErrorBoundary";
 import { useNotificationStore } from "@shared/lib/notifications/notificationStore";
 
 export const AppLayout: React.FC = () => {
@@ -195,6 +197,7 @@ export const AppLayout: React.FC = () => {
 
           {/* Top Actions: Role Switcher, Language, Theme, Notifications, User */}
           <div className="flex items-center gap-2.5">
+            <SyncStatusBadge />
             {/* Quick Role Switcher for Cockpit Demo */}
             <button
               type="button"
@@ -322,6 +325,7 @@ export const AppLayout: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            <SyncStatusBadge showText={false} />
             <button
               type="button"
               onClick={cycleTheme}
@@ -446,7 +450,9 @@ export const AppLayout: React.FC = () => {
           tabIndex={-1}
           className="flex-1 py-4 lg:py-8 lg:pl-8 pb-28 lg:pb-12 focus:outline-none min-w-0"
         >
-          <Outlet />
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
 

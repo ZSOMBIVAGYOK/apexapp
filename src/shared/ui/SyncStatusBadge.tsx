@@ -1,7 +1,8 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { useSyncState } from "@shared/hooks/useSyncState";
-import { Check, CloudOff, RefreshCw } from "lucide-react";
+import { useSyncStatusStore } from "@shared/lib/sync/syncStatusStore";
+import { Check, CloudOff, RefreshCw, AlertCircle } from "lucide-react";
 
 export interface SyncStatusBadgeProps {
   className?: string;
@@ -13,21 +14,24 @@ export const SyncStatusBadge: React.FC<SyncStatusBadgeProps> = ({
   showText = true
 }) => {
   const { t } = useTranslation();
-  const { status, pendingCount, triggerSync } = useSyncState();
+  const { status: offlineStatus, pendingCount, triggerSync } = useSyncState();
+  const { status: appSaveStatus, lastError, retry } = useSyncStatusStore();
 
-  if (status === "synced") {
+  if (appSaveStatus === "error") {
     return (
-      <div
-        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-status-ready/10 text-status-ready text-11 font-medium transition-colors ${className}`}
-        title={t("sync.syncedTitle", "Minden adat a felhőbe szinkronizálva")}
+      <button
+        type="button"
+        onClick={() => retry()}
+        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-status-caution/20 text-status-caution text-11 font-medium hover:bg-status-caution/30 transition-colors cursor-pointer ${className}`}
+        title={lastError || "Hiba történt mentés közben. Kattints az újrapróbáláshoz!"}
       >
-        <Check className="h-3 w-3 stroke-[2.5]" />
-        {showText && <span>{t("sync.synced", "Szinkronizálva")}</span>}
-      </div>
+        <AlertCircle className="h-3 w-3 stroke-[2.5]" />
+        {showText && <span>Mentési hiba (Újra)</span>}
+      </button>
     );
   }
 
-  if (status === "syncing") {
+  if (appSaveStatus === "syncing" || offlineStatus === "syncing") {
     return (
       <div
         className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-brand/10 text-brand text-11 font-medium animate-pulse ${className}`}
@@ -38,7 +42,7 @@ export const SyncStatusBadge: React.FC<SyncStatusBadgeProps> = ({
     );
   }
 
-  if (status === "pending") {
+  if (offlineStatus === "pending") {
     return (
       <button
         type="button"
@@ -57,18 +61,30 @@ export const SyncStatusBadge: React.FC<SyncStatusBadgeProps> = ({
   }
 
   // Offline
+  if (offlineStatus === "offline") {
+    return (
+      <div
+        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-border-hairline text-text-tertiary text-11 font-medium ${className}`}
+        title={t("sync.offlineTitle", "Offline üzemmód: a módosítások a készüléken tárolódnak")}
+      >
+        <CloudOff className="h-3 w-3" />
+        {showText && (
+          <span>
+            {t("sync.offline", "Offline mentve")}
+            {pendingCount > 0 ? ` (${pendingCount})` : ""}
+          </span>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-border-hairline text-text-tertiary text-11 font-medium ${className}`}
-      title={t("sync.offlineTitle", "Offline üzemmód: a módosítások a készüléken tárolódnak")}
+      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-status-ready/10 text-status-ready text-11 font-medium transition-colors ${className}`}
+      title={t("sync.syncedTitle", "Minden adat a felhőbe szinkronizálva")}
     >
-      <CloudOff className="h-3 w-3" />
-      {showText && (
-        <span>
-          {t("sync.offline", "Offline mentve")}
-          {pendingCount > 0 ? ` (${pendingCount})` : ""}
-        </span>
-      )}
+      <Check className="h-3 w-3 stroke-[2.5]" />
+      {showText && <span>{t("sync.synced", "Mentve ✓")}</span>}
     </div>
   );
 };

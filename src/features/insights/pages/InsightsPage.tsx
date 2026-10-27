@@ -757,68 +757,75 @@ export const InsightsPage: React.FC = () => {
       {/* ========================================================================= */}
       {activeTab === "goals" && (
         <div className="space-y-6">
-          {/* Target A-Race Countdown Banner */}
-          <Card
-            variant="elevated"
-            radius="20"
-            className="p-6 sm:p-8 bg-gradient-to-r from-brand/15 via-surface to-surface border border-brand/30 space-y-4"
-          >
-            <div className="flex items-start justify-between flex-wrap gap-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="brand" size="sm">
-                    KIEMELT A-VERSENY
-                  </Badge>
-                  <span className="text-12 text-text-secondary">2027. január 12.</span>
+          {/* Target A-Race Banner */}
+          {user?.targetCompetition ? (
+            <Card
+              variant="elevated"
+              radius="20"
+              className="p-6 sm:p-8 bg-gradient-to-r from-brand/15 via-surface to-surface border border-brand/30 space-y-4"
+            >
+              <div className="flex items-start justify-between flex-wrap gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="brand" size="sm">
+                      {isHu ? "KIEMELT CÉLVERSENY" : "TARGET A-RACE"}
+                    </Badge>
+                    {user.targetCompetitionDate && (
+                      <span className="text-12 text-text-secondary">{user.targetCompetitionDate}</span>
+                    )}
+                  </div>
+                  <h3 className="text-22 sm:text-28 font-bold text-text-primary mt-1">
+                    {user.targetCompetition}
+                  </h3>
+                  {user.goals && (
+                    <p className="text-13 text-text-secondary mt-0.5">
+                      {user.goals}
+                    </p>
+                  )}
                 </div>
-                <h3 className="text-22 sm:text-28 font-bold text-text-primary mt-1">
-                  Budapest Nemzetközi Triatlon Országos Bajnokság
+
+                {user.targetCompetitionDate && (
+                  <div className="flex items-center gap-2 sm:gap-3 bg-surface-elevated/90 border border-border-hairline p-3 sm:p-4 rounded-16 shadow-inner">
+                    <div className="text-center">
+                      <div className="text-28 sm:text-36 font-bold text-brand font-mono leading-none">
+                        {Math.max(0, Math.ceil((new Date(user.targetCompetitionDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))}
+                      </div>
+                      <span className="text-10 text-text-tertiary uppercase font-semibold">
+                        {isHu ? "Nap" : "Days"}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Card>
+          ) : (
+            <Card
+              variant="surface"
+              radius="20"
+              className="p-6 border border-border-hairline flex items-center justify-between gap-4 flex-wrap"
+            >
+              <div>
+                <span className="text-11 uppercase tracking-wider font-semibold text-text-tertiary block">
+                  {isHu ? "Célverseny & Periodizáció" : "Target Race & Periodization"}
+                </span>
+                <h3 className="text-16 font-bold text-text-primary mt-0.5">
+                  {isHu ? "Még nincs célversenyed kitűzve" : "No target race set yet"}
                 </h3>
-                <p className="text-13 text-text-secondary mt-0.5">
-                  Cél: Sub-2:00:00 olimpiai táv • Kvalifikáció a válogatott keretbe
+                <p className="text-12 text-text-secondary mt-1">
+                  {isHu
+                    ? "Add meg a fő megmérettetésed a profilodban vagy az edzés naptárban a visszaszámlálóhoz."
+                    : "Add your main competition in your profile to track progression."}
                 </p>
               </div>
-
-              {/* Countdown Digits */}
-              <div className="flex items-center gap-2 sm:gap-3 bg-surface-elevated/90 border border-border-hairline p-3 sm:p-4 rounded-16 shadow-inner">
-                <div className="text-center">
-                  <div className="text-28 sm:text-36 font-bold text-brand font-mono leading-none">78</div>
-                  <span className="text-10 text-text-tertiary uppercase font-semibold">Nap</span>
-                </div>
-                <span className="text-20 text-text-tertiary font-bold">:</span>
-                <div className="text-center">
-                  <div className="text-28 sm:text-36 font-bold text-text-primary font-mono leading-none">14</div>
-                  <span className="text-10 text-text-tertiary uppercase font-semibold">Óra</span>
-                </div>
-                <span className="text-20 text-text-tertiary font-bold">:</span>
-                <div className="text-center">
-                  <div className="text-28 sm:text-36 font-bold text-text-primary font-mono leading-none">32</div>
-                  <span className="text-10 text-text-tertiary uppercase font-semibold">Perc</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Periodization Progress Bar */}
-            <div className="space-y-2 pt-2 border-t border-border-hairline">
-              <div className="flex items-center justify-between text-12">
-                <span className="font-bold text-text-primary">
-                  {isHu ? "Jelenlegi szakasz: Build 2 (Specifikus Küszöb)" : "Current phase: Build 2 (Specific Threshold)"}
-                </span>
-                <span className="text-text-secondary">62% a felkészülési ciklusból</span>
-              </div>
-              <div className="flex h-3 w-full overflow-hidden rounded-full border border-border-hairline">
-                <div className="bg-brand h-full" style={{ width: "62%" }} />
-                <div className="bg-status-caution/40 h-full" style={{ width: "20%" }} title="Peak szakasz" />
-                <div className="bg-status-ready/40 h-full" style={{ width: "18%" }} title="Taper szakasz" />
-              </div>
-              <div className="flex justify-between text-11 text-text-tertiary">
-                <span>Alapozás (Kész)</span>
-                <span className="text-brand font-semibold">Build 2 (Aktív)</span>
-                <span>Peak (3 hét múlva)</span>
-                <span>Tapering & Verseny</span>
-              </div>
-            </div>
-          </Card>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => navigate("/profile")}
+              >
+                {isHu ? "Célverseny megadása" : "Set target race"}
+              </Button>
+            </Card>
+          )}
 
           {/* Key Milestones Checklist */}
           <Card variant="surface" radius="20" className="p-6 space-y-3">
