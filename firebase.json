@@ -23,6 +23,7 @@
     }
   ],
   "hosting": {
+    "site": "zsombor-etrend",
     "public": "dist",
     "ignore": [
       "firebase.json",
