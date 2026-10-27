@@ -11,7 +11,8 @@ import {
   Flame,
   Globe,
   LogOut,
-  ChevronRight
+  ChevronRight,
+  X
 } from "lucide-react";
 import { useAuthStore } from "@features/auth/authStore";
 import { useThemeStore, ThemeMode } from "@shared/lib/theme/themeStore";
@@ -38,6 +39,20 @@ export const AppLayout: React.FC = () => {
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const unreadCount = useNotificationStore((s) => s.unreadCount);
+
+  const [showBetaBanner, setShowBetaBanner] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem("apex_hide_beta_banner") !== "true";
+  });
+
+  const dismissBetaBanner = () => {
+    setShowBetaBanner(false);
+    try {
+      localStorage.setItem("apex_hide_beta_banner", "true");
+    } catch {
+      // storage full
+    }
+  };
 
   // Scroll listener for collapsing large title header
   useEffect(() => {
@@ -115,6 +130,48 @@ export const AppLayout: React.FC = () => {
       {/* PWA & Network Notifications */}
       <PwaInstallBanner />
       <OfflineIndicator />
+
+      {/* Dismissible Beta Transparency Banner */}
+      {showBetaBanner && (
+        <aside
+          aria-label="Béta verzió értesítés"
+          className="bg-brand/10 border-b border-brand/20 px-4 py-2 text-12 text-text-primary z-50 relative"
+        >
+          <div className="mx-auto max-w-[1200px] flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-bold px-2 py-0.5 rounded-full bg-brand text-white text-[10px] tracking-wide uppercase">
+                Tesztverzió (Béta)
+              </span>
+              <span className="text-text-secondary text-12">
+                Az Apex fejlesztés alatt áll. Nem orvosi tanácsadás.
+              </span>
+              <span className="hidden sm:inline text-border-hairline">•</span>
+              <a
+                href="mailto:marenecdozsazsombor7@gmail.com?subject=Apex%20Béta%20Visszajelzés"
+                className="font-semibold text-brand underline hover:text-brand-dark"
+              >
+                Visszajelzés küldése
+              </a>
+              <span className="hidden sm:inline text-border-hairline">•</span>
+              <NavLink to="/privacy" className="text-text-tertiary hover:underline">
+                Adatvédelem
+              </NavLink>
+              <span className="hidden sm:inline text-border-hairline">•</span>
+              <NavLink to="/terms" className="text-text-tertiary hover:underline">
+                Feltételek
+              </NavLink>
+            </div>
+            <button
+              type="button"
+              onClick={dismissBetaBanner}
+              aria-label="Béta értesítés elrejtése"
+              className="p-1 rounded-8 text-text-tertiary hover:text-text-primary hover:bg-white/10 transition-colors shrink-0"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </aside>
+      )}
 
       {/* Desktop Top Header (>=1024px) */}
       <header className="hidden lg:block sticky top-0 z-40 border-b border-border-hairline bg-bg-surface/85 backdrop-blur-md">

@@ -10,6 +10,7 @@ import i18n from "@shared/lib/i18n";
 const AuthPage = lazy(() => import("@features/auth/pages/AuthPage"));
 const OnboardingPage = lazy(() => import("@features/onboarding/pages/OnboardingPage"));
 const PrivacyPolicyPage = lazy(() => import("@features/settings/pages/PrivacyPolicyPage"));
+const TermsPage = lazy(() => import("@features/settings/pages/TermsPage"));
 const TodayPage = lazy(() => import("@features/today/pages/TodayPage"));
 const CheckinPage = lazy(() => import("@features/checkin/pages/CheckinPage"));
 const TrainingPage = lazy(() => import("@features/training/pages/TrainingPage"));
@@ -47,6 +48,14 @@ export const router = createBrowserRouter([
     element: (
       <Suspense fallback={<SuspenseFallback />}>
         <PrivacyPolicyPage />
+      </Suspense>
+    )
+  },
+  {
+    path: "/terms",
+    element: (
+      <Suspense fallback={<SuspenseFallback />}>
+        <TermsPage />
       </Suspense>
     )
   },

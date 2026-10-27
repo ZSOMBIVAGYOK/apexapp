@@ -22,7 +22,7 @@ service firebase.storage {
     function canReadWorkoutFile(athleteId) {
       return isAuthenticated() && (
         request.auth.uid == athleteId ||
-        firestore.get(/databases/(default)/documents/relationships/$(athleteId)_$(request.auth.uid)).data.permissions.training != 'none'
+        firestore.get(/databases/(default)/documents/relationships/$(athleteId + '_' + request.auth.uid)).data.permissions.training != 'none'
       );
     }
 

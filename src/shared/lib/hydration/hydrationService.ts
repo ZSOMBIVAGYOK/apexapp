@@ -79,8 +79,8 @@ export async function getDailyHydration(
     // Fallback
   }
 
-  // Seed default demonstration hydration if empty
-  if (cached.length === 0) {
+  // Seed default demonstration hydration if empty (demo user in dev only)
+  if (cached.length === 0 && !import.meta.env.PROD && userId === "demo-athlete-001") {
     const defaultEntries: HydrationLogEntry[] = [
       {
         id: `seed-1-${date}`,

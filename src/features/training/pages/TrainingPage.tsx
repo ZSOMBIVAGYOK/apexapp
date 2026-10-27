@@ -152,7 +152,12 @@ export const TrainingPage: React.FC = () => {
       }
     }
 
-    // Seed realistic 28 days of past workouts + 14 days of future planned workouts
+    // Real production users or non-demo accounts start with clean empty workouts list
+    if (import.meta.env.PROD || athleteId !== "demo-athlete-001") {
+      return [];
+    }
+
+    // Seed realistic 28 days of past workouts + 14 days of future planned workouts (demo only)
     const initial: PlannedWorkout[] = [];
 
     // Past 28 days

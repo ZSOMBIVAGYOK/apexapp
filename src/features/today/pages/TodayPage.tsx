@@ -56,16 +56,16 @@ export const TodayPage: React.FC = () => {
   const athleteId = user?.uid || "demo-athlete-001";
   const todayStr = new Date().toISOString().split("T")[0] as string;
 
-  const [waterLiters, setWaterLiters] = useState(2.75);
+  const [waterLiters, setWaterLiters] = useState(0);
   const [workoutStarted, setWorkoutStarted] = useState(false);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
 
   // Check-in & Readiness state
   const [hasCheckedInToday, setHasCheckedInToday] = useState(false);
   const [readinessResult, setReadinessResult] = useState<ReadinessResult | null>(null);
-  const [todaySleepDurationHours, setTodaySleepDurationHours] = useState("8.0");
-  const [todayRestingHr, setTodayRestingHr] = useState(48);
-  const [todayHrv, setTodayHrv] = useState(85);
+  const [todaySleepDurationHours, setTodaySleepDurationHours] = useState<string>("--");
+  const [todayRestingHr, setTodayRestingHr] = useState<number | null>(null);
+  const [todayHrv, setTodayHrv] = useState<number | null>(null);
   const [historicalDaysCount, setHistoricalDaysCount] = useState(0);
 
   // Recovery activities for today
@@ -82,7 +82,6 @@ export const TodayPage: React.FC = () => {
   const [suggestionState, setSuggestionState] = useState<"pending" | "applied" | "dismissed">("pending");
 
   // Mode resolution
-  const userMode = user?.dataMode || "hybrid";
   const supportModes = user?.supportMode || ["solo"];
   const isSoloMode = supportModes.includes("solo");
   const isCoachMode = supportModes.includes("coach") || supportModes.includes("specialist");
@@ -125,15 +124,10 @@ export const TodayPage: React.FC = () => {
       setReadinessResult(res);
     } else {
       setHasCheckedInToday(false);
-      // Realistic baseline readiness estimate
-      const baselineRes = calculateReadiness({
-        date: todayStr,
-        sleep: { durationMinutes: 480, qualityScore: 4 },
-        wellness: { fatigue: 2, soreness: 2, stress: 2, mood: 4, motivation: 4 },
-        biometrics: { hrvRmssd: 82, restingHr: 48, baselineHrvMean: 80, baselineHrvSd: 7, baselineRhrMean: 50 },
-        historicalDaysCount: allDailies.length
-      });
-      setReadinessResult(baselineRes);
+      setTodaySleepDurationHours("--");
+      setTodayRestingHr(null);
+      setTodayHrv(null);
+      setReadinessResult(null);
     }
 
     // Load today's recovery activities
@@ -436,115 +430,143 @@ export const TodayPage: React.FC = () => {
 
       {/* Hero Readiness Overview Card */}
       <Card variant="surface" radius="28" className="p-6 sm:p-8">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-6">
-            <ProgressRing
-              value={readinessResult?.score || 85}
-              label={isHu ? "Készenlét" : "Readiness"}
-              unit=""
-              size={135}
-              strokeWidth={10}
-              status={bandToStatus(readinessResult?.band)}
-            />
-            <div className="space-y-1.5 max-w-xl">
-              <div className="flex items-center gap-2 flex-wrap">
-                <Badge variant={bandToStatus(readinessResult?.band)} dot size="sm">
-                  {readinessResult?.band === "green"
-                    ? (isHu ? "KIVÁLÓ ÁLLAPOT (READY)" : "OPTIMAL READY")
-                    : readinessResult?.band === "amber"
-                      ? (isHu ? "MÉRSÉKELT (CAUTION)" : "MODERATE LOAD")
-                      : (isHu ? "PIHENŐ (REST REQUIRED)" : "RECOVERY REQUIRED")}
-                </Badge>
-                <ConfidenceMeter confidence={readinessResult?.confidence || 90} size="sm" />
-                {hasCheckedInToday && (
+        {hasCheckedInToday && readinessResult ? (
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-6">
+              <ProgressRing
+                value={readinessResult.score}
+                label={isHu ? "Készenlét" : "Readiness"}
+                unit=""
+                size={135}
+                strokeWidth={10}
+                status={bandToStatus(readinessResult.band)}
+              />
+              <div className="space-y-1.5 max-w-xl">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant={bandToStatus(readinessResult.band)} dot size="sm">
+                    {readinessResult.band === "green"
+                      ? (isHu ? "KIVÁLÓ ÁLLAPOT (READY)" : "OPTIMAL READY")
+                      : readinessResult.band === "amber"
+                        ? (isHu ? "MÉRSÉKELT (CAUTION)" : "MODERATE LOAD")
+                        : (isHu ? "PIHENŐ (REST REQUIRED)" : "RECOVERY REQUIRED")}
+                  </Badge>
+                  <ConfidenceMeter confidence={readinessResult.confidence || 90} size="sm" />
                   <span className="text-11 text-status-ready font-medium flex items-center gap-1">
                     <Check className="h-3 w-3" />
                     {isHu ? "Mai check-in alapján" : "From today's check-in"}
                   </span>
+                </div>
+
+                <h2 className="text-20 sm:text-24 font-bold tracking-tight text-text-primary">
+                  {readinessResult.band === "green"
+                    ? (isHu ? "Készen állsz a magas intenzitású kulcsedzésre" : "Ready for High-Intensity Key Training")
+                    : readinessResult.band === "amber"
+                      ? (isHu ? "Mérsékelt terhelhetőség • Kontrollált aerob munka javasolt" : "Moderate Capacity • Controlled Aerobic Load")
+                      : (isHu ? "Alacsony regeneráció • Aktív pihenés javasolt" : "Low Recovery • Active Rest Recommended")}
+                </h2>
+
+                <p className="text-13 text-text-secondary leading-relaxed pt-1">
+                  {getDriverSentence()}
+                </p>
+
+                {readinessResult.drivers && readinessResult.drivers.length > 0 && (
+                  <div className="flex items-center gap-2 pt-2 flex-wrap">
+                    {readinessResult.drivers.slice(0, 3).map((driver, idx) => (
+                      <div
+                        key={idx}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-8 text-11 font-medium border ${
+                          driver.impact === "positive"
+                            ? "bg-status-ready/10 text-status-ready border-status-ready/20"
+                            : "bg-status-rest/10 text-status-rest border-status-rest/20"
+                        }`}
+                      >
+                        <span>{driver.impact === "positive" ? "▲" : "▼"}</span>
+                        <span>{isHu ? driver.labelHu : driver.labelEn}</span>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
+            </div>
 
-              <h2 className="text-20 sm:text-24 font-bold tracking-tight text-text-primary">
-                {readinessResult?.band === "green"
-                  ? (isHu ? "Készen állsz a magas intenzitású kulcsedzésre" : "Ready for High-Intensity Key Training")
-                  : readinessResult?.band === "amber"
-                    ? (isHu ? "Mérsékelt terhelhetőség • Kontrollált aerob munka javasolt" : "Moderate Capacity • Controlled Aerobic Load")
-                    : (isHu ? "Alacsony regeneráció • Aktív pihenés javasolt" : "Low Recovery • Active Rest Recommended")}
-              </h2>
-
-              {/* Plain-language explanation sentence for drivers */}
-              <p className="text-13 text-text-secondary leading-relaxed pt-1">
-                {getDriverSentence()}
-              </p>
-
-              {/* Driver pills */}
-              {readinessResult?.drivers && readinessResult.drivers.length > 0 && (
-                <div className="flex items-center gap-2 pt-2 flex-wrap">
-                  {readinessResult.drivers.slice(0, 3).map((driver, idx) => (
-                    <div
-                      key={idx}
-                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-8 text-11 font-medium border ${
-                        driver.impact === "positive"
-                          ? "bg-status-ready/10 text-status-ready border-status-ready/20"
-                          : "bg-status-rest/10 text-status-rest border-status-rest/20"
-                      }`}
-                    >
-                      <span>{driver.impact === "positive" ? "▲" : "▼"}</span>
-                      <span>{isHu ? driver.labelHu : driver.labelEn}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+            <div className="flex sm:flex-col gap-2 shrink-0 border-t lg:border-t-0 lg:border-l border-border-hairline pt-4 lg:pt-0 lg:pl-6">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => navigate("/checkin")}
+              >
+                {isHu ? "Mérési részletek" : "Check-in Details"}
+              </Button>
+              <Button
+                variant="tertiary"
+                size="sm"
+                onClick={() => navigate("/insights")}
+              >
+                {isHu ? "Regeneráció Görbe" : "Recovery Curve"}
+              </Button>
             </div>
           </div>
+        ) : (
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6 py-2">
+            <div className="flex items-center gap-5">
+              <div className="w-16 h-16 rounded-24 bg-brand/10 text-brand flex items-center justify-center shrink-0 border border-brand/20">
+                <Activity className="w-8 h-8" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Badge variant="neutral" size="sm">
+                    {isHu ? "Még nincs mai adat" : "No data today"}
+                  </Badge>
+                </div>
+                <h2 className="text-20 sm:text-22 font-bold tracking-tight text-text-primary">
+                  {isHu ? "Kezdd a napot az első check-innel" : "Start your day with morning check-in"}
+                </h2>
+                <p className="text-13 text-text-secondary">
+                  {isHu
+                    ? "Rögzítsd a mai alvásidőt, jólléti állapotot és pulzust a személyre szabott edzéskészenlét kiszámításához."
+                    : "Log sleep, wellness, and biometrics to compute your personalized training readiness."}
+                </p>
+              </div>
+            </div>
 
-          <div className="flex sm:flex-col gap-2 shrink-0 border-t lg:border-t-0 lg:border-l border-border-hairline pt-4 lg:pt-0 lg:pl-6">
             <Button
-              variant="secondary"
-              size="sm"
+              variant="primary"
+              size="md"
+              leftIcon={<Activity className="h-4 w-4" />}
               onClick={() => navigate("/checkin")}
+              className="shrink-0"
             >
-              {isHu ? "Mérési részletek" : "Check-in Details"}
-            </Button>
-            <Button
-              variant="tertiary"
-              size="sm"
-              onClick={() => navigate("/insights")}
-            >
-              {isHu ? "Regeneráció Görbe" : "Recovery Curve"}
+              {isHu ? "Napi Check-in kitöltése (~30 mp)" : "Complete Check-in (~30s)"}
             </Button>
           </div>
-        </div>
+        )}
       </Card>
 
       {/* 4 Key Biometrics Cockpit Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatTile
           label={t("today.hrvMetric", "HRV (rMSSD)")}
-          value={todayHrv}
+          value={todayHrv !== null ? todayHrv : "--"}
           unit="ms"
-          status={todayHrv >= 75 ? "ready" : todayHrv >= 60 ? "caution" : "rest"}
-          trend={{ direction: "up", value: "+4%", isGood: true }}
-          subtext="28d bázisátlag: 80 ms"
-          topRight={<SourceBadge source={userMode === "manual" ? "manual" : "garmin"} confidence={0.95} />}
+          status={todayHrv !== null ? (todayHrv >= 75 ? "ready" : todayHrv >= 60 ? "caution" : "rest") : "neutral"}
+          subtext={todayHrv !== null ? "Check-in alapján" : (isHu ? "Még nincs mai adat" : "No data yet")}
+          topRight={<SourceBadge source="manual" confidence={todayHrv !== null ? 0.95 : 0} />}
         />
         <StatTile
           label={isHu ? "Nyugalmi pulzus" : "Resting HR"}
-          value={todayRestingHr}
+          value={todayRestingHr !== null ? todayRestingHr : "--"}
           unit="bpm"
-          status="ready"
-          trend={{ direction: "down", value: "-2 bpm", isGood: true }}
-          subtext="Alvási min: 45 bpm"
-          topRight={<SourceBadge source={userMode === "manual" ? "manual" : "garmin"} confidence={0.95} />}
+          status={todayRestingHr !== null ? "ready" : "neutral"}
+          subtext={todayRestingHr !== null ? "Check-in alapján" : (isHu ? "Még nincs mai adat" : "No data yet")}
+          topRight={<SourceBadge source="manual" confidence={todayRestingHr !== null ? 0.95 : 0} />}
         />
         <StatTile
           label={t("today.sleepMetric", "Alvásidő")}
           value={todaySleepDurationHours}
           unit={isHu ? "óra" : "h"}
-          status={+todaySleepDurationHours >= 7.5 ? "ready" : "caution"}
-          trend={{ direction: "up", value: "Cél: 8.0ó", isGood: true }}
-          subtext={isHu ? "Kattints az elemzéshez" : "Click for sleep chart"}
-          topRight={<ConfidenceMeter confidence={92} size="sm" />}
+          status={todaySleepDurationHours !== "--" ? (+todaySleepDurationHours >= 7.5 ? "ready" : "caution") : "neutral"}
+          subtext={todaySleepDurationHours !== "--" ? (isHu ? "Kattints az elemzéshez" : "Click for sleep chart") : (isHu ? "Még nincs mai adat" : "No data yet")}
+          topRight={<ConfidenceMeter confidence={todaySleepDurationHours !== "--" ? 92 : 0} size="sm" />}
           onClick={() => navigate("/insights?tab=sleep")}
         />
         <StatTile

@@ -79,12 +79,13 @@ export const DevicesPage: React.FC = () => {
   const { t } = useTranslation();
   const { isManualOnly, setDataMode } = useAppMode();
 
-  // Explicit Demo/Mock toggle (Default OFF in production)
+  // Explicit Demo/Mock toggle (Strictly disabled in production)
   const [isDemoMode, setIsDemoMode] = useState<boolean>(() => {
+    if (import.meta.env.PROD) return false;
     if (typeof window === "undefined") return false;
     const saved = localStorage.getItem("apex_demo_devices");
     if (saved !== null) return saved === "true";
-    return process.env.NODE_ENV !== "production";
+    return false;
   });
 
   const [devices, setDevices] = useState<DeviceCardView[]>([
@@ -142,31 +143,8 @@ export const DevicesPage: React.FC = () => {
     ...DEFAULT_METRIC_PRIORITIES
   });
 
-  // Import History State
-  const [importHistory, setImportHistory] = useState<FileImportItem[]>([
-    {
-      id: "hist_sample_1",
-      fileName: "2026-10-25_Morning_Run.fit",
-      fileType: "fit",
-      fileSizeBytes: 42300,
-      status: "created",
-      activity: {
-        id: "act_fit_1",
-        userId: "self",
-        provider: "file",
-        providerRecordId: "fit_sample_1",
-        sport: "running",
-        title: "Reggeli futás",
-        startTime: "2026-10-25T07:15:00.000Z",
-        durationSeconds: 3600,
-        distanceMeters: 10500,
-        trainingLoad: 72,
-        sourceConfidence: 0.99,
-        createdAt: "2026-10-25T08:20:00.000Z"
-      },
-      uploadedAt: "2026-10-25T08:20:00.000Z"
-    }
-  ]);
+  // Import History State (empty start for real users)
+  const [importHistory, setImportHistory] = useState<FileImportItem[]>([]);
 
   // Modals state
   const [isPriorityModalOpen, setIsPriorityModalOpen] = useState(false);
@@ -421,45 +399,45 @@ export const DevicesPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Demo / Sandbox Toggle Banner */}
-      <Card
-        variant="surface"
-        radius="20"
-        className="p-4 border border-border-hairline flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface-elevated/40"
-      >
-
-
-        <div className="flex items-start gap-3">
-          <div className="p-2 rounded-10 bg-brand/10 text-brand mt-0.5">
-            <Info className="h-4 w-4" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-13 font-semibold text-text-primary">
-                Fejlesztői Demó Adatok & Mock Integráció
-              </span>
-              <Badge variant={isDemoMode ? "caution" : "neutral"} size="sm">
-                {isDemoMode ? "Demó Aktív" : "Éles Mód (Csak hitelesített API)"}
-              </Badge>
+      {/* Demo / Sandbox Toggle Banner (Development only) */}
+      {!import.meta.env.PROD && (
+        <Card
+          variant="surface"
+          radius="20"
+          className="p-4 border border-border-hairline flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface-elevated/40"
+        >
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-10 bg-brand/10 text-brand mt-0.5">
+              <Info className="h-4 w-4" />
             </div>
-            <p className="text-11 text-text-secondary mt-0.5">
-              {isDemoMode
-                ? "Szimulált biometrikus csomagok generálódnak, ha a szolgáltató szerveroldali API kulcsai hiányoznak."
-                : "A gombok kizárólag a Secret Managerben regisztrált, valós OAuth fiókokkal működnek."}
-            </p>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-13 font-semibold text-text-primary">
+                  Fejlesztői Demó Adatok & Mock Integráció
+                </span>
+                <Badge variant={isDemoMode ? "caution" : "neutral"} size="sm">
+                  {isDemoMode ? "Demó Aktív" : "Éles Mód (Csak hitelesített API)"}
+                </Badge>
+              </div>
+              <p className="text-11 text-text-secondary mt-0.5">
+                {isDemoMode
+                  ? "Szimulált biometrikus csomagok generálódnak, ha a szolgáltató szerveroldali API kulcsai hiányoznak."
+                  : "A gombok kizárólag a Secret Managerben regisztrált, valós OAuth fiókokkal működnek."}
+              </p>
+            </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2 self-end sm:self-auto">
-          <Button
-            variant={isDemoMode ? "primary" : "secondary"}
-            size="sm"
-            onClick={() => toggleDemoMode(!isDemoMode)}
-          >
-            {isDemoMode ? "Demó mód kikapcsolása" : "Demó mód bekapcsolása"}
-          </Button>
-        </div>
-      </Card>
+          <div className="flex items-center gap-2 self-end sm:self-auto">
+            <Button
+              variant={isDemoMode ? "primary" : "secondary"}
+              size="sm"
+              onClick={() => toggleDemoMode(!isDemoMode)}
+            >
+              {isDemoMode ? "Demó mód kikapcsolása" : "Demó mód bekapcsolása"}
+            </Button>
+          </div>
+        </Card>
+      )}
 
       {/* Manual Mode Banner */}
       {isManualOnly && (

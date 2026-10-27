@@ -70,6 +70,7 @@ export const NutritionPage: React.FC = () => {
 
   // Daily target state
   const [currentTarget, setCurrentTarget] = useState<DailyNutritionTarget>(() => {
+    const isRealUser = import.meta.env.PROD || user?.uid !== "demo-athlete-001";
     return calculateDailyNutritionTarget({
       date: new Date().toISOString().split("T")[0]!,
       weightKg: 72,
@@ -78,15 +79,23 @@ export const NutritionPage: React.FC = () => {
       sex: "male",
       bodyFatPct: 12,
       dayType: "moderate",
-      sessionDurationMinutes: 90,
-      plannedOrActualLoadTss: 85,
-      setBy: {
-        userId: "dietitian-1",
-        userName: "Dr. Kovács Anna",
-        role: "dietitian",
-        title: "Vezető Sportdietetikus",
-        updatedAt: "2026-10-26T08:00:00Z"
-      }
+      sessionDurationMinutes: 0,
+      plannedOrActualLoadTss: 0,
+      setBy: isRealUser
+        ? {
+            userId: user?.uid || "self",
+            userName: user?.displayName || "Sportoló",
+            role: "athlete",
+            title: "Saját cél",
+            updatedAt: new Date().toISOString()
+          }
+        : {
+            userId: "dietitian-1",
+            userName: "Dr. Kovács Anna",
+            role: "dietitian",
+            title: "Vezető Sportdietetikus",
+            updatedAt: "2026-10-26T08:00:00Z"
+          }
     });
   });
 
@@ -97,6 +106,18 @@ export const NutritionPage: React.FC = () => {
       if (raw) return JSON.parse(raw);
     } catch {
       // fallback
+    }
+
+    if (import.meta.env.PROD || user?.uid !== "demo-athlete-001") {
+      return {
+        breakfast: { id: "meal_bf", mealType: "breakfast", time: "08:00", items: [], totalCalories: 0, totalProteinGrams: 0, totalCarbsGrams: 0, totalFatGrams: 0, createdAt: new Date().toISOString() },
+        morning_snack: { id: "meal_ms", mealType: "morning_snack", time: "10:30", items: [], totalCalories: 0, totalProteinGrams: 0, totalCarbsGrams: 0, totalFatGrams: 0, createdAt: new Date().toISOString() },
+        during_training: { id: "meal_dt", mealType: "during_training", time: "12:00", items: [], totalCalories: 0, totalProteinGrams: 0, totalCarbsGrams: 0, totalFatGrams: 0, createdAt: new Date().toISOString() },
+        lunch: { id: "meal_lu", mealType: "lunch", time: "13:30", items: [], totalCalories: 0, totalProteinGrams: 0, totalCarbsGrams: 0, totalFatGrams: 0, createdAt: new Date().toISOString() },
+        afternoon_snack: { id: "meal_as", mealType: "afternoon_snack", time: "16:30", items: [], totalCalories: 0, totalProteinGrams: 0, totalCarbsGrams: 0, totalFatGrams: 0, createdAt: new Date().toISOString() },
+        dinner: { id: "meal_di", mealType: "dinner", time: "19:30", items: [], totalCalories: 0, totalProteinGrams: 0, totalCarbsGrams: 0, totalFatGrams: 0, createdAt: new Date().toISOString() },
+        evening_snack: { id: "meal_es", mealType: "evening_snack", time: "21:30", items: [], totalCalories: 0, totalProteinGrams: 0, totalCarbsGrams: 0, totalFatGrams: 0, createdAt: new Date().toISOString() }
+      };
     }
 
     return {
@@ -325,19 +346,23 @@ export const NutritionPage: React.FC = () => {
   // Hydration state
   const [caffeineMg] = useState(160);
 
-  // Active dietitian meal plan
-  const [activePlan, setActivePlan] = useState<DietitianMealPlan | null>({
-    id: "plan_1",
-    title: "Mérsékelt Edzésnapi Szénhidrát- és Izomvédelmi Étrend",
-    description: "Periodizált tápanyagbevitel a délelőtti zóna 2 és késő délutáni erőfejlesztő edzés támogatására.",
-    dietitianId: "d1",
-    dietitianName: "Dr. Kovács Anna (Sportdietetikus)",
-    targetDayType: "moderate",
-    targetCalories: 2850,
-    targetProteinGrams: 145,
-    targetCarbsGrams: 420,
-    targetFatGrams: 65,
-    meals: [
+  // Active dietitian meal plan (demo data only in development)
+  const [activePlan, setActivePlan] = useState<DietitianMealPlan | null>(() => {
+    if (import.meta.env.PROD || user?.uid !== "demo-athlete-001") {
+      return null;
+    }
+    return {
+      id: "plan_1",
+      title: "Mérsékelt Edzésnapi Szénhidrát- és Izomvédelmi Étrend",
+      description: "Periodizált tápanyagbevitel a délelőtti zóna 2 és késő délutáni erőfejlesztő edzés támogatására.",
+      dietitianId: "d1",
+      dietitianName: "Dr. Kovács Anna (Sportdietetikus)",
+      targetDayType: "moderate",
+      targetCalories: 2850,
+      targetProteinGrams: 145,
+      targetCarbsGrams: 420,
+      targetFatGrams: 65,
+      meals: [
       {
         mealType: "breakfast",
         suggestedName: "Zabkása bogyós gyümölccsel és tejsavó izolátummal",
@@ -368,6 +393,7 @@ export const NutritionPage: React.FC = () => {
       }
     ],
     createdAt: "2026-10-25T14:00:00Z"
+    };
   });
 
   // Modal states

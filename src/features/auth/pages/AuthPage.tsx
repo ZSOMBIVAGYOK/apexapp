@@ -7,7 +7,6 @@ import {
   loginWithEmail,
   registerWithEmail,
   loginWithGoogle,
-  loginWithApple,
   triggerPasswordReset,
   triggerEmailVerification,
   getAuthErrorMessageKey
@@ -25,6 +24,7 @@ export const AuthPage: React.FC = () => {
   const navigate = useNavigate();
   const { loginDemo, firebaseUser, user } = useAuthStore();
 
+  const isRegistrationDisabled = import.meta.env.VITE_DISABLE_REGISTRATION === "true";
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -49,6 +49,11 @@ export const AuthPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
+
+    if (mode === "register" && isRegistrationDisabled) {
+      setErrorMsg("A béta regisztráció jelenleg szünetel.");
+      return;
+    }
 
     const validation = authSchema.safeParse({ email, password });
     if (!validation.success) {
@@ -99,30 +104,6 @@ export const AuthPage: React.FC = () => {
       const { profile } = await loginWithGoogle();
       showToast({
         title: "Google azonosítás sikeres",
-        message: `Üdvözlünk, ${profile.displayName || "Sportoló"}!`,
-        type: "success"
-      });
-      if (profile.onboardingCompleted) {
-        navigate("/");
-      } else {
-        navigate("/onboarding");
-      }
-    } catch (err: unknown) {
-      const code = (err as { code?: string })?.code || "auth/generic";
-      const key = getAuthErrorMessageKey(code);
-      setErrorMsg(t(key));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleAppleSignIn = async () => {
-    setErrorMsg(null);
-    setIsSubmitting(true);
-    try {
-      const { profile } = await loginWithApple();
-      showToast({
-        title: "Apple azonosítás sikeres",
         message: `Üdvözlünk, ${profile.displayName || "Sportoló"}!`,
         type: "success"
       });
@@ -290,21 +271,27 @@ export const AuthPage: React.FC = () => {
         ) : (
           /* Main Auth Form */
           <>
-            <SegmentedControl
-              options={[
-                { value: "login", label: t("auth.loginTab") },
-                { value: "register", label: t("auth.registerTab") }
-              ]}
-              value={mode}
-              onChange={(val) => {
-                setMode(val as "login" | "register");
-                setErrorMsg(null);
-              }}
-              fullWidth
-            />
+            {!isRegistrationDisabled ? (
+              <SegmentedControl
+                options={[
+                  { value: "login", label: t("auth.loginTab") },
+                  { value: "register", label: t("auth.registerTab") }
+                ]}
+                value={mode}
+                onChange={(val) => {
+                  setMode(val as "login" | "register");
+                  setErrorMsg(null);
+                }}
+                fullWidth
+              />
+            ) : (
+              <div className="rounded-12 bg-status-caution/10 border border-status-caution/30 p-2.5 text-center text-12 text-status-caution">
+                A béta regisztráció jelenleg szünetel. Csak meglévő fiókkal lehet bejelentkezni.
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {mode === "register" && (
+              {mode === "register" && !isRegistrationDisabled && (
                 <Input
                   id="auth-name"
                   type="text"
@@ -380,44 +367,35 @@ export const AuthPage: React.FC = () => {
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
                 <Button
                   type="button"
                   variant="secondary"
-                  size="sm"
+                  size="md"
                   fullWidth
                   onClick={handleGoogleSignIn}
                   disabled={isSubmitting}
                 >
-                  <span className="font-semibold text-text-primary mr-1">G</span> Google
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  fullWidth
-                  onClick={handleAppleSignIn}
-                  disabled={isSubmitting}
-                >
-                  <span className="font-semibold text-text-primary mr-1"></span> Apple
+                  <span className="font-semibold text-text-primary mr-1">G</span> Google bejelentkezés
                 </Button>
               </div>
             </div>
 
-            {/* Quick Demo Login pass */}
-            <div className="pt-3 border-t border-border-hairline space-y-2">
-              <Button
-                type="button"
-                variant="tertiary"
-                size="sm"
-                fullWidth
-                leftIcon={<Sparkles className="h-3.5 w-3.5 text-brand" />}
-                onClick={handleDemoLogin}
-              >
-                {t("auth.demoLogin")}
-              </Button>
-            </div>
+            {/* Quick Demo Login pass (Only in local development) */}
+            {!import.meta.env.PROD && (
+              <div className="pt-3 border-t border-border-hairline space-y-2">
+                <Button
+                  type="button"
+                  variant="tertiary"
+                  size="sm"
+                  fullWidth
+                  leftIcon={<Sparkles className="h-3.5 w-3.5 text-brand" />}
+                  onClick={handleDemoLogin}
+                >
+                  {t("auth.demoLogin")} (Fejlesztői mód)
+                </Button>
+              </div>
+            )}
           </>
         )}
 

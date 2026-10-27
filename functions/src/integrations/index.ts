@@ -5,7 +5,6 @@
  * adapter factory, and public device connection management.
  */
 
-import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
 import {
   DeviceConnectionPublicStatus,
@@ -17,26 +16,18 @@ import { GarminServerAdapter } from "./adapters/garminAdapter";
 import { PolarServerAdapter } from "./adapters/polarAdapter";
 import { OuraServerAdapter } from "./adapters/ouraAdapter";
 
-// Google Cloud Secret Manager definitions for Firebase Functions v2
-export const whoopClientId = defineSecret("WHOOP_CLIENT_ID");
-export const whoopClientSecret = defineSecret("WHOOP_CLIENT_SECRET");
-export const garminConsumerKey = defineSecret("GARMIN_CONSUMER_KEY");
-export const garminConsumerSecret = defineSecret("GARMIN_CONSUMER_SECRET");
-export const polarClientId = defineSecret("POLAR_CLIENT_ID");
-export const polarClientSecret = defineSecret("POLAR_CLIENT_SECRET");
-export const ouraClientId = defineSecret("OURA_CLIENT_ID");
-export const ouraClientSecret = defineSecret("OURA_CLIENT_SECRET");
+// Environment / Secret definitions for Firebase Functions
+const makeSecret = (key: string) => ({ value: () => process.env[key] || "" });
+export const whoopClientId = makeSecret("WHOOP_CLIENT_ID");
+export const whoopClientSecret = makeSecret("WHOOP_CLIENT_SECRET");
+export const garminConsumerKey = makeSecret("GARMIN_CONSUMER_KEY");
+export const garminConsumerSecret = makeSecret("GARMIN_CONSUMER_SECRET");
+export const polarClientId = makeSecret("POLAR_CLIENT_ID");
+export const polarClientSecret = makeSecret("POLAR_CLIENT_SECRET");
+export const ouraClientId = makeSecret("OURA_CLIENT_ID");
+export const ouraClientSecret = makeSecret("OURA_CLIENT_SECRET");
 
-export const ALL_DEVICE_SECRETS = [
-  whoopClientId,
-  whoopClientSecret,
-  garminConsumerKey,
-  garminConsumerSecret,
-  polarClientId,
-  polarClientSecret,
-  ouraClientId,
-  ouraClientSecret
-];
+export const ALL_DEVICE_SECRETS: any[] = [];
 
 /**
  * Safely resolves secret value with fallback to process.env (useful for local dev / testing)
