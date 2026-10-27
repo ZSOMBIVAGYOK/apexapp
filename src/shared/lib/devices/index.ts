@@ -10,6 +10,9 @@ export * from "./parsers/tcxParser";
 export * from "./parsers/gpxParser";
 export * from "./parsers/csvParser";
 export * from "./adapters";
+export * from "./deviceIntegrationService";
+export * from "./workoutFileService";
+
 
 import { parseGPX } from "./parsers/gpxParser";
 import { parseTCX } from "./parsers/tcxParser";

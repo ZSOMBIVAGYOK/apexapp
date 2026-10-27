@@ -635,3 +635,386 @@ All nutrition constants and formulas are documented in `src/shared/lib/nutrition
 ### D. Comprehensive Verification Suite (160 / 160 Tests Passing)
 - **`src/shared/lib/sharing/rules.test.ts` (45 Tests):** Complete coverage of athlete, coach, dietitian, physiotherapist, strength coach, sport psychologist, stranger, pending, revoked, and direct client write rejection.
 - **`src/shared/lib/sharing/sharingFunctions.test.ts` (20 Tests):** Validation of Zod schemas, 7-day expiration, single-use reuse rejection, expired invite rejection, self-invite blocking, athlete-only permission updates, staff resignation, and audit trail structure.
+
+---
+
+## 16. Wearable & Device Integrations Subsystem (COMPLETED)
+
+### A. Architecture (`functions/src/integrations/` & `src/shared/lib/devices/`)
+- **Normalized Multi-Source Pipeline:** Provider data is converted through provider-specific normalizers into `NormalizedActivity`, `NormalizedSleep`, and `NormalizedDaily` domain records.
+- **Merge & Deduplication Priority:** Multi-source hierarchy prioritizes high-fidelity sources (`garmin` > `whoop` > `polar` > `oura` > `manual`) using overlapping timestamp detection to prevent duplicate workout records.
+- **Server-Side Token Storage & Secrets:** Client secrets stored strictly in Firebase Functions secrets (`defineSecret`), never exposed to frontend. Tokens stored in dedicated subcollections with zero client write access (`allow read, write: if false;` in `firestore.rules`).
+- **OAuth 2.0 PKCE & Webhook Verification:**
+  - **WHOOP:** Complete OAuth 2.0 authorization, state CSRF validation, token exchange, HMAC SHA-256 webhook signature verification, 30-day historical backfill, disconnect, and GDPR data deletion.
+  - **Garmin Connect Developer Program:** Structure ready for Health API & Activity API with mock mode toggle until production developer approval.
+  - **Polar AccessLink & Oura Ring:** Adapter structure for authorization and activity/sleep normalizers.
+- **Devices Cockpit UI (`DevicesPage.tsx`):** Displays real connection status badges (Connected with last sync timestamp, Connecting, Error with readable reason, Not configured), real OAuth connect triggers, "Sync now", "Disconnect", "Delete imported data", and an explicit "Demo data" toggle disabled in production builds.
+
+---
+
+## 17. Setup Flow, Athlete Profile & Hydration Tracking Subsystem (COMPLETED)
+
+### A. Number Input Overhaul (`NumberInput.tsx`)
+- **Typing Experience:** Controlled raw string state (`type="text"`, `inputMode="decimal"`). Users can clear all digits freely without snapping to `0` or `min`.
+- **Hungarian Locale Support:** Seamlessly handles both comma `,` and dot `.` as decimal separators (e.g. typing `72,5` parses cleanly to `72.5` on blur).
+- **Validation Timing:** No disruptive errors or value mutations while typing; validation errors and min/max clamping trigger strictly on `onBlur` or form submit.
+- **Accessibility & Controls:** Steppers (`+` and `-`) are optional secondary conveniences; the text field is fully keyboard and paste friendly.
+- **Unit Tests (`src/shared/ui/NumberInput.test.ts`):** 11 tests verifying empty input, typing integer, typing decimal with comma, pasting, invalid characters, and min/max clamping.
+
+### B. Shared Sport Catalog (`src/shared/lib/sports/`)
+- **Standard Catalog (`catalog.ts`):** 96 sports categorized across 9 Olympic and elite domains:
+  1. *Állóképesség* (Endurance)
+  2. *Erő és kondíció* (Strength & Conditioning)
+  3. *Csapatsportok* (Team Sports)
+  4. *Küzdősportok* (Combat Sports)
+  5. *Ütős/ütőjátékok* (Racket Sports)
+  6. *Vízi sportok* (Water Sports)
+  7. *Téli sportok* (Winter Sports)
+  8. *Torna és mozgás* (Gymnastics & Movement)
+  9. *Egyéb* (Other / Tactical)
+- **Metric Profiles (`types.ts`):** Tailors session logging fields to each sport's physiological nature:
+  - `distance_duration`: distance, time, pace/speed, elevation, heart rate (e.g. futás, kerékpár, úszás).
+  - `duration_only`: duration, heart rate, RPE (e.g. jóga, nyújtás).
+  - `sets_reps_load`: sets, reps, load weight, rest time (e.g. súlyemelés, erőemelés).
+  - `rounds_time`: rounds, work/rest interval (e.g. box, birkózás, crossfit).
+  - `points`: score, sets/games, opponent (e.g. tenisz, asztalitenisz).
+- **User Custom Sports:** Athletes can create custom sports via "Új sport hozzáadása" modal, specifying name, category, and metric profile. Persisted to Firestore (`athletes/{athleteId}/customSports`) with localStorage fallback.
+- **Sport Selector & Picker UI (`SportSelector.tsx`, `SportPickerSheet.tsx`):**
+  - Common sports chips displayed upfront for instant one-tap selection.
+  - "Több sport" bottom sheet with Favorites and Recents on top, live search across Hungarian and English names, category filtering tabs, and custom sport creator.
+  - Multi-select with removable chips and main sport star toggle (`mainSport`).
+- **Unit Tests (`src/shared/lib/sports/sports.test.ts`):** 6 tests verifying catalog depth (80+ sports), category coverage, search by Hungarian and English, and custom sport lifecycle.
+
+### C. Weekday Picker (`WeekdayPicker.tsx`)
+- **Large Touch Chips:** 7 weekday toggle buttons (`H`, `K`, `Sz`, `Cs`, `P`, `Sz`, `V`) with full screen-reader accessibility (`Hétfő`, `Kedd`, etc.).
+- **Summary & Quick Presets:** Live summary counter ("3 nap / hét") and quick preset buttons ("Hétköznap", "Hétvégén", "Mind", "Törlés").
+- **Data Model:** Values stored as an array of ISO weekday numbers (`1..7`). Mapped directly into the solo plan generator (`soloPlanGenerator.ts`) and calendar scheduling.
+
+### D. Profile Overview Page (`ProfilePage.tsx`)
+- **Decoupled from Onboarding:** Pressing "Profil szerkesztése" in Settings navigates to `/profile` instead of restarting the onboarding wizard.
+- **Progressive Disclosure Section Cards:**
+  1. *Alapadatok:* Név, születési dátum, nem, magasság, testsúly.
+  2. *Sportok:* Kiválasztott sportágak, fő sportág jelölése, versenyszint.
+  3. *Edzésnapok és elérhetőség:* Heti edzésnapok picker, alvásigény, nyugalmi pulzus, jelenlegi sérülések.
+  4. *Célok és versenyek:* Célverseny, dátum, egyéni szezoncélok.
+  5. *Étrend alapok:* Táplálkozási fókusz, tányérmodell nézet toggle, étrendi preferenciák, allergiák/intoleranciák.
+  6. *Adatforrás és támogatás:* Okoseszköz / Manuális / Hibrid mód, Solo / Edzői / Szakemberi támogatási forma.
+  7. *Nyelv és mértékegység:* Magyar / Angol, Metrikus / Angolszász egységek.
+- **Section Editing Drawers:** Each card contains an independent "Szerkesztés" button opening only that section in a bottom sheet (`BottomSheet`). Saving updates strictly that slice of data via `updateProfile`.
+- **First-Time Wizard Guard:** The onboarding wizard executes only once for fresh accounts. A subtle "Beállítás folytatása" banner surfaces on the Today screen only if onboarding was left incomplete.
+
+### E. Beverage-Engine Hydration Tracking (`src/shared/lib/hydration/`)
+- **Beverage Hydration Index (BHI):** Config file `beverages.ts` incorporates scientific hydration factors derived from clinical literature (e.g. Maughan et al., *Am J Clin Nutr*, 2016):
+  - Víz: 1.00
+  - Izotóniás sportital: 1.02
+  - Elektrolit / ORS: 1.15
+  - Teljes tej: 1.25 (hosszabb gyomorürülési idő, nátrium- és fehérjetartalom)
+  - Növényi tej: 1.05
+  - Gyümölcslé (100% narancs/alma): 1.00
+  - Zöld / fekete tea: 0.98
+  - Kávé / eszpresszó: 0.95 (enyhe diuretikus hatás, de túlnyomórészt hidratál)
+  - Diétás üdítő: 0.96
+  - Cukros üdítő: 0.95
+  - Sör / alacsony alkohol: 0.65 (egyértelmű diuretikus hatás, nem minősítő élettani magyarázattal)
+- **Nutritional & Electrolyte Metadata:** Per 100ml values for caffeine (mg), sugar (g), and sodium (mg).
+- **Dual Volume Display:** Hydration metrics present both *Raw Volume* (összes fogyasztott milliliter) and *Effective Cellular Hydration* (effektív térfogat = térfogat × BHI faktor) evaluated against the athlete's daily fluid target.
+- **Interactive Logging & Cockpit UI (`HydrationTrackerCard.tsx`, `BeveragePickerModal.tsx`):**
+  - Quick-add buttons for favorite drinks and sizes (150 ml kávé, 250 ml víz, 330 ml üdítő, 500 ml izotóniás sportital).
+  - "Ital hozzáadása" modal with beverage selector, portion sizing (150, 250, 330, 500 ml, vagy egyéni ml), és "Saját ital" (custom beverage) készítő.
+  - Napi fogyasztott italok listája szerkesztéssel és törléssel.
+  - Folyadékbevitelből származó koffein összegzése és megjelenítése a Nutrition összefoglaló kártyán.
+- **Unit Tests (`src/shared/lib/hydration/hydration.test.ts`):** 3 tests validating hydration factor calculations, BHI effective volume aggregation, and custom beverage lifecycle.
+
+---
+
+## 18. Retroactive Training Logging & Exercise Library Subsystem (COMPLETED)
+
+### A. Retroactive Session Logging & Load Recomputation
+- **Retroactive Date & Time Pickers:** Session logging accepts any past date without weekly restriction, supplemented by quick one-tap shortcuts ("Ma", "Tegnap", "Két napja").
+- **Calendar Integration:** Tapping any past or future day in the training calendar (Week view, Month view, Day view) offers "Edzés rögzítése erre a napra".
+- **Session Rescheduling / Date Moves:** Moving an existing session updates its date and triggers recalculation from the earliest affected date forward.
+- **Load Recalculation Engine (`src/shared/lib/load/loadRecomputation.ts`):**
+  - Moving, editing, adding, or deleting a session in the past recalculates affected load metrics from that date forward: Fitness (CTL, 42d EWMA), Fatigue (ATL, 7d EWMA), Form (TSB = CTL - ATL), Acute:Chronic Workload Ratio (ACWR), and daily readiness scores.
+  - Handles DST transitions safely using noon-anchored local date processing (`parseYMD`/`formatYMD`).
+  - Unit tests in `src/shared/lib/load/loadRecomputation.test.ts` (5 tests) verify historical insertion, date moving, ACWR adjustments, and fatigue reduction upon deletion.
+- **Universal DaySwitcher Component (`DaySwitcher.tsx`):**
+  - Reusable date navigator featuring previous/next arrows, Hungarian display labels ("Ma", "Tegnap", "Két napja"), date picker input accepting any past date, and quick shortcut chips.
+  - Integrated into Training Calendar, Daily Check-in (`CheckinPage.tsx`), and Nutrition Log (`NutritionPage.tsx`).
+
+### B. Adaptive Sport Logging (`ManualSessionModal.tsx`)
+- **Shared Catalog Integration:** Uses the shared sport catalog (`SportPickerSheet` / `SportSelector`) with favorite/recent chips upfront and full searchable catalog.
+- **Adaptive Metric Profiles:** Form inputs dynamically adjust to the sport's physiological metric profile:
+  - `distance_duration`: Distance, duration, pace/speed, elevation, HR.
+  - `duration_only`: Duration, RPE, HR.
+  - `sets_reps_load`: Exercise rows (sets, reps, load in kg, rest seconds).
+  - `rounds_time`: Rounds, work interval, rest interval.
+  - `points`: Final score, sets, result notes.
+- **Progressive Disclosure:** Simple default (Sport, Date, Duration, RPE); advanced metric fields and notes are cleanly tucked into a collapsible "Részletek" drawer.
+
+### C. Exercise Library (`src/features/training/components/ExerciseLibraryView.tsx`)
+- **Athlete Exercise Repository:** Stored under `athletes/{athleteId}/exercises` with full offline localStorage mirror and starter catalog (Squat, Deadlift, Bench Press, Pull-ups, Split Squat, Plank, Banded Rotator Cuff).
+- **Metadata Fields:** `name`, `description`, optional `videoUrl` (HTTPS validated), `defaultSetsRepsLoad`, tags (muscle groups, equipment, sport), and favorite star toggle.
+- **Interactive Filtering:** Live search, muscle group chips (`Láb / Guggoló lánc`, `Mell / Nyomó lánc`, `Hát / Húzó lánc`, `Váll / Kar`, `Törzs / Core`, `Egész test`), equipment chips, and favorites-only filter.
+- **Creation & Modification Sheet (`ExerciseEditSheet.tsx`):** Slide-out drawer with tag selectors and validation.
+
+### D. Safe Video Player Modal & Strict CSP (`VideoPlayerModal.tsx`, `firebase.json`)
+- **Zero-Trust URL Parsing (`videoUtils.ts`):**
+  - Requires valid `https://` URLs.
+  - YouTube: Auto-extracts video ID and embeds via privacy-enhanced `https://www.youtube-nocookie.com/embed/{id}`.
+  - Vimeo: Auto-extracts video ID and embeds via `https://player.vimeo.com/video/{id}`.
+  - Direct Video Files: Direct `.mp4`, `.webm`, or `.mov` files render using native HTML5 `<video controls playsInline>`.
+  - External Fallback: Any arbitrary external link presents a secure "Megnyitás új lapon" button with `rel="noopener noreferrer"`.
+- **Content-Security-Policy:** Updated `firebase.json` with strict `frame-src https://*.firebaseapp.com https://www.youtube-nocookie.com https://player.vimeo.com;` blocking arbitrary iframes.
+
+### E. Decoupled Exercise Snapshots in Workouts (`WorkoutBuilderModal.tsx`)
+- **Snapshot Immutability:** Adding an exercise from the library into a planned workout or strength session creates an independent snapshot. Edits made inside the workout (sets, reps, load, custom name) never mutate the library entry.
+- **Explicit Library Actions:**
+  - "Mentés a könyvtárba": Saves freehand exercises typed into a workout into the athlete's exercise library.
+  - "Frissítés a könyvtárban": Explicitly pushes modifications back to the original library entry only when the user deliberately chooses to do so.
+- **Direct Video Preview:** Exercise cards in the workout builder and session modal provide one-click video modals.
+
+### F. Navigation & Segmented Control (`TrainingPage.tsx`)
+- **Terv Tab Segmented Control:**
+  - `Naptár & Tervezés`: Periodized timeline, Performance Management Chart (PMC), and Training Calendar.
+  - `Gyakorlatok könyvtára`: Full Exercise Library management view.
+  - `Eszközök` & `Rekordok`: Reserved layout slots with "Hamarosan" badges.
+
+### G. Security & Multi-Role Permissions
+- **Firestore Security Rules (`firestore.rules`):**
+  - `match /exercises/{exerciseId}` subcollection under `match /athletes/{athleteId}`:
+    - `allow read: if canReadModule(athleteId, 'training');`
+    - `allow write: if canWriteModule(athleteId, 'training');`
+- **Rules Evaluator & Test Suite (`rules.test.ts`):**
+  - 5 new test cases (tests 46–50) verifying athlete self-access, coach `training:write` access, physiotherapist read-only access, psychologist blocked access, and stranger rejection (50/50 tests passing).
+
+---
+
+## 19. Recovery Activities, Records & Courses, and Equipment & Maintenance Subsystems (COMPLETED)
+
+### A. Recovery Activities (`Regeneráció -> Aktivitások` / `InsightsPage.tsx`, `RecoveryActivitiesView.tsx`)
+- **Data-Driven Catalog (`catalog.ts`):** Predefined recovery modalities grouped into 7 categories:
+  1. *Mobilitás és torna:* korrekciós torna, nyújtás, foam roller, jóga, légzőgyakorlat.
+  2. *Hideg:* hidegvizes merülés, jégfürdő, hideg zuhany.
+  3. *Meleg:* szauna, gőzfürdő, meleg fürdő.
+  4. *Kontraszt:* kontrasztvizes terápia.
+  5. *Masszázs és terápia:* sportmasszázs, fizioterápia, kompressziós csizma, kinezio tapasz.
+  6. *Alvás és relaxáció:* szieszta / power nap, vezetett meditáció / mindfulness.
+  7. *Egyéb:* hiperbár kamra, kryoterápia.
+- **Custom Modalities (`athletes/{athleteId}/customRecoveryActivities`):** Athletes can register custom modalities specifying name, category, icon, and dynamic field toggles (hőmérséklet °C, körök száma, testtáj, intenzitás).
+- **Activity Logging (`RecoveryActivityModal.tsx`):** Retroactive date/time selector with "Tegnap" shortcut, category/activity pickers with favorites & recents, conditional fields, perceived effect rating (1–5 scale), and notes.
+- **"Ugyanaz, mint tegnap" One-Tap Cloning:** Instantly clones yesterday's recovery protocols to today with a single button press.
+- **Aggregations & Cross-Screen Integration:**
+  - Weekly summary card aggregating total minutes and breakdown per category.
+  - Recovery timeline feed with inline edit/delete.
+  - Today screen (`TodayPage.tsx`): Displays today's recovery activity count, minutes, and protocol tags.
+  - Coach recovery tab (`AthleteDetailView.tsx`): Coaches with `recovery:read` permission review athlete recovery protocols alongside subjective Hooper metrics.
+- **Readiness Invariant:** Does NOT modify the readiness calculation algorithm weights yet; strictly stores and visualizes protocol compliance for correlation analysis.
+
+### B. Records and Courses (`Terv -> Rekordok` / `TrainingPage.tsx`, `RecordsCoursesView.tsx`)
+- **Personal Records Engine (`recordsService.ts`):**
+  - Personal records cataloged per sport (reusing shared sport catalog) and metric profile (`time_for_distance`, `distance_for_time`, `weight_reps_1rm`, `reps_count`, `duration`, `points`, `custom`).
+  - Discipline grouping with current best record highlighted on top, accompanied by a history progression drawer and progression chart.
+  - Non-intrusive "Új egyéni rekord? Mentsd el" prompt (`RecordBeatPromptModal.tsx`): Evaluates completed sessions against existing records for matching distances/metrics. When an athlete beats a record, a clean confirmation dialog offers one-tap saving. Records are NEVER auto-created silently.
+- **Course & Route Management (`coursesService.ts`, `CourseModal.tsx`):**
+  - Courses define sport, name, location, distance km, elevation gain meters, surface type, and notes.
+  - GPX/TCX file parser extracting trackpoints and elevation profile offline.
+  - **Zero External Map Tiles (Strict CSP Compliant):** `generateSvgRouteOutline` normalizes GPS coordinates into a crisp vector 2D SVG path (`<path d="..." />`) and elevation chart, completely eliminating external map tile dependencies and CSP vulnerabilities.
+  - Courses linkable directly from training session logging and record entries.
+
+### C. Equipment and Maintenance Tracking (`Terv -> Eszközök` / `TrainingPage.tsx`, `EquipmentView.tsx`)
+- **Equipment Repository (`equipmentService.ts`, `EquipmentModal.tsx`):**
+  - Gear schema: name, type (`shoes`, `bike`, `chain`, `wheels`, `racket`, `skis`, `rowing_oar`, `watch`, `other`), brand, model, HTTPS image URL with graceful fallback, purchase date, starting usage (`km` and `hours`), applicable sports, status (`active` / `retired`), notes.
+  - Session linking: "Eszköz" selector inside session logging modal (`ManualSessionModal.tsx` under Részletek), remembering last used gear per sport as an intelligent default.
+- **Robust Dynamic Usage Recomputation (`recomputeEquipmentTotals`):**
+  - Gear distance (km) and hours are dynamically recomputed from starting usage plus all linked completed sessions.
+  - Editing, moving dates, backdating, or deleting past sessions automatically recalculates gear totals to guarantee zero drift.
+- **Maintenance Countdown Engine (`evaluateMaintenanceTask`):**
+  - Maintenance tasks configured by distance (km) or time (days) with custom warning thresholds (default 15%).
+  - Live color-coded countdown indicators: Green (healthy), Yellow (approaching limit $< 15\%$), Red (due/overdue $\le 0$).
+  - "Karbantartás elvégezve" dialog (`MaintenanceModal.tsx`): Resets countdown from the current mileage/date and logs an immutable service entry with cost, service notes, and timestamp.
+  - Proactive due alert banner on the Today screen, "Karbantartás szükséges" badge on the Eszközök sub-tab, and integration with `notificationStore.ts`.
+
+### D. Security, Permissions & Test Suite
+- **Security Rules (`firestore.rules` & `rulesEvaluator.ts`):**
+  - `match /recoveryActivities/{id}` & `match /customRecoveryActivities/{id}`: Governed by `canReadModule(athleteId, 'recovery')` and `canWriteModule(athleteId, 'recovery')`.
+  - `match /records/{id}`, `match /courses/{id}`, `match /equipment/{id}`: Governed by `canReadModule(athleteId, 'training')` and `canWriteModule(athleteId, 'training')`.
+- **Comprehensive Unit Testing:**
+  - `src/shared/lib/sharing/rules.test.ts`: Added tests 51–55 verifying cross-role authorization for recovery, records, courses, and equipment (55/55 tests passing).
+  - `src/shared/lib/equipment/equipment.test.ts`: 6 tests covering usage aggregation, maintenance countdown, due status, and retroactive session updates.
+  - `src/shared/lib/records/records.test.ts`: 5 tests covering metric comparison, string formatting, beat detection, and progression history.
+  - `src/shared/lib/recovery/recovery.test.ts`: 2 tests covering catalog integrity and weekly category aggregation.
+  - Full project test suite: **220 / 220 tests passing** across 20 suites with zero failures.
+
+---
+
+## 20. Fill From File (FIT, GPX, TCX) & Session Visualizations Subsystem (COMPLETED)
+
+### A. Architecture & Browser-Side Parsing Pipeline (`workoutFileService.ts`)
+- **Zero Backend Dependency:** Complete in-browser parsing of FIT, GPX, and TCX binary and XML formats reusing existing parsers from `src/shared/lib/devices/` (`parseFitFile`, `parseGpxXml`, `parseTcxXml`).
+- **Normalized Result Structure (`ParsedWorkoutFile`):**
+  - Activity metadata: mapped catalog sport (`mapFileSportToCatalog`), start timestamp, duration seconds, distance meters, elevation gain, calories, average/max heart rate, average power in Watts.
+  - Granular time series: downsampled to $\le 500$ evenly spaced track points (`downsampleTimeSeries`) to prevent Firestore 1MB document bloating while delivering high-fidelity interactive visualization.
+  - Normalized SVG route outline (`generateSvgRouteOutline`): 2D projected SVG path (`M x y L ...`) rendered entirely without external map tiles.
+- **Robust Error Handling (Hungarian Localization):**
+  - Max file size guard: 25 MB hard cap with friendly localized error (`"A fájl mérete meghaladja a 25 MB-os határt."`).
+  - Unsupported format check: validates extension and MIME type (`"Nem támogatott fájlformátum. Kérlek FIT, GPX vagy TCX fájlt tölts fel."`).
+  - Corrupt / unreadable file check: catches corrupt headers or empty track records (`"A fájl sérült vagy nem olvasható."` / `"A fájl nem tartalmaz feldolgozható edzésadatot."`).
+
+### B. Session Logging Form Integration (`ManualSessionModal.tsx`, `WorkoutFileDropzone.tsx`)
+- **Compact Dropzone:** Positioned at the top of the manual logging modal with drag-and-drop and native mobile file input support.
+- **Progressive Prefill with Badges:**
+  - Prefills Sport, Start Date & Time, Duration, Distance, Heart Rate (Avg & Max), Elevation Gain, Average Power, and Calories.
+  - Prefilled fields display a subtle `"Fájlból kitöltve"` badge. Every field remains completely unlocked and editable by the athlete.
+  - Summary card shows high-level metrics of the parsed file with a clear "Fájl eltávolítása" option.
+- **RPE & Training Load Integrity:**
+  - RPE is never guessed from the file; users are prompted to enter their subjective exertion (1–10).
+  - When heart rate or power data allows algorithmic load computation (TRIMP or hrLoad), a banner displays the computed training load while still allowing RPE input.
+
+### C. Duplicate Detection & Merge Flow
+- **Fuzzy Proximity Check (`findDuplicateSession`):**
+  - Searches athlete's existing completed sessions within a $\pm 10$ minute start time window, matching duration ($\pm 20\%$) and sport.
+- **Interactive Resolution Banner:**
+  - If a potential duplicate is detected, a non-intrusive warning card provides three clear choices:
+    1. **"Összefésülés" (Merge):** Enriches the existing session with file data (metrics, time series, file storage ref) without creating duplicate workload or distorting PMC stress balance.
+    2. **"Új edzésként mentés" (Save as New):** Persists the session as an independent entry.
+    3. **"Mégse" (Cancel):** Dismisses the file and resets the form.
+
+### D. Session Detail View & Visualizations (`SessionDetailModal.tsx`)
+- **"Fájl csatolása" Action:** Enables retroactively attaching a FIT, GPX, or TCX workout file to an existing manual session with seamless data merging.
+- **Pure Vector Route Outline (Zero External Map Tiles):**
+  - Adheres strictly to the app's zero-trust Content Security Policy by projecting GPS trackpoints into a local bounding box SVG path with start (green) and finish (red) dots.
+  - Completely eliminates Google Maps, Mapbox, or OpenStreetMap external tile downloads.
+- **Pure SVG Metric Charts:**
+  - Responsive SVG area and line charts for Heart Rate (bpm), Power (W), and Elevation profile (m) with min/max gridlines and interactive hover tooltips.
+
+### E. Cloud Storage & Security Architecture (`storage.rules`)
+- **Storage Path Convention:** Original files are uploaded to `athletes/{athleteId}/workouts/{sessionId}/{filename}` with metadata (`fileRef`, `fileType`, `fileSizeBytes`, `importedAt`).
+- **Security Rules & Access Control:**
+  - Upload / Write: restricted to authenticated athlete owner, file size $\le 25\text{ MB}$, and valid content types (`application/octet-stream`, `application/gpx+xml`, `application/vnd.garmin.tcx+xml`, etc.).
+  - Read: permitted for the athlete owner and coaches/specialists with active relationship and `training` module permission (`permissions.training != 'none'`).
+- **Unit & Security Tests:**
+  - `src/shared/lib/devices/workoutFileService.test.ts`: 15 comprehensive unit tests for downsampling, sport catalog mapping, duplicate detection, session merging, and parser validation.
+  - `src/shared/lib/sharing/rules.test.ts`: Tests 56–60 covering Cloud Storage rules for athlete writes, 25MB rejection, coach read authorization, and psychologist/stranger rejection.
+  - Full project test suite: **240 / 240 tests passing** across 21 test suites with 0 lint errors and 0 TypeScript errors.
+
+---
+
+## 21. Session Share Subsystem (Stickers, Photo Stories & Overlay Architecture) (COMPLETED)
+
+### A. Pure, Framework-Free Overlay Architecture (`src/shared/lib/share/overlay/`)
+- **Render Engine (`renderer.ts`):** `drawOverlay(ctx, layout, data, options)` operates purely on standard HTML5 or `OffscreenCanvas` 2D rendering contexts without framework dependencies.
+- **Frame-by-Frame Data Contract (`types.ts`):** `data` is a normalized, plain object of formatted values (`OverlayData`), architected specifically to be reused without modification for future video overlay generation frame-by-frame.
+- **Single Source of Truth for Branding (`branding.ts`):**
+  - Configures the default "APEX" wordmark with letter-spacing, placement, and subtitle rules.
+  - Encapsulates future custom logo image integration (`logoUrl`, `logoWidth`, `logoHeight`, `placement`) in a single configuration file without altering rendering logic.
+- **Theme Tokens & Safe Zones (`theme.ts`):**
+  - Presets for 9:16 (1080x1920 story), 4:5 (1080x1350 feed), and 1:1 (1080x1080 square).
+  - Strict safe-zone constraints (top 250px and bottom 340px for 9:16 stories to avoid Instagram/TikTok UI overlaps).
+  - Magnetic snapping to center guidelines and safe-zone boundaries (`snapToSafeZones`) with subtle dashed visual guides displayed during drag gestures.
+
+### B. Four Curated Layouts
+1. **Kompakt (`compact.ts`):** Sport chip, title, date, and 2–3 big hero metrics (e.g. Distance + Time + Pace/HR) with secondary metric badges.
+2. **Statisztika (`stats.ts`):** Structured 2-column grid of all chosen biometric metrics with tabular numerals and clean label hierarchy.
+3. **Útvonal (`route.ts`):** Route polyline rendered as the hero widget in the center, flanked by sport title above and key stats below (enabled when GPS trackpoints exist).
+4. **Minimál (`minimal.ts`):** One massive hero metric (110px font) with an understated caption line (Sport · Date · Secondary stat).
+
+### C. Background Modes & Interaction
+- **Transparent Sticker Mode:**
+  - 1080x1920 transparent PNG with centered overlay.
+  - "Szűkre vágott" (Tight crop) toggle: crops the canvas precisely to the bounding box plus padding for seamless use as an Instagram Story sticker.
+  - Card background variants: Nincs (Átlátszó), Sötét kártya (`rgba(14, 16, 22, 0.82)`), Világos kártya (`rgba(255, 255, 255, 0.92)`).
+- **Photo Story Mode:**
+  - Gallery upload and mobile camera capture (`<input type="file" accept="image/*" capture="environment">`).
+  - Safe in-memory downscaling (capped at 2560px) to prevent mobile browser memory exhaustion.
+  - Pan and pinch/scroll-zoom of the photo beneath the overlay.
+  - Touch/pointer drag repositioning of the overlay with magnetic safe-zone snapping.
+  - Soft gradient scrim slider ("Sötétítés", 0–80%) and text drop shadow for maximum legibility on high-contrast photos.
+  - Automatic luminance detection (`calculateAreaLuminance`) sampling underlying photo pixels to pick light or dark text.
+  - Re-encoding strips all EXIF and GPS metadata from the photo with a reassuring localized notice (*"A fotó helyadatai nem kerülnek át"*).
+
+### D. Route Privacy & Zero Map Tiles
+- **Privacy Trimming (`trimRoutePrivacy`):** Automatically hides the first and last 200 meters of the route (using Haversine calculations) to safeguard home/residence privacy.
+- **Zero External Map Tiles:** Vector projected SVG/Canvas polyline rendered entirely client-side without map tiles or external tile servers.
+
+### E. Export Pipeline & Buttons (`imageExporter.ts`, `SessionShareModal.tsx`)
+- **Single-Tap Sharing:**
+  - "Megosztás" button triggers the native Web Share API (`navigator.share({ files: [file] })`) on mobile/supported platforms.
+  - Fallback triggers instant client-side download with non-intrusive notification toast.
+- **Unit & Smoke Tests:**
+  - `src/shared/lib/share/share.test.ts`: 18 comprehensive unit tests verifying duration, distance, and pace formatting by sport, Haversine route trimming, safe-zone snapping, sport archetypes, luminance calculations, canvas rendering, and PNG/JPEG blob generation.
+  - `e2e/smoke.spec.ts`: Flow 6 verifying share modal opening, canvas rendering, and non-empty image blob generation.
+---
+
+## 22. Video Telemetry HUD & Synchronization Subsystem (COMPLETED)
+
+### A. Pure Video HUD Rendering Architecture (`src/shared/lib/share/overlay/widgets/videoHud.ts`)
+- **HUD Layout Presets:**
+  1. **Alsó sáv (Lower Third):** Horizontally spanning rounded glass banner (`rgba(10, 13, 20, 0.82)`) anchored above the bottom safe zone with primary metric (52px tabular font), heart rate chip with glowing zone indicator, distance, elapsed time, and grade.
+  2. **Sarok (Corner Cluster):** Compact HUD cluster anchored in the corner safe zone (380px wide), leaving the center 100% open for the athlete.
+  3. **Minimál (Minimal Hero Stat):** Giant 96px tabular telemetry number (speed/pace or heart rate) with uppercase unit and high-contrast drop shadow, pro cinematic aesthetic.
+  4. **Verseny (Race / Action Cam Dashboard):** Dashboard featuring an active speedometer arc gauge, heart rate zone progression bar, telemetry grid, and mini GPS route map with animated pulsating current position dot.
+- **Intro & Outro Cards:**
+  - **Felvezető címkártya (Intro Card, 1.5s):** Dark frosted glass card showing sport icon, session title, date, athlete name, and APEX branding with smooth 0.3s fade-in/fade-out.
+  - **Záró összegző kártya (Outro Summary Card, 2.0s):** Summary card in the final 2 seconds showcasing total distance, time, and key biometric averages.
+- **Tabular Figures & Zero Jitter:**
+  - Semicolon-free tabular formatting (`toFixed(1)`, zero-padded `MM:SS`, integer `bpm`) ensures constant string width across frame updates without visual text jumping.
+
+### B. Time Series Interpolation & Live Data Engine (`src/shared/lib/share/video/liveDataEngine.ts`)
+- **Binary Search & Continuous Interpolation:** Fast $O(\log N)$ lookup finding bounding points $p_0, p_1$ for any timestamp $t$; linear interpolation for distance, elevation, heart rate, power, and GPS lat/lon.
+- **Moving Average Smoothing:** 3-point moving average filter on speed/pace eliminates GPS multipath noise and sudden spikes.
+- **Heart Rate 5-Zone Model:**
+  - Zone 1 (< 60% maxHr): `#60A5FA` (Regeneráció)
+  - Zone 2 (60-70% maxHr): `#34D399` (Állóképesség)
+  - Zone 3 (70-80% maxHr): `#FACC15` (Tempó)
+  - Zone 4 (80-90% maxHr): `#FB923C` (Küszöb)
+  - Zone 5 (90%+ maxHr): `#EF4444` (Maximális)
+- **Moving Route & Elevation Marker:**
+  - Computes exact route index and fractional completion ($0.0 \dots 1.0$), drawing a glowing emerald green dot along the vector route.
+
+### C. In-Browser ISO BMFF Metadata Parser (`src/shared/lib/share/video/mp4MetaParser.ts`)
+- **Zero-Dependency Atom Reader:**
+  - Reads `moov`, `mvhd`, and `tkhd` boxes directly from file slices (head/tail 2MB), avoiding loading 500MB videos into memory.
+  - QuickTime epoch conversion (`2082844800` seconds offset from 1904-01-01) extracts real creation timestamp.
+  - Reads 3x3 transformation matrix in `tkhd` to detect video rotation (0°, 90°, 180°, 270°) for iPhone portrait videos.
+
+### D. Native Browser Export Pipeline (`src/shared/lib/share/video/videoExporter.ts`)
+- **Canvas CaptureStream + MediaRecorder:**
+  - Combines 30 FPS canvas rendering with captured HTMLVideoElement audio track via Web Audio API (`AudioContext.createMediaElementSource`).
+  - Output formats: `video/mp4` (H.264 + AAC) with fallback to `video/webm` (VP9/VP8).
+  - Bitrate: 8 Mbps for 1080p, 4 Mbps for 720p.
+  - Enforces even pixel dimensions required by H.264 codecs.
+- **Screen Wake Lock API:**
+  - `navigator.wakeLock.request('screen')` keeps the mobile display active during export, releasing on completion or abort.
+- **Progress & Cancel:**
+  - Emits real-time percentage progress, elapsed seconds, and estimated time remaining (ETA).
+  - Clean `AbortController` support allowing instantaneous cancellation.
+
+### E. 4-Step Wizard UI (`VideoShareWizard.tsx` & `SessionShareModal.tsx`)
+- **Availability Guard:**
+  - If session lacks time series, displays an informative card with "Fájl csatolása (FIT, GPX, TCX)" action which parses files client-side and immediately unlocks video sync.
+- **Step 1: Videó kiválasztása:**
+  - File picker (gallery / camera), 500MB size limit check, codec support detection (HEVC/HDR diagnostic tip), zero-upload privacy guarantee notice.
+- **Step 2: Szinkron:**
+  - Automatic suggestion banner from MP4 QuickTime creation date vs session start time.
+  - Interactive dual scrubbers: video scrubber on top, workout profile timeline below.
+  - "Ez a pillanat" sync matcher locking the current video frame to the workout time offset.
+  - Micro-adjust buttons (`-1s`, `-0.1s`, `+0.1s`, `+1s`) with live updating telemetry card.
+  - Overlap check warning if video falls outside workout range.
+  - Clip trimming (default 60s max, hard limit 120s with mobile performance explanation).
+- **Step 3: Adatok és stílus:**
+  - 4 visual layout preset cards ("Alsó sáv", "Sarok", "Minimál", "Verseny").
+  - Pill toggles for speed/pace, heart rate (OFF by default for privacy), distance, elapsed time, elevation/grade, power, cadence, and moving GPS dot.
+  - Framing: Original aspect ratio vs 9:16 (Stories/Reels/TikTok).
+  - Instagram/TikTok safe zone guide overlay toggle.
+  - Intro card and Outro summary card toggles.
+  - Background dimming scrim slider (0% to 70%) and APEX wordmark toggle.
+- **Step 4: Előnézet és export:**
+  - Real-time continuous canvas preview player with play/pause/replay and mute controls.
+  - 1080p / 720p resolution selection.
+  - Animated progress bar with ETA and "Mégse" cancel button.
+  - Finished export player with Web Share API and direct download buttons.
+
+### F. Verification & Quality
+- **Unit Tests:** `src/shared/lib/share/video/video.test.ts` (17 tests covering tabular duration/pace, 5 HR zones, sample point and midpoint interpolation, clamp boundaries, ISO BMFF QuickTime creation date parser, export dimensions, and overlay HUD layouts).
+- **Full Test Suite:** **275 / 275 tests passing** across 23 test files.
+- **Build & Quality Gates:** `npm run typecheck`, `npm run lint`, and `npm run build` pass with 0 errors and 0 warnings.

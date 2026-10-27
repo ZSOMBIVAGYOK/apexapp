@@ -27,13 +27,14 @@ import {
   Input,
   NumberInput,
   Slider,
-  Stepper,
   SegmentedControl,
   Toggle,
   Chip,
   Badge,
+  WeekdayPicker,
   showToast
 } from "@shared/ui";
+import { SportSelector } from "@features/sports/components/SportSelector";
 import {
   ShieldCheck,
   ChevronRight,
@@ -49,19 +50,6 @@ import {
   Sparkles,
   CheckCircle2
 } from "lucide-react";
-
-const SUGGESTED_SPORTS = [
-  "Triatlon",
-  "Úszás",
-  "Kajak-Kenu",
-  "Atlétika",
-  "Országúti Kerékpár",
-  "Erőemelés / Crossfit",
-  "Labdarúgás",
-  "Kézilabda",
-  "Vízilabda",
-  "Evezés"
-];
 
 const DIETARY_TAGS = [
   "Mindenevő",
@@ -98,6 +86,13 @@ export const OnboardingPage: React.FC = () => {
 
   const [hasLoadedDraft, setHasLoadedDraft] = useState(false);
   const [isFinishing, setIsFinishing] = useState(false);
+
+  // If already onboarded, redirect to /profile
+  useEffect(() => {
+    if (user?.onboardingCompleted) {
+      navigate("/profile", { replace: true });
+    }
+  }, [user?.onboardingCompleted, navigate]);
 
   // Resume draft from localStorage if present
   useEffect(() => {
@@ -180,15 +175,6 @@ export const OnboardingPage: React.FC = () => {
       ? data.specialties.filter((x) => x !== disc)
       : [...data.specialties, disc];
     dispatch({ type: "UPDATE_DATA", data: { specialties } });
-  };
-
-  const toggleSport = (sport: string) => {
-    const mainSports = data.mainSports.includes(sport)
-      ? data.mainSports.length > 1
-        ? data.mainSports.filter((s) => s !== sport)
-        : data.mainSports
-      : [...data.mainSports, sport];
-    dispatch({ type: "UPDATE_DATA", data: { mainSports } });
   };
 
   const toggleSupportMode = (mode: SupportMode) => {
@@ -394,22 +380,29 @@ export const OnboardingPage: React.FC = () => {
               </p>
             </div>
 
-            {/* Main sports chips */}
-            <div className="space-y-2">
-              <span className="block text-12 font-medium uppercase tracking-wider text-text-secondary">
-                {t("onboarding.step2.mainSport")}
-              </span>
-              <div className="flex flex-wrap gap-2">
-                {SUGGESTED_SPORTS.map((sport) => (
-                  <Chip
-                    key={sport}
-                    label={sport}
-                    selected={data.mainSports.includes(sport)}
-                    onClick={() => toggleSport(sport)}
-                  />
-                ))}
-              </div>
-            </div>
+            {/* Sport selection with shared catalog */}
+            <SportSelector
+              selectedSports={data.sports || data.mainSports}
+              onSportsChange={(sports) =>
+                dispatch({
+                  type: "UPDATE_DATA",
+                  data: {
+                    sports,
+                    mainSports: sports,
+                    mainSport:
+                      data.mainSport && sports.includes(data.mainSport)
+                        ? data.mainSport
+                        : sports[0] || ""
+                  }
+                })
+              }
+              mainSport={data.mainSport || (data.sports && data.sports[0]) || data.mainSports[0]}
+              onMainSportChange={(mainSport) =>
+                dispatch({ type: "UPDATE_DATA", data: { mainSport } })
+              }
+              userId={user?.uid}
+              label={t("onboarding.step2.mainSport")}
+            />
 
             {/* Competition Level */}
             <div className="space-y-2">
@@ -780,28 +773,26 @@ export const OnboardingPage: React.FC = () => {
                 />
               </div>
 
-              {/* Training days per week stepper */}
-              <div className="flex items-center justify-between p-4 rounded-20 border border-border-hairline bg-bg-elevated">
-                <div>
-                  <span className="text-14 font-medium text-text-primary block">
-                    {t("onboarding.step5.trainingDays")}
-                  </span>
-                  <span className="text-12 text-text-secondary">
-                    Tervezett heti edzésszám
-                  </span>
-                </div>
-                <Stepper
-                  currentStep={data.trainingDaysPerWeek || 5}
-                  onStepClick={(val) => dispatch({ type: "UPDATE_DATA", data: { trainingDaysPerWeek: val } })}
-                  steps={[
-                    { id: "1", label: "1" },
-                    { id: "2", label: "2" },
-                    { id: "3", label: "3" },
-                    { id: "4", label: "4" },
-                    { id: "5", label: "5" },
-                    { id: "6", label: "6" },
-                    { id: "7", label: "7" }
-                  ]}
+              {/* Training days per week weekday picker */}
+              <div className="p-4 rounded-20 border border-border-hairline bg-bg-elevated">
+                <WeekdayPicker
+                  value={
+                    data.trainingDays ||
+                    (data.trainingDaysPerWeek
+                      ? [1, 2, 3, 4, 5, 6, 7].slice(0, data.trainingDaysPerWeek)
+                      : [1, 2, 3, 4, 5])
+                  }
+                  onChange={(days) =>
+                    dispatch({
+                      type: "UPDATE_DATA",
+                      data: {
+                        trainingDays: days,
+                        trainingDaysPerWeek: days.length
+                      }
+                    })
+                  }
+                  label={t("onboarding.step5.trainingDays")}
+                  hint="Tervezett heti edzésnapok kiválasztása"
                 />
               </div>
 

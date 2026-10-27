@@ -232,7 +232,7 @@ export const SettingsPage: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <Link to="/onboarding">
+            <Link to="/profile">
               <Button variant="secondary" size="sm">
                 {t("settings.editProfile")}
               </Button>

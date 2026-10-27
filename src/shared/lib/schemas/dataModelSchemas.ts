@@ -183,6 +183,18 @@ export const DailyAggregateDocumentSchema = StandardRecordMetadataSchema.extend(
   notes: z.string().optional()
 });
 
+export const SessionTimeSeriesPointSchema = z.object({
+  timeOffsetSeconds: z.number(),
+  heartRate: z.number().optional(),
+  powerWatts: z.number().optional(),
+  speedMps: z.number().optional(),
+  paceSecondsPerKm: z.number().optional(),
+  elevationMeters: z.number().optional(),
+  distanceMeters: z.number().optional(),
+  lat: z.number().optional(),
+  lon: z.number().optional()
+});
+
 export const CompletedSessionDocumentSchema = StandardRecordMetadataSchema.extend({
   sessionId: z.string().min(1),
   athleteId: z.string().min(1),
@@ -191,6 +203,7 @@ export const CompletedSessionDocumentSchema = StandardRecordMetadataSchema.exten
   title: z.string().min(1),
   startTime: z.string(),
   durationMinutes: z.number().positive(),
+  durationSeconds: z.number().optional(),
   rpe: z.number().min(1).max(10),
   targetIntensityRpe: z.number().min(1).max(10).optional(),
   trainingLoad: z.number().optional(),
@@ -199,6 +212,7 @@ export const CompletedSessionDocumentSchema = StandardRecordMetadataSchema.exten
       avgHeartRate: z.number().optional(),
       maxHeartRate: z.number().optional(),
       avgPower: z.number().optional(),
+      avgPowerWatts: z.number().optional(),
       normalizedPower: z.number().optional(),
       distanceMeters: z.number().optional(),
       elevationGainMeters: z.number().optional(),
@@ -219,6 +233,19 @@ export const CompletedSessionDocumentSchema = StandardRecordMetadataSchema.exten
     .optional(),
   coachFeedback: z.string().optional(),
   notes: z.string().optional(),
+  equipmentIds: z.array(z.string()).optional(),
+  courseId: z.string().optional(),
+  fileRef: z.string().optional(),
+  fileType: z.enum(["fit", "gpx", "tcx", "csv"]).optional(),
+  fileName: z.string().optional(),
+  fileSizeBytes: z.number().optional(),
+  importedAt: z.string().optional(),
+  timeSeries: z
+    .object({
+      points: z.array(SessionTimeSeriesPointSchema),
+      svgRouteOutline: z.string().optional()
+    })
+    .optional(),
   completed: z.boolean()
 });
 
@@ -312,3 +339,262 @@ export const ConfidentialNoteDocumentSchema = StandardRecordMetadataSchema.exten
   content: z.string().min(1),
   confidentiality: z.enum(["standard", "restricted"])
 });
+
+export const CustomSportDocumentSchema = z.object({
+  id: z.string().min(1),
+  nameHu: z.string().min(1),
+  nameEn: z.string().optional(),
+  category: z.enum([
+    "endurance",
+    "strength",
+    "team",
+    "combat",
+    "racket",
+    "water",
+    "winter",
+    "gymnastics",
+    "other"
+  ]),
+  metricProfile: z.enum([
+    "distance_duration",
+    "duration_only",
+    "sets_reps_load",
+    "rounds_time",
+    "points"
+  ]),
+  icon: z.string().optional(),
+  createdAt: z.string().optional()
+});
+
+export const HydrationLogDocumentSchema = z.object({
+  id: z.string().min(1),
+  athleteId: z.string().min(1),
+  timestamp: z.string(),
+  timeStr: z.string(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  beverageId: z.string().min(1),
+  beverageName: z.string().min(1),
+  volumeMl: z.number().positive(),
+  hydrationFactor: z.number().positive(),
+  effectiveVolumeMl: z.number().positive(),
+  caffeineMg: z.number().nonnegative().optional(),
+  sugarGrams: z.number().nonnegative().optional(),
+  sodiumMg: z.number().nonnegative().optional(),
+  icon: z.string().optional(),
+  color: z.string().optional(),
+  note: z.string().optional()
+});
+
+export const CustomBeverageDocumentSchema = z.object({
+  id: z.string().min(1),
+  nameHu: z.string().min(1),
+  nameEn: z.string().optional(),
+  hydrationFactor: z.number().positive(),
+  caffeineMgPer100ml: z.number().nonnegative().optional(),
+  sugarGramsPer100ml: z.number().nonnegative().optional(),
+  sodiumMgPer100ml: z.number().nonnegative().optional(),
+  icon: z.string().optional(),
+  color: z.string().optional()
+});
+
+export const ExerciseDocumentSchema = z.object({
+  id: z.string().min(1),
+  athleteId: z.string().min(1),
+  name: z.string().min(1),
+  description: z.string().optional(),
+  videoUrl: z
+    .string()
+    .url()
+    .refine((url) => url.startsWith("https://"), {
+      message: "A videó linknek biztonságos https:// URL-nek kell lennie."
+    })
+    .optional()
+    .or(z.literal("")),
+  defaultSetsRepsLoad: z.string().optional(),
+  tags: z.array(z.string()).default([]),
+  category: z.string().optional(),
+  isFavorite: z.boolean().default(false),
+  createdBy: z.string().optional(),
+  createdAt: z.string(),
+  updatedAt: z.string()
+});
+
+export const RecoveryCategorySchema = z.enum([
+  "mobility_gymnastics",
+  "cold",
+  "heat",
+  "contrast",
+  "massage_therapy",
+  "sleep_relaxation",
+  "other"
+]);
+
+export const RecoveryActivityTypeSchema = z.object({
+  id: z.string().min(1),
+  athleteId: z.string().optional(),
+  nameHu: z.string().min(1),
+  nameEn: z.string().min(1),
+  category: RecoveryCategorySchema,
+  icon: z.string().min(1),
+  showTemperature: z.boolean().optional(),
+  showRounds: z.boolean().optional(),
+  showBodyArea: z.boolean().optional(),
+  showIntensity: z.boolean().optional(),
+  defaultDurationMinutes: z.number().positive().optional(),
+  isCustom: z.boolean().optional(),
+  isFavorite: z.boolean().optional()
+});
+
+export const RecoveryActivityLogSchema = z.object({
+  id: z.string().min(1),
+  athleteId: z.string().min(1),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  startTime: z.string().min(1),
+  activityTypeId: z.string().min(1),
+  activityName: z.string().min(1),
+  category: RecoveryCategorySchema,
+  durationMinutes: z.number().positive(),
+  temperatureCelsius: z.number().optional(),
+  rounds: z.number().int().positive().optional(),
+  bodyArea: z.string().optional(),
+  intensity: z.enum(["low", "medium", "high"]).optional(),
+  perceivedEffect: z.number().min(1).max(5),
+  notes: z.string().optional(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  updatedBy: z.string().min(1)
+});
+
+export const RecordMetricTypeSchema = z.enum([
+  "time_for_distance",
+  "distance_in_time",
+  "weight_reps_1rm",
+  "max_reps",
+  "max_duration",
+  "points",
+  "custom"
+]);
+
+export const AthleteRecordSchema = z.object({
+  id: z.string().min(1),
+  athleteId: z.string().min(1),
+  sportId: z.string().min(1),
+  sportName: z.string().min(1),
+  discipline: z.string().min(1),
+  recordType: RecordMetricTypeSchema,
+  value: z.number().nonnegative(),
+  displayValue: z.string().min(1),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  courseId: z.string().optional(),
+  courseName: z.string().optional(),
+  venue: z.string().optional(),
+  conditions: z
+    .object({
+      weather: z.string().optional(),
+      surface: z.string().optional()
+    })
+    .optional(),
+  sessionId: z.string().optional(),
+  notes: z.string().optional(),
+  isCurrentBest: z.boolean(),
+  createdAt: z.string(),
+  updatedAt: z.string()
+});
+
+export const TrackPointSchema = z.object({
+  lat: z.number(),
+  lon: z.number(),
+  ele: z.number().optional()
+});
+
+export const ElevationPointSchema = z.object({
+  distanceMeters: z.number().nonnegative(),
+  elevationMeters: z.number()
+});
+
+export const CourseDocumentSchema = z.object({
+  id: z.string().min(1),
+  athleteId: z.string().min(1),
+  name: z.string().min(1),
+  sportId: z.string().min(1),
+  location: z.string().min(1),
+  distanceMeters: z.number().positive(),
+  elevationGainMeters: z.number().nonnegative(),
+  surface: z.string().min(1),
+  notes: z.string().optional(),
+  trackPoints: z.array(TrackPointSchema).optional(),
+  elevationProfile: z.array(ElevationPointSchema).optional(),
+  svgRouteOutline: z.string().optional(),
+  createdAt: z.string(),
+  updatedAt: z.string()
+});
+
+export const MaintenanceModeSchema = z.enum(["distance", "time"]);
+export const MaintenanceStatusSchema = z.enum(["ok", "due_soon", "overdue"]);
+
+export const MaintenanceTaskSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  mode: MaintenanceModeSchema,
+  intervalValue: z.number().positive(),
+  lastResetDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  lastResetUsageKm: z.number().nonnegative(),
+  currentUsageSinceReset: z.number().nonnegative(),
+  remaining: z.number(),
+  remainingPercent: z.number(),
+  status: MaintenanceStatusSchema
+});
+
+export const MaintenanceLogSchema = z.object({
+  id: z.string().min(1),
+  taskId: z.string().min(1),
+  taskName: z.string().min(1),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  costAmount: z.number().nonnegative().optional(),
+  costCurrency: z.string().optional(),
+  notes: z.string().optional(),
+  performedBy: z.string().optional(),
+  createdAt: z.string()
+});
+
+export const EquipmentTypeSchema = z.enum([
+  "shoes",
+  "bike",
+  "chain",
+  "wheelset",
+  "racket",
+  "skis",
+  "oar",
+  "watch",
+  "other"
+]);
+
+export const EquipmentItemSchema = z.object({
+  id: z.string().min(1),
+  athleteId: z.string().min(1),
+  name: z.string().min(1),
+  type: EquipmentTypeSchema,
+  brand: z.string().min(1),
+  model: z.string().optional(),
+  imageUrl: z
+    .string()
+    .url()
+    .refine((url) => url.startsWith("https://"), {
+      message: "A képlinknek https:// URL-nek kell lennie."
+    })
+    .optional()
+    .or(z.literal("")),
+  purchaseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  startingUsageKm: z.number().nonnegative().default(0),
+  startingUsageHours: z.number().nonnegative().default(0),
+  sportIds: z.array(z.string()).default([]),
+  status: z.enum(["active", "retired"]).default("active"),
+  notes: z.string().optional(),
+  totalKm: z.number().nonnegative().default(0),
+  totalHours: z.number().nonnegative().default(0),
+  maintenanceTasks: z.array(MaintenanceTaskSchema).default([]),
+  maintenanceHistory: z.array(MaintenanceLogSchema).default([]),
+  createdAt: z.string(),
+  updatedAt: z.string()
+});
+

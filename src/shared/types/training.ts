@@ -18,6 +18,7 @@ export type TargetMetricType = "rpe" | "hr_zone" | "power" | "pace" | "custom";
 
 export interface StrengthExercise {
   id: string;
+  libraryExerciseId?: string;
   name: string; // E.g. "Guggolás (Back Squat)", "Fekvenyomás", "Trapéz felhúzás"
   sets: number;
   reps: number;
@@ -26,6 +27,23 @@ export interface StrengthExercise {
   rpe?: number; // 1-10
   restSeconds?: number;
   notes?: string;
+  description?: string;
+  videoUrl?: string;
+}
+
+export interface ExerciseDocument {
+  id: string;
+  athleteId: string;
+  name: string;
+  description?: string;
+  videoUrl?: string;
+  defaultSetsRepsLoad?: string;
+  tags: string[]; // e.g. ["comb", "mell", "rúd", "kézisúlyzó", "saját testsúly"]
+  category?: string;
+  isFavorite: boolean;
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type WorkoutBlockType =

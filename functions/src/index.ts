@@ -1,10 +1,20 @@
 import { onRequest, onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
+import * as crypto from "crypto";
+import {
+  ALL_DEVICE_SECRETS,
+  getAdapter,
+  getAllDeviceStatuses,
+  ingestNormalizedData,
+  DeviceProvider,
+  ServerStoredToken
+} from "./integrations";
 
 if (!admin.apps.length) {
   admin.initializeApp();
 }
+
 
 // In-memory rate limiting cache for Cloud Functions
 const rateLimitCache = new Map<string, { count: number; resetAt: number }>();
@@ -1133,31 +1143,360 @@ export const ingestHealthData = onRequest({ cors: true }, async (req, res) => {
 });
 
 /**
+ * ============================================================================
+ * DEVICE INTEGRATIONS (WHOOP, GARMIN, POLAR, OURA)
+ * Server-Side Ingestion Pipeline, OAuth Handlers, Webhooks, & Public Callables
+ * ============================================================================
+ */
+
+export const GetDeviceOAuthUrlSchema = z.object({
+  provider: z.enum(["whoop", "garmin", "polar", "oura"]),
+  redirectUri: z.string().url()
+});
+
+export const ExchangeDeviceOAuthCodeSchema = z.object({
+  provider: z.enum(["whoop", "garmin", "polar", "oura"]),
+  code: z.string().min(1),
+  state: z.string().min(1),
+  redirectUri: z.string().url()
+});
+
+export const SyncDeviceNowSchema = z.object({
+  provider: z.enum(["whoop", "garmin", "polar", "oura"]),
+  days: z.number().int().min(1).max(90).optional()
+});
+
+export const DisconnectDeviceSchema = z.object({
+  provider: z.enum(["whoop", "garmin", "polar", "oura"])
+});
+
+export const DeleteDeviceDataSchema = z.object({
+  provider: z.enum(["whoop", "garmin", "polar", "oura"])
+});
+
+export const GetDeviceIntegrationStatusesSchema = z.object({
+  allowMock: z.boolean().optional()
+});
+
+/**
+ * getDeviceOAuthUrl: Generates secure OAuth 2.0 authorization URL
+ */
+export const getDeviceOAuthUrl = onCall(async (request) => {
+  assertAppCheck(request);
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Authentication required to connect devices.");
+  }
+  assertRateLimit(`oauth_url_${request.auth.uid}`, 20, 60);
+
+  const parsed = GetDeviceOAuthUrlSchema.safeParse(request.data);
+  if (!parsed.success) {
+    throw new HttpsError("invalid-argument", "Invalid OAuth parameters.", parsed.error.format());
+  }
+
+  const { provider, redirectUri } = parsed.data;
+  const db = admin.firestore();
+  const adapter = getAdapter(provider as DeviceProvider, db, true);
+  if (!adapter) {
+    throw new HttpsError("not-found", `Unsupported device provider: ${provider}`);
+  }
+
+  const state = crypto.randomBytes(24).toString("hex");
+  await db.collection("integrations_states").doc(state).set({
+    athleteId: request.auth.uid,
+    provider,
+    redirectUri,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    expiresAt: Date.now() + 15 * 60 * 1000 // 15 minutes TTL
+  });
+
+  const authUrl = adapter.getAuthUrl(request.auth.uid, redirectUri, state);
+  return { authUrl, state };
+});
+
+/**
+ * exchangeDeviceOAuthCode: Exchanges OAuth authorization code for tokens,
+ * stores tokens strictly server-side, and initiates 30-day historical backfill.
+ */
+export const exchangeDeviceOAuthCode = onCall(async (request) => {
+  assertAppCheck(request);
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Authentication required to exchange tokens.");
+  }
+  assertRateLimit(`oauth_exchange_${request.auth.uid}`, 10, 60);
+
+  const parsed = ExchangeDeviceOAuthCodeSchema.safeParse(request.data);
+  if (!parsed.success) {
+    throw new HttpsError("invalid-argument", "Invalid OAuth exchange parameters.", parsed.error.format());
+  }
+
+  const { provider, code, state, redirectUri } = parsed.data;
+  const db = admin.firestore();
+
+  // Validate state
+  const stateRef = db.collection("integrations_states").doc(state);
+  const stateSnap = await stateRef.get();
+  if (!stateSnap.exists) {
+    throw new HttpsError("invalid-argument", "Invalid, expired, or already used OAuth state.");
+  }
+  const stateData = stateSnap.data()!;
+  if (stateData.athleteId !== request.auth.uid || stateData.provider !== provider) {
+    throw new HttpsError("permission-denied", "OAuth state does not match athlete or provider.");
+  }
+  if (stateData.expiresAt && stateData.expiresAt < Date.now()) {
+    await stateRef.delete();
+    throw new HttpsError("deadline-exceeded", "OAuth session expired. Please connect again.");
+  }
+  await stateRef.delete(); // Single use
+
+  const adapter = getAdapter(provider as DeviceProvider, db, true);
+  if (!adapter) {
+    throw new HttpsError("not-found", `Unsupported device provider: ${provider}`);
+  }
+
+  const token = await adapter.handleCallback(request.auth.uid, code, redirectUri);
+
+  // Initial 30-day historical backfill
+  let backfillStats = { activitiesCreated: 0, activitiesMerged: 0, sleepSaved: 0, dailySaved: 0 };
+  try {
+    const historical = await adapter.backfill(request.auth.uid, token, 30);
+    backfillStats = await ingestNormalizedData(db, request.auth.uid, historical);
+  } catch (err: any) {
+    logger.warn(`Initial backfill for ${provider} completed with warnings:`, err);
+  }
+
+  return {
+    success: true,
+    provider,
+    backfill: backfillStats
+  };
+});
+
+/**
+ * syncDeviceNow: Triggers an on-demand sync for a connected provider
+ */
+export const syncDeviceNow = onCall(async (request) => {
+  assertAppCheck(request);
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Authentication required to sync device.");
+  }
+  assertRateLimit(`device_sync_${request.auth.uid}`, 15, 60);
+
+  const parsed = SyncDeviceNowSchema.safeParse(request.data);
+  if (!parsed.success) {
+    throw new HttpsError("invalid-argument", "Invalid sync parameters.", parsed.error.format());
+  }
+
+  const { provider, days = 30 } = parsed.data;
+  const db = admin.firestore();
+
+  const tokenDoc = await db
+    .collection("integrations_tokens")
+    .doc(`${request.auth.uid}_${provider}`)
+    .get();
+
+  if (!tokenDoc.exists) {
+    throw new HttpsError(
+      "not-found",
+      `No active server connection found for ${provider}. Please connect the device first.`
+    );
+  }
+
+  const token = tokenDoc.data() as ServerStoredToken;
+  const adapter = getAdapter(provider as DeviceProvider, db, true);
+  if (!adapter) {
+    throw new HttpsError("not-found", `Unsupported device provider: ${provider}`);
+  }
+
+  const historical = await adapter.backfill(request.auth.uid, token, days);
+  const ingestion = await ingestNormalizedData(db, request.auth.uid, historical);
+
+  await db
+    .collection("athletes")
+    .doc(request.auth.uid)
+    .collection("devices")
+    .doc(provider)
+    .set(
+      {
+        connected: true,
+        status: "connected",
+        lastSyncAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      { merge: true }
+    );
+
+  return {
+    success: true,
+    provider,
+    ...ingestion
+  };
+});
+
+/**
+ * disconnectDevice: Disconnects device integration and deletes stored credentials
+ */
+export const disconnectDevice = onCall(async (request) => {
+  assertAppCheck(request);
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Authentication required to disconnect device.");
+  }
+
+  const parsed = DisconnectDeviceSchema.safeParse(request.data);
+  if (!parsed.success) {
+    throw new HttpsError("invalid-argument", "Invalid disconnect parameters.", parsed.error.format());
+  }
+
+  const { provider } = parsed.data;
+  const db = admin.firestore();
+  const adapter = getAdapter(provider as DeviceProvider, db, true);
+
+  if (adapter) {
+    await adapter.disconnect(request.auth.uid);
+  } else {
+    await db.collection("integrations_tokens").doc(`${request.auth.uid}_${provider}`).delete();
+    await db
+      .collection("athletes")
+      .doc(request.auth.uid)
+      .collection("devices")
+      .doc(provider)
+      .set(
+        {
+          connected: false,
+          status: "disconnected",
+          updatedAt: new Date().toISOString()
+        },
+        { merge: true }
+      );
+  }
+
+  return { success: true, provider };
+});
+
+/**
+ * deleteDeviceData: Deletes all imported sessions and clears sync timestamps for a provider
+ */
+export const deleteDeviceData = onCall(async (request) => {
+  assertAppCheck(request);
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Authentication required to delete data.");
+  }
+
+  const parsed = DeleteDeviceDataSchema.safeParse(request.data);
+  if (!parsed.success) {
+    throw new HttpsError("invalid-argument", "Invalid delete device data parameters.", parsed.error.format());
+  }
+
+  const { provider } = parsed.data;
+  const db = admin.firestore();
+  const athleteId = request.auth.uid;
+
+  const sessionsSnap = await db
+    .collection(`athletes/${athleteId}/sessions`)
+    .where("provider", "==", provider)
+    .get();
+
+  const sourceSnap = await db
+    .collection(`athletes/${athleteId}/sessions`)
+    .where("source", "==", provider)
+    .get();
+
+  const batch = db.batch();
+  let deletedSessionsCount = 0;
+  const seenIds = new Set<string>();
+
+  sessionsSnap.forEach((doc) => {
+    if (!seenIds.has(doc.id)) {
+      seenIds.add(doc.id);
+      batch.delete(doc.ref);
+      deletedSessionsCount++;
+    }
+  });
+
+  sourceSnap.forEach((doc) => {
+    if (!seenIds.has(doc.id)) {
+      seenIds.add(doc.id);
+      batch.delete(doc.ref);
+      deletedSessionsCount++;
+    }
+  });
+
+  if (deletedSessionsCount > 0) {
+    await batch.commit();
+  }
+
+  await db
+    .collection("athletes")
+    .doc(athleteId)
+    .collection("devices")
+    .doc(provider)
+    .set(
+      {
+        lastSyncAt: null,
+        updatedAt: new Date().toISOString()
+      },
+      { merge: true }
+    );
+
+  return {
+    success: true,
+    provider,
+    deletedSessionsCount
+  };
+});
+
+/**
+ * getDeviceIntegrationStatuses: Queries all provider connection and configuration states
+ */
+export const getDeviceIntegrationStatuses = onCall(async (request) => {
+  assertAppCheck(request);
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Authentication required to query device statuses.");
+  }
+
+  const parsed = GetDeviceIntegrationStatusesSchema.safeParse(request.data || {});
+  const allowMock = parsed.success ? parsed.data.allowMock ?? false : false;
+
+  const db = admin.firestore();
+  const devices = await getAllDeviceStatuses(request.auth.uid, db, allowMock);
+  return { devices };
+});
+
+/**
  * Garmin Connect Webhook Endpoint
  * Route: /garminWebhook
  */
-export const garminWebhook = onRequest({ cors: true }, async (req, res) => {
+export const garminWebhook = onRequest({ cors: true, secrets: ALL_DEVICE_SECRETS }, async (req, res) => {
   try {
-    const signature = req.headers["x-garmin-signature"];
-    if (!signature && process.env.NODE_ENV === "production") {
-      logger.warn("Received Garmin webhook without signature header.");
-    }
-
-    // Garmin verification ping
     if (req.method === "GET") {
       res.status(200).send("Garmin webhook verification OK");
       return;
     }
 
-    const payload = req.body;
-    logger.info("Garmin Webhook Received:", {
-      hasActivities: Array.isArray(payload?.activities),
-      hasDailies: Array.isArray(payload?.dailies),
-      hasSleeps: Array.isArray(payload?.sleeps)
-    });
+    const db = admin.firestore();
+    const adapter = getAdapter("garmin", db, false);
+    if (!adapter) {
+      res.status(500).json({ error: "Garmin adapter not configured" });
+      return;
+    }
 
-    // Garmin expects immediate 200 response to avoid retry backoff
-    res.status(200).json({ status: "received" });
+    const rawBody = (req as any).rawBody
+      ? (req as any).rawBody.toString("utf8")
+      : typeof req.body === "string"
+        ? req.body
+        : JSON.stringify(req.body || {});
+
+    const result = await adapter.handleWebhook(
+      rawBody,
+      req.headers as Record<string, string | undefined>
+    );
+
+    if (!result.processed && result.error) {
+      logger.warn("Garmin webhook verification failed:", result.error);
+      res.status(401).json({ error: result.error });
+      return;
+    }
+
+    res.status(200).json({ status: "received", ...result });
   } catch (err: any) {
     logger.error("Error processing Garmin webhook:", err);
     res.status(500).json({ error: "Webhook processing error" });
@@ -1168,21 +1507,33 @@ export const garminWebhook = onRequest({ cors: true }, async (req, res) => {
  * WHOOP Developer API Webhook Endpoint
  * Route: /whoopWebhook
  */
-export const whoopWebhook = onRequest({ cors: true }, async (req, res) => {
+export const whoopWebhook = onRequest({ cors: true, secrets: ALL_DEVICE_SECRETS }, async (req, res) => {
   try {
-    const signature = req.headers["x-whoop-signature"];
-    if (!signature && process.env.NODE_ENV === "production") {
-      logger.warn("Received WHOOP webhook without signature header.");
+    const db = admin.firestore();
+    const adapter = getAdapter("whoop", db, false);
+    if (!adapter) {
+      res.status(500).json({ error: "WHOOP adapter not configured" });
+      return;
     }
 
-    const payload = req.body;
-    logger.info("WHOOP Webhook Received:", {
-      eventType: payload?.event_type,
-      userId: payload?.user_id,
-      traceId: payload?.trace_id
-    });
+    const rawBody = (req as any).rawBody
+      ? (req as any).rawBody.toString("utf8")
+      : typeof req.body === "string"
+        ? req.body
+        : JSON.stringify(req.body || {});
 
-    res.status(200).json({ status: "received" });
+    const result = await adapter.handleWebhook(
+      rawBody,
+      req.headers as Record<string, string | undefined>
+    );
+
+    if (!result.processed && result.error) {
+      logger.warn("WHOOP webhook verification failed:", result.error);
+      res.status(401).json({ error: result.error });
+      return;
+    }
+
+    res.status(200).json({ status: "received", ...result });
   } catch (err: any) {
     logger.error("Error processing WHOOP webhook:", err);
     res.status(500).json({ error: "Webhook processing error" });
@@ -1193,16 +1544,27 @@ export const whoopWebhook = onRequest({ cors: true }, async (req, res) => {
  * Polar AccessLink Webhook Endpoint
  * Route: /polarWebhook
  */
-export const polarWebhook = onRequest({ cors: true }, async (req, res) => {
+export const polarWebhook = onRequest({ cors: true, secrets: ALL_DEVICE_SECRETS }, async (req, res) => {
   try {
-    const payload = req.body;
-    logger.info("Polar Webhook Received:", {
-      event: payload?.event,
-      userId: payload?.["user-id"],
-      url: payload?.url
-    });
+    const db = admin.firestore();
+    const adapter = getAdapter("polar", db, false);
+    if (!adapter) {
+      res.status(500).json({ error: "Polar adapter not configured" });
+      return;
+    }
 
-    res.status(200).json({ status: "received" });
+    const rawBody = (req as any).rawBody
+      ? (req as any).rawBody.toString("utf8")
+      : typeof req.body === "string"
+        ? req.body
+        : JSON.stringify(req.body || {});
+
+    const result = await adapter.handleWebhook(
+      rawBody,
+      req.headers as Record<string, string | undefined>
+    );
+
+    res.status(200).json({ status: "received", ...result });
   } catch (err: any) {
     logger.error("Error processing Polar webhook:", err);
     res.status(500).json({ error: "Webhook processing error" });
@@ -1210,9 +1572,65 @@ export const polarWebhook = onRequest({ cors: true }, async (req, res) => {
 });
 
 /**
+ * Oura Ring Webhook Endpoint
+ * Route: /ouraWebhook
+ */
+export const ouraWebhook = onRequest({ cors: true, secrets: ALL_DEVICE_SECRETS }, async (req, res) => {
+  try {
+    const db = admin.firestore();
+    const adapter = getAdapter("oura", db, false);
+    if (!adapter) {
+      res.status(500).json({ error: "Oura adapter not configured" });
+      return;
+    }
+
+    const rawBody = (req as any).rawBody
+      ? (req as any).rawBody.toString("utf8")
+      : typeof req.body === "string"
+        ? req.body
+        : JSON.stringify(req.body || {});
+
+    const result = await adapter.handleWebhook(
+      rawBody,
+      req.headers as Record<string, string | undefined>
+    );
+
+    if (!result.processed && result.error) {
+      logger.warn("Oura webhook verification failed:", result.error);
+      res.status(401).json({ error: result.error });
+      return;
+    }
+
+    res.status(200).json({ status: "received", ...result });
+  } catch (err: any) {
+    logger.error("Error processing Oura webhook:", err);
+    res.status(500).json({ error: "Webhook processing error" });
+  }
+});
+
+/**
+ * Universal OAuth Redirect Callback for Cloud Function endpoints
+ * Route: /deviceAuthCallback
+ */
+export const deviceAuthCallback = onRequest({ cors: true }, async (req, res) => {
+  const code = (req.query.code as string) || "";
+  const state = (req.query.state as string) || "";
+  const provider = (req.query.provider as string) || "whoop";
+
+  const frontendHost = process.env.CLIENT_ORIGIN || "http://localhost:5173";
+  const redirectUrl = new URL(`${frontendHost}/devices`);
+  if (code) redirectUrl.searchParams.set("code", code);
+  if (state) redirectUrl.searchParams.set("state", state);
+  if (provider) redirectUrl.searchParams.set("provider", provider);
+
+  res.redirect(redirectUrl.toString());
+});
+
+/**
  * parseImportedFile: Server-side file import handler
  * Deduplicates and creates sessions in Firestore with source 'file'
  */
+
 export const parseImportedFile = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Authentication required to import files.");

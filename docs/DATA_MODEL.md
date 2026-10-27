@@ -20,7 +20,13 @@ firestore-root/
 │   ├── injuries/{injuryId}                        # [HEALTH] Diagnoses, anatomical sites, rehab plans
 │   ├── measurements/{measurementId}              # [HEALTH] Body composition, VO2 max, lactate tests
 │   ├── notes/{noteId}                             # [HEALTH] Confidential specialist & medical notes
-│   └── devices/{deviceId}                         # Connected wearable hardware & sensor metadata
+│   ├── devices/{deviceId}                         # Connected wearable hardware & sensor metadata
+│   ├── exercises/{exerciseId}                     # [TRAINING] Exercise library definitions
+│   ├── records/{recordId}                         # [TRAINING] Personal records & benchmark milestones
+│   ├── courses/{courseId}                         # [TRAINING] Course routes & elevation profiles (GPX/TCX)
+│   ├── equipment/{itemId}                         # [TRAINING] Equipment & maintenance countdown tracker
+│   ├── recoveryActivities/{logId}                 # [RECOVERY] Logged recovery protocols & sessions
+│   └── customRecoveryActivities/{typeId}          # [RECOVERY] Athlete-defined custom recovery modalities
 │
 ├── relationships/{athleteId}_{memberId}           # Explicit sharing grants & per-module permissions
 │   └── log/{logId}                                # Immutable, timestamped audit log of permission changes
@@ -129,12 +135,25 @@ Completed training sessions:
 - `title`: String
 - `startTime`: ISO 8601
 - `durationMinutes`: Number
+- `durationSeconds`: Number (optional high-precision duration)
 - `rpe`: Number (1-10)
 - `targetIntensityRpe`: Number (1-10)
-- `trainingLoad`: Number (Calculated sRPE / TRIMP load)
-- `metrics`: `{ avgHeartRate, maxHeartRate, avgPower, normalizedPower, distanceMeters, elevationGainMeters, avgPace, calories }`
+- `trainingLoad`: Number (Calculated sRPE / TRIMP / hrLoad)
+- `metrics`: `{ avgHeartRate, maxHeartRate, avgPower, avgPowerWatts, normalizedPower, distanceMeters, elevationGainMeters, avgPace, calories }`
 - `intervals`: Array of `{ index, type: 'work' | 'rest', durationSeconds, targetIntensity, actualValue }`
+- `strengthExercises`: Array of `{ exerciseId, name, sets: [{ reps, loadKg, rpe, completed }] }`
+- `equipmentIds`: String[] (References to `equipment/{itemId}`)
+- `courseId`: String (Optional reference to `courses/{courseId}`)
+- `fileRef`: String (Cloud Storage path `athletes/{id}/workouts/{sessionId}/...`)
+- `fileType`: `'fit' | 'gpx' | 'tcx' | 'csv'`
+- `fileName`: String
+- `fileSizeBytes`: Number ($\le 25\text{ MB}$)
+- `importedAt`: ISO 8601
+- `timeSeries`: Downsampled time series ($\le 500$ points):
+  - `points`: Array of `{ timeOffsetSeconds, heartRate?, powerWatts?, speedMps?, paceSecondsPerKm?, elevationMeters?, distanceMeters?, lat?, lon? }`
+  - `svgRouteOutline`: String (Normalized SVG `<path d="..." />` vector path, zero external map tiles)
 - `coachFeedback`: String
+- `notes`: String
 - `completed`: Boolean
 - Standard metadata: `source`, `confidence`, `createdAt`, `updatedAt`, `updatedBy`
 
@@ -192,6 +211,114 @@ Confidential consultations by medical doctors, psychologists, or physiotherapist
 - `content`: String
 - `confidentiality`: `'standard' | 'restricted'`
 - Standard metadata: `source`, `confidence`, `createdAt`, `updatedAt`, `updatedBy`
+
+### J. `athletes/{id}/exercises/{exerciseId}` (TRAINING Module)
+Exercise repository library entries:
+- `exerciseId`: String
+- `athleteId`: String
+- `name`: String
+- `description`: String (optional)
+- `videoUrl`: String (optional, HTTPS validated)
+- `defaultSetsRepsLoad`: String (optional)
+- `tags`: String[] (muscle groups, equipment, sport)
+- `isFavorite`: Boolean
+- Standard metadata: `source`, `confidence`, `createdAt`, `updatedAt`, `updatedBy`
+
+### K. `athletes/{id}/records/{recordId}` (TRAINING Module)
+Personal records and discipline milestones:
+- `recordId`: String
+- `athleteId`: String
+- `sport`: String (from catalog or custom)
+- `discipline`: String (e.g. "5000m", "100m gyors", "1RM Guggolás")
+- `metricType`: `'time_for_distance' | 'distance_for_time' | 'weight_reps_1rm' | 'reps_count' | 'duration' | 'points' | 'custom'`
+- `value`: Number (seconds, meters, kg, reps, points)
+- `displayValue`: String (human formatted representation)
+- `date`: String (`YYYY-MM-DD`)
+- `courseId`: String (optional reference to `courses/{courseId}`)
+- `venue`: String (optional, e.g. "Margitszigeti Atlétikai Centrum")
+- `conditions`: `{ weather?: string, surface?: string }` (optional)
+- `linkedSessionId`: String (optional reference to `sessions/{sessionId}`)
+- `notes`: String (optional)
+- `isCurrentBest`: Boolean
+- Standard metadata: `source`, `confidence`, `createdAt`, `updatedAt`, `updatedBy`
+
+### L. `athletes/{id}/courses/{courseId}` (TRAINING Module)
+Route courses with offline SVG profile (zero external map tiles):
+- `courseId`: String
+- `athleteId`: String
+- `name`: String
+- `sport`: String
+- `location`: String (optional)
+- `distanceKm`: Number
+- `elevationGainMeters`: Number
+- `surface`: `'road' | 'trail' | 'track' | 'gravel' | 'water' | 'indoor' | 'mixed'`
+- `svgPath`: String (normalized 2D SVG route path `M x y L ...`)
+- `elevationProfile`: Array of `{ distanceKm: number, elevationMeters: number }`
+- `notes`: String (optional)
+- Standard metadata: `source`, `confidence`, `createdAt`, `updatedAt`, `updatedBy`
+
+### M. `athletes/{id}/equipment/{itemId}` (TRAINING Module)
+Gear tracking and dynamic maintenance countdowns:
+- `itemId`: String
+- `athleteId`: String
+- `name`: String
+- `type`: `'shoes' | 'bike' | 'chain' | 'wheels' | 'racket' | 'skis' | 'rowing_oar' | 'watch' | 'other' | string`
+- `brand`: String (optional)
+- `model`: String (optional)
+- `imageUrl`: String (optional HTTPS image with fallback)
+- `purchaseDate`: String (`YYYY-MM-DD`)
+- `startingUsage`: `{ km: number, hours: number }`
+- `applicableSports`: String[]
+- `status`: `'active' | 'retired'`
+- `notes`: String (optional)
+- `maintenanceTasks`: Array of:
+  - `taskId`: String
+  - `name`: String
+  - `mode`: `'distance' | 'time'`
+  - `intervalValue`: Number (km or days)
+  - `warningThresholdPct`: Number (e.g. 15%)
+  - `lastPerformedAt`: String (ISO 8601)
+  - `lastPerformedUsage`: Number (accumulated km or day epoch)
+- `maintenanceLog`: Array of:
+  - `logId`: String
+  - `taskId`: String
+  - `taskName`: String
+  - `performedAt`: String (ISO 8601)
+  - `usageAtService`: Number (km or hours)
+  - `cost`: Number (optional)
+  - `notes`: String (optional)
+- Standard metadata: `source`, `confidence`, `createdAt`, `updatedAt`, `updatedBy`
+
+### N. `athletes/{id}/recoveryActivities/{logId}` & `customRecoveryActivities/{typeId}` (RECOVERY Module)
+Recovery protocol logs and custom modality catalog:
+- Log document (`recoveryActivities`):
+  - `logId`: String
+  - `athleteId`: String
+  - `activityTypeId`: String
+  - `activityName`: String
+  - `category`: `'mobility_gymnastics' | 'cold' | 'heat' | 'contrast' | 'massage_therapy' | 'sleep_relaxation' | 'other'`
+  - `date`: String (`YYYY-MM-DD`)
+  - `time`: String (`HH:mm`, optional)
+  - `durationMinutes`: Number
+  - `temperatureCelsius`: Number (optional)
+  - `rounds`: Number (optional)
+  - `bodyArea`: String (optional)
+  - `intensity`: `'light' | 'moderate' | 'intense'` (optional)
+  - `perceivedEffect`: Number (1-5 scale)
+  - `notes`: String (optional)
+  - Standard metadata: `source`, `confidence`, `createdAt`, `updatedAt`, `updatedBy`
+- Custom activity document (`customRecoveryActivities`):
+  - `typeId`: String
+  - `athleteId`: String
+  - `name`: String
+  - `category`: RecoveryCategory
+  - `icon`: String
+  - `hasTemperature`: Boolean
+  - `hasRounds`: Boolean
+  - `hasBodyArea`: Boolean
+  - `hasIntensity`: Boolean
+  - `createdAt`: String
+  - `updatedAt`: String
 
 ---
 

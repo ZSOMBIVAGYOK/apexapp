@@ -51,6 +51,7 @@ export interface UserProfile {
   // Athlete Profile (Step 2)
   sports?: string[];
   sport?: string;
+  mainSport?: string;
   level?: AthleteLevel;
   birthDate?: string;
   sex?: "male" | "female" | "other" | "prefer_not_to_say";
@@ -63,6 +64,7 @@ export interface UserProfile {
   // Baseline metrics (Step 5)
   sleepHoursBaseline?: number;
   trainingDaysPerWeek?: number;
+  trainingDays?: number[];
   restingHeartRateBaseline?: number;
   currentInjuries?: string;
 
@@ -151,3 +153,7 @@ export * from "./training";
 export * from "./nutrition";
 export * from "./devices";
 export * from "./coach";
+export * from "./recovery";
+export * from "./records";
+export * from "./equipment";
+

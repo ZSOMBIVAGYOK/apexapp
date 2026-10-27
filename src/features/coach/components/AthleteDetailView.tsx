@@ -32,7 +32,8 @@ import {
   Dumbbell,
   ShieldAlert,
   Check,
-  TrendingUp
+  TrendingUp,
+  Sparkles
 } from "lucide-react";
 import {
   MOCK_COACH_MESSAGES,
@@ -47,6 +48,8 @@ import {
   annotateAlert
 } from "@shared/lib/coach/alertsEngine";
 import { MemberSpecialty } from "@shared/types/dataModel";
+import { getRecoveryLogs } from "@shared/lib/recovery";
+import { RecoveryActivityLog } from "@shared/types/recovery";
 
 export interface AthleteDetailViewProps {
   athlete: CoachAthleteRosterItem;
@@ -102,12 +105,21 @@ export const AthleteDetailView: React.FC<AthleteDetailViewProps> = ({
   const [proteinTarget, setProteinTarget] = useState<number>(140);
   const [isNutritionEditing, setIsNutritionEditing] = useState(false);
 
+  // Recovery logs state
+  const [recoveryLogs, setRecoveryLogs] = useState<RecoveryActivityLog[]>([]);
+
   // Alert annotation state
   const [annotatingAlertId, setAnnotatingAlertId] = useState<string | null>(null);
   const [annotationText, setAnnotationText] = useState("");
 
   const permissions = athlete.permissions;
   const isRevoked = athlete.status === "revoked";
+
+  React.useEffect(() => {
+    if (canStaffAccessModule(permissions, "recovery")) {
+      getRecoveryLogs(athlete.athleteId).then(setRecoveryLogs);
+    }
+  }, [athlete.athleteId, permissions]);
 
   // Tab configurations with lock status
   const tabs = [
@@ -665,6 +677,45 @@ export const AthleteDetailView: React.FC<AthleteDetailViewProps> = ({
                         readOnly={true}
                       />
                     </div>
+                  </Card>
+
+                  {/* Recovery Activities & Protocols */}
+                  <Card variant="surface" radius="20" className="p-5 border border-border-hairline space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-14 font-semibold text-text-primary flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-brand-primary" />
+                        Regenerációs Aktivitások & Protokollok
+                      </h4>
+                      <Badge variant="neutral" size="sm">
+                        {recoveryLogs.length} bejegyzés
+                      </Badge>
+                    </div>
+
+                    {recoveryLogs.length === 0 ? (
+                      <p className="text-12 text-text-secondary italic">
+                        A sportoló nem rögzített regenerációs aktivitásokat ebben az időszakban.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {recoveryLogs.slice(0, 5).map((log) => (
+                          <div
+                            key={log.id}
+                            className="p-3 rounded-12 bg-surface-elevated/40 text-12 border border-border-hairline flex items-center justify-between"
+                          >
+                            <div>
+                              <span className="font-semibold text-text-primary">{log.activityName}</span>
+                              <span className="text-text-secondary ml-2">
+                                ({log.durationMinutes} perc{log.temperatureCelsius !== undefined ? `, ${log.temperatureCelsius}°C` : ""}{log.rounds !== undefined ? `, ${log.rounds} kör` : ""})
+                              </span>
+                              {log.notes && (
+                                <p className="text-11 text-text-tertiary italic mt-0.5">"{log.notes}"</p>
+                              )}
+                            </div>
+                            <span className="text-11 text-text-tertiary font-mono">{log.date} {log.startTime}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </Card>
                 </div>
               )}

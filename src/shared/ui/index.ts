@@ -32,3 +32,5 @@ export * from "./PwaUpdateToast";
 export * from "./SyncStatusBadge";
 export * from "./SorenessBodyMap";
 export * from "./NotificationCenter";
+export * from "./WeekdayPicker";
+export * from "./DaySwitcher";

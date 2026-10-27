@@ -52,6 +52,7 @@ import {
   TrendingUp,
   Target
 } from "lucide-react";
+import { RecoveryActivitiesView } from "@features/recovery/components/RecoveryActivitiesView";
 
 export const InsightsPage: React.FC = () => {
   const { i18n } = useTranslation();
@@ -484,6 +485,11 @@ export const InsightsPage: React.FC = () => {
                 </BarChart>
               </ResponsiveContainer>
             </div>
+          </Card>
+
+          {/* Recovery Activities & Protocols */}
+          <Card variant="surface" radius="20" className="p-6">
+            <RecoveryActivitiesView athleteId={athleteId} />
           </Card>
         </div>
       )}

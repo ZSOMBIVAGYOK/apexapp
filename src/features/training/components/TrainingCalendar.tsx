@@ -12,7 +12,8 @@ import {
   XCircle,
   Calendar as CalendarIcon,
   UserCheck,
-  MoveHorizontal
+  MoveHorizontal,
+  Share2
 } from "lucide-react";
 
 interface TrainingCalendarProps {
@@ -22,6 +23,9 @@ interface TrainingCalendarProps {
   onOpenWorkoutBuilder: (dateStr: string, workoutToEdit?: PlannedWorkout) => void;
   onOpenWorkoutFeedback: (workout: PlannedWorkout) => void;
   onRescheduleWorkout: (workoutId: string, newDateStr: string) => void;
+  onOpenManualLog?: (dateStr: string) => void;
+  onOpenSessionDetail?: (workout: PlannedWorkout) => void;
+  onOpenShareSession?: (workout: PlannedWorkout) => void;
 }
 
 const DAY_NAMES_HU = ["H", "K", "Sze", "Cs", "P", "Szo", "V"];
@@ -41,7 +45,10 @@ export const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
   onSelectDate,
   onOpenWorkoutBuilder,
   onOpenWorkoutFeedback,
-  onRescheduleWorkout
+  onRescheduleWorkout,
+  onOpenManualLog,
+  onOpenSessionDetail,
+  onOpenShareSession
 }) => {
   const { i18n } = useTranslation();
   const isHu = i18n.language.startsWith("hu");
@@ -420,7 +427,11 @@ export const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
                           onDragStart={(e) => handleDragStart(e, workout.id)}
                           onClick={(e) => {
                             e.stopPropagation();
-                            onOpenWorkoutFeedback(workout);
+                            if (workout.status === "completed" && onOpenSessionDetail) {
+                              onOpenSessionDetail(workout);
+                            } else {
+                              onOpenWorkoutFeedback(workout);
+                            }
                           }}
                           className={`p-2 rounded-xl text-xs cursor-pointer border transition-all ${
                             isCompleted
@@ -476,8 +487,25 @@ export const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
                             </div>
                           )}
 
-                          {/* Mobile move button */}
-                          <div className="sm:hidden mt-1.5 pt-1 border-t border-white/5 flex justify-end">
+                          {/* Mobile move & share buttons */}
+                          <div className="mt-1.5 pt-1 border-t border-white/5 flex items-center justify-between">
+                            {isCompleted && onOpenShareSession ? (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onOpenShareSession(workout);
+                                }}
+                                className="text-[9px] text-text-secondary flex items-center gap-1 hover:text-brand-300 transition-colors"
+                                title={isHu ? "Edzés megosztása" : "Share workout"}
+                              >
+                                <Share2 className="w-2.5 h-2.5" />
+                                <span>{isHu ? "Megosztás" : "Share"}</span>
+                              </button>
+                            ) : (
+                              <div />
+                            )}
+
                             <button
                               type="button"
                               onClick={(e) => {
@@ -485,7 +513,7 @@ export const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
                                 setWorkoutToMove(workout);
                                 setTargetMoveDate(workout.date);
                               }}
-                              className="text-[9px] text-text-secondary flex items-center gap-1 hover:text-white"
+                              className="sm:hidden text-[9px] text-text-secondary flex items-center gap-1 hover:text-white"
                             >
                               <MoveHorizontal className="w-2.5 h-2.5" />
                               <span>{isHu ? "Áthelyezés" : "Move"}</span>
@@ -499,10 +527,28 @@ export const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
 
                 {/* Empty day prompt */}
                 {dayWorkouts.length === 0 && (
-                  <div className="text-[10px] text-text-secondary/50 text-center py-4">
+                  <div className="text-[10px] text-text-secondary/50 text-center py-2">
                     {isHu ? "Pihenőnap" : "Rest day"}
                   </div>
                 )}
+
+                {/* Log session for this day action */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onOpenManualLog) {
+                      onOpenManualLog(dateStr);
+                    } else {
+                      onOpenWorkoutBuilder(dateStr);
+                    }
+                  }}
+                  className="mt-2 w-full text-center py-1 px-1 rounded-lg text-[10px] font-medium text-brand-400 bg-brand-500/10 hover:bg-brand-500/20 border border-brand-500/20 transition-colors flex items-center justify-center gap-1"
+                  title={isHu ? "Edzés rögzítése erre a napra" : "Log session for this day"}
+                >
+                  <Plus className="w-3 h-3" />
+                  <span className="truncate">{isHu ? "Edzés rögzítése" : "Log session"}</span>
+                </button>
               </div>
             );
           })}
@@ -597,13 +643,38 @@ export const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
               );
             })}
           </div>
+
+          {/* Selected day action in month view */}
+          <div className="mt-3 p-3 rounded-xl bg-[#0B0C0F] border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+            <span className="text-text-secondary">
+              {isHu ? "Kiválasztott nap:" : "Selected date:"} <strong className="text-white font-mono">{selectedDate}</strong>
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => onOpenManualLog ? onOpenManualLog(selectedDate) : onOpenWorkoutBuilder(selectedDate)}
+                className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors flex items-center gap-1.5"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>{isHu ? "Edzés rögzítése erre a napra" : "Log session for this day"}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onOpenWorkoutBuilder(selectedDate)}
+                className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-brand-400 bg-brand-500/10 hover:bg-brand-500/20 border border-brand-500/20 transition-colors flex items-center gap-1.5"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>{isHu ? "Tervezés" : "Plan"}</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
       {/* VIEW: DAY VIEW */}
       {calendarView === "day" && (
         <div className="mt-4 space-y-3">
-          <div className="flex items-center justify-between pb-3 border-b border-white/5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-white/5">
             <div>
               <h3 className="font-bold text-white text-base">
                 {selectedDate} {selectedDate === todayStr && `(${isHu ? "Ma" : "Today"})`}
@@ -612,15 +683,26 @@ export const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
                 {isHu ? "Részletes napi edzésprogram és blokkok" : "Detailed daily workout blocks"}
               </p>
             </div>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => onOpenWorkoutBuilder(selectedDate)}
-              className="flex items-center gap-1.5"
-            >
-              <Plus className="w-4 h-4" />
-              <span>{isHu ? "Edzés hozzáadása" : "Add Workout"}</span>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => onOpenManualLog ? onOpenManualLog(selectedDate) : onOpenWorkoutBuilder(selectedDate)}
+                className="flex items-center gap-1.5"
+              >
+                <Plus className="w-4 h-4 text-emerald-400" />
+                <span>{isHu ? "Edzés rögzítése erre a napra" : "Log session for this day"}</span>
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => onOpenWorkoutBuilder(selectedDate)}
+                className="flex items-center gap-1.5"
+              >
+                <Plus className="w-4 h-4" />
+                <span>{isHu ? "Edzés hozzáadása" : "Add Workout"}</span>
+              </Button>
+            </div>
           </div>
 
           {/* List of full workouts for the selected day */}
@@ -649,15 +731,35 @@ export const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
                         <span className={`w-2 h-2 rounded-full ${colors.indicator}`} />
                         <h4 className="font-bold text-white text-sm">{w.title}</h4>
                       </div>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => onOpenWorkoutFeedback(w)}
-                      >
-                        {w.status === "completed"
-                          ? isHu ? "Módosítás" : "Edit Feedback"
-                          : isHu ? "Lezárás / Visszajelzés" : "Log / Feedback"}
-                      </Button>
+                      <div className="flex items-center gap-1.5">
+                        {w.status === "completed" && onOpenShareSession && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="px-2 text-brand-300 hover:text-white"
+                            onClick={() => onOpenShareSession(w)}
+                            title={isHu ? "Edzés megosztása" : "Share workout"}
+                          >
+                            <Share2 className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            if (w.status === "completed" && onOpenSessionDetail) {
+                              onOpenSessionDetail(w);
+                            } else {
+                              onOpenWorkoutFeedback(w);
+                            }
+                          }}
+                        >
+                          {w.status === "completed"
+                            ? isHu ? "Részletek / Szerkesztés" : "Details / Edit"
+                            : isHu ? "Lezárás / Visszajelzés" : "Log / Feedback"}
+                        </Button>
+                      </div>
                     </div>
 
                     {/* Workout structured blocks preview */}

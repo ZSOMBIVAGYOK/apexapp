@@ -8,6 +8,7 @@ export interface ToastItem {
   message?: string;
   description?: string;
   type?: ToastType;
+  variant?: ToastType;
   durationMs?: number;
 }
 
@@ -21,9 +22,10 @@ export const useToastStore = create<ToastState>((set) => ({
   toasts: [],
   addToast: (toast) => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const effectiveType = toast.type || toast.variant || "info";
     const newItem: ToastItem = {
       id,
-      type: "info",
+      type: effectiveType,
       durationMs: 4000,
       ...toast
     };

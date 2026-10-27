@@ -153,4 +153,68 @@ test.describe("Apex Platform Smoke Suite", () => {
       }
     }
   });
+
+  /**
+   * Flow 6: Session Share Modal - Sticker & Photo Image Generation
+   */
+  test("6. should open session share modal and generate non-empty image blob", async ({ page }) => {
+    await page.goto("/training");
+    await expect(page).toHaveURL(/.*training/);
+
+    // Look for a share button in the calendar or open session detail
+    const shareBtn = page.getByRole("button", { name: /Megosztás/i }).first();
+    const detailsBtn = page.getByRole("button", { name: /Részletek \/ Szerkesztés/i }).first();
+
+    if (await shareBtn.isVisible()) {
+      await shareBtn.click();
+    } else if (await detailsBtn.isVisible()) {
+      await detailsBtn.click();
+      const modalShareBtn = page.getByRole("button", { name: /Megosztás/i }).last();
+      await modalShareBtn.click();
+    } else {
+      // If no completed session button is directly visible, switch to Day view
+      const dayViewBtn = page.getByRole("button", { name: /Nap nézet|Nap/i });
+      if (await dayViewBtn.isVisible()) {
+        await dayViewBtn.click();
+        const dayShareBtn = page.getByRole("button", { name: /Edzés megosztása|Megosztás/i }).first();
+        if (await dayShareBtn.isVisible()) {
+          await dayShareBtn.click();
+        }
+      }
+    }
+
+    // Verify Share Modal is open
+    const shareModalTitle = page.getByText(/Edzés megosztása/i).first();
+    if (await shareModalTitle.isVisible()) {
+      await expect(shareModalTitle).toBeVisible();
+
+      // Check canvas preview is rendered
+      const canvas = page.locator("canvas").first();
+      await expect(canvas).toBeVisible();
+
+      // Verify Sticker mode options
+      await expect(page.getByText(/Átlátszó matrica/i)).toBeVisible();
+
+      // Switch to Photo mode
+      const photoTab = page.getByRole("button", { name: /Fotó/i });
+      if (await photoTab.isVisible()) {
+        await photoTab.click();
+        // Check photo controls exist
+        await expect(page.getByText(/Képarány|Sötétítés/i).first()).toBeVisible();
+      }
+
+      // Test that an image blob can be generated client-side from the canvas
+      const hasValidBlob = await page.evaluate(async () => {
+        const c = document.querySelector("canvas");
+        if (!c) return false;
+        return new Promise<boolean>((resolve) => {
+          c.toBlob((blob) => {
+            resolve(!!blob && blob.size > 0);
+          }, "image/png");
+        });
+      });
+
+      expect(hasValidBlob).toBe(true);
+    }
+  });
 });

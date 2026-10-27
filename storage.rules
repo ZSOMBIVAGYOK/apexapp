@@ -15,10 +15,34 @@ service firebase.storage {
              request.resource.size < 10 * 1024 * 1024; // Max 10MB
     }
 
+    function isValidWorkoutFile() {
+      return request.resource.size <= 25 * 1024 * 1024; // Max 25MB
+    }
+
+    function canReadWorkoutFile(athleteId) {
+      return isAuthenticated() && (
+        request.auth.uid == athleteId ||
+        firestore.get(/databases/(default)/documents/relationships/$(athleteId)_$(request.auth.uid)).data.permissions.training != 'none'
+      );
+    }
+
     // User profile images, medical scans, check-in posture photos
     match /users/{userId}/{allPaths=**} {
       allow read: if isAuthenticated();
       allow write: if isOwner(userId) && isValidImage();
+    }
+
+    // Athlete workout files (FIT, GPX, TCX)
+    match /athletes/{athleteId}/workouts/{allPaths=**} {
+      allow read: if canReadWorkoutFile(athleteId);
+      allow write: if isOwner(athleteId) && isValidWorkoutFile();
+      allow delete: if isOwner(athleteId);
+    }
+
+    match /athletes/{athleteId}/files/{allPaths=**} {
+      allow read: if canReadWorkoutFile(athleteId);
+      allow write: if isOwner(athleteId) && isValidWorkoutFile();
+      allow delete: if isOwner(athleteId);
     }
 
     // Default deny

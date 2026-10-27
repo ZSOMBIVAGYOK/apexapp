@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { evaluateFirestoreRules, MockDatabase } from "./rulesEvaluator";
+import { evaluateFirestoreRules, evaluateStorageRules, MockDatabase } from "./rulesEvaluator";
 import { PERMISSION_PRESETS } from "./permissionPresets";
 
 describe("Firestore Security Rules - Zero-Trust Sharing Suite (45+ Tests)", () => {
@@ -554,5 +554,290 @@ describe("Firestore Security Rules - Zero-Trust Sharing Suite (45+ Tests)", () =
       expect(athleteRead.allowed).toBe(true);
       expect(memberRead.allowed).toBe(true);
     });
+
+    it("46. Athlete CAN read and write own exercise library", () => {
+      const readRes = evaluateFirestoreRules(
+        {
+          auth: { uid: ATHLETE_UID },
+          path: `athletes/${ATHLETE_UID}/exercises/ex-1`,
+          operation: "read"
+        },
+        mockDb
+      );
+      const writeRes = evaluateFirestoreRules(
+        {
+          auth: { uid: ATHLETE_UID },
+          path: `athletes/${ATHLETE_UID}/exercises/ex-1`,
+          operation: "write"
+        },
+        mockDb
+      );
+      expect(readRes.allowed).toBe(true);
+      expect(writeRes.allowed).toBe(true);
+    });
+
+    it("47. Coach with training:write CAN read and write athlete's exercise library", () => {
+      const readRes = evaluateFirestoreRules(
+        {
+          auth: { uid: COACH_UID },
+          path: `athletes/${ATHLETE_UID}/exercises/ex-1`,
+          operation: "read"
+        },
+        mockDb
+      );
+      const writeRes = evaluateFirestoreRules(
+        {
+          auth: { uid: COACH_UID },
+          path: `athletes/${ATHLETE_UID}/exercises/ex-1`,
+          operation: "write"
+        },
+        mockDb
+      );
+      expect(readRes.allowed).toBe(true);
+      expect(writeRes.allowed).toBe(true);
+    });
+
+    it("48. Staff with training:read (Physio) CAN read athlete's exercise library, but CANNOT write", () => {
+      const readRes = evaluateFirestoreRules(
+        {
+          auth: { uid: PHYSIO_UID },
+          path: `athletes/${ATHLETE_UID}/exercises/ex-1`,
+          operation: "read"
+        },
+        mockDb
+      );
+      const writeRes = evaluateFirestoreRules(
+        {
+          auth: { uid: PHYSIO_UID },
+          path: `athletes/${ATHLETE_UID}/exercises/ex-1`,
+          operation: "write"
+        },
+        mockDb
+      );
+      expect(readRes.allowed).toBe(true);
+      expect(writeRes.allowed).toBe(false);
+    });
+
+    it("49. Staff with training:none (Psychologist) CANNOT read athlete's exercise library", () => {
+      const readRes = evaluateFirestoreRules(
+        {
+          auth: { uid: PSYCHOLOGIST_UID },
+          path: `athletes/${ATHLETE_UID}/exercises/ex-1`,
+          operation: "read"
+        },
+        mockDb
+      );
+      expect(readRes.allowed).toBe(false);
+    });
+
+    it("50. Stranger CANNOT read or write athlete's exercise library", () => {
+      const readRes = evaluateFirestoreRules(
+        {
+          auth: { uid: STRANGER_UID },
+          path: `athletes/${ATHLETE_UID}/exercises/ex-1`,
+          operation: "read"
+        },
+        mockDb
+      );
+      const writeRes = evaluateFirestoreRules(
+        {
+          auth: { uid: STRANGER_UID },
+          path: `athletes/${ATHLETE_UID}/exercises/ex-1`,
+          operation: "write"
+        },
+        mockDb
+      );
+      expect(readRes.allowed).toBe(false);
+      expect(writeRes.allowed).toBe(false);
+    });
+
+    it("51. Coach with recovery:read CAN read recoveryActivities, but CANNOT write (athlete can write)", () => {
+      const coachRead = evaluateFirestoreRules(
+        {
+          auth: { uid: COACH_UID },
+          path: `athletes/${ATHLETE_UID}/recoveryActivities/rec-1`,
+          operation: "read"
+        },
+        mockDb
+      );
+      const coachWrite = evaluateFirestoreRules(
+        {
+          auth: { uid: COACH_UID },
+          path: `athletes/${ATHLETE_UID}/recoveryActivities/rec-1`,
+          operation: "write"
+        },
+        mockDb
+      );
+      const athleteWrite = evaluateFirestoreRules(
+        {
+          auth: { uid: ATHLETE_UID },
+          path: `athletes/${ATHLETE_UID}/recoveryActivities/rec-1`,
+          operation: "write"
+        },
+        mockDb
+      );
+      expect(coachRead.allowed).toBe(true);
+      expect(coachWrite.allowed).toBe(false);
+      expect(athleteWrite.allowed).toBe(true);
+    });
+
+    it("52. Coach with training:write CAN read and write athlete records", () => {
+      const coachRead = evaluateFirestoreRules(
+        {
+          auth: { uid: COACH_UID },
+          path: `athletes/${ATHLETE_UID}/records/rec-5k`,
+          operation: "read"
+        },
+        mockDb
+      );
+      const coachWrite = evaluateFirestoreRules(
+        {
+          auth: { uid: COACH_UID },
+          path: `athletes/${ATHLETE_UID}/records/rec-5k`,
+          operation: "write"
+        },
+        mockDb
+      );
+      expect(coachRead.allowed).toBe(true);
+      expect(coachWrite.allowed).toBe(true);
+    });
+
+    it("53. Coach with training:write CAN read and write courses", () => {
+      const coachRead = evaluateFirestoreRules(
+        {
+          auth: { uid: COACH_UID },
+          path: `athletes/${ATHLETE_UID}/courses/course-lake`,
+          operation: "read"
+        },
+        mockDb
+      );
+      const coachWrite = evaluateFirestoreRules(
+        {
+          auth: { uid: COACH_UID },
+          path: `athletes/${ATHLETE_UID}/courses/course-lake`,
+          operation: "write"
+        },
+        mockDb
+      );
+      expect(coachRead.allowed).toBe(true);
+      expect(coachWrite.allowed).toBe(true);
+    });
+
+    it("54. Coach with training:write CAN read and write equipment", () => {
+      const coachRead = evaluateFirestoreRules(
+        {
+          auth: { uid: COACH_UID },
+          path: `athletes/${ATHLETE_UID}/equipment/eq-shoes-1`,
+          operation: "read"
+        },
+        mockDb
+      );
+      const coachWrite = evaluateFirestoreRules(
+        {
+          auth: { uid: COACH_UID },
+          path: `athletes/${ATHLETE_UID}/equipment/eq-shoes-1`,
+          operation: "write"
+        },
+        mockDb
+      );
+      expect(coachRead.allowed).toBe(true);
+      expect(coachWrite.allowed).toBe(true);
+    });
+
+    it("55. Stranger CANNOT read or write records, courses, equipment, or recovery activities", () => {
+      const paths = [
+        `athletes/${ATHLETE_UID}/records/rec-1`,
+        `athletes/${ATHLETE_UID}/courses/course-1`,
+        `athletes/${ATHLETE_UID}/equipment/eq-1`,
+        `athletes/${ATHLETE_UID}/recoveryActivities/rec-1`
+      ];
+      for (const p of paths) {
+        const readRes = evaluateFirestoreRules(
+          { auth: { uid: STRANGER_UID }, path: p, operation: "read" },
+          mockDb
+        );
+        const writeRes = evaluateFirestoreRules(
+          { auth: { uid: STRANGER_UID }, path: p, operation: "write" },
+          mockDb
+        );
+        expect(readRes.allowed).toBe(false);
+        expect(writeRes.allowed).toBe(false);
+      }
+    });
+
+    it("56. Athlete CAN write workout file up to 25 MB in Storage", () => {
+      const res = evaluateStorageRules(
+        {
+          auth: { uid: ATHLETE_UID },
+          path: `athletes/${ATHLETE_UID}/workouts/sess-1/run.fit`,
+          operation: "write",
+          fileSizeBytes: 10 * 1024 * 1024,
+          contentType: "application/octet-stream"
+        },
+        mockDb
+      );
+      expect(res.allowed).toBe(true);
+    });
+
+    it("57. Storage rejects workout file exceeding 25 MB limit", () => {
+      const res = evaluateStorageRules(
+        {
+          auth: { uid: ATHLETE_UID },
+          path: `athletes/${ATHLETE_UID}/workouts/sess-1/big.fit`,
+          operation: "write",
+          fileSizeBytes: 26 * 1024 * 1024,
+          contentType: "application/octet-stream"
+        },
+        mockDb
+      );
+      expect(res.allowed).toBe(false);
+      expect(res.reason).toBe("File exceeds 25 MB");
+    });
+
+    it("58. Coach with training permission CAN read athlete workout files in Storage", () => {
+      const res = evaluateStorageRules(
+        {
+          auth: { uid: COACH_UID },
+          path: `athletes/${ATHLETE_UID}/workouts/sess-1/run.gpx`,
+          operation: "read"
+        },
+        mockDb
+      );
+      expect(res.allowed).toBe(true);
+    });
+
+    it("59. Psychologist (no training permission) CANNOT read athlete workout files in Storage", () => {
+      const res = evaluateStorageRules(
+        {
+          auth: { uid: PSYCHOLOGIST_UID },
+          path: `athletes/${ATHLETE_UID}/workouts/sess-1/run.gpx`,
+          operation: "read"
+        },
+        mockDb
+      );
+      expect(res.allowed).toBe(false);
+    });
+
+    it("60. Stranger CANNOT read or write athlete workout files in Storage", () => {
+      const readRes = evaluateStorageRules(
+        {
+          auth: { uid: STRANGER_UID },
+          path: `athletes/${ATHLETE_UID}/workouts/sess-1/run.fit`,
+          operation: "read"
+        },
+        mockDb
+      );
+      const writeRes = evaluateStorageRules(
+        {
+          auth: { uid: STRANGER_UID },
+          path: `athletes/${ATHLETE_UID}/workouts/sess-1/run.fit`,
+          operation: "write"
+        },
+        mockDb
+      );
+      expect(readRes.allowed).toBe(false);
+      expect(writeRes.allowed).toBe(false);
+    });
   });
 });
+

@@ -6,16 +6,14 @@ import {
   Badge,
   Toggle,
   Tabs,
+  DaySwitcher,
   showToast
 } from "@shared/ui";
 import {
-  Droplets,
   Plus,
   Zap,
   UserCheck,
   Utensils,
-  ChevronLeft,
-  ChevronRight,
   Sparkles,
   Pill,
   Scale,
@@ -43,11 +41,14 @@ import { SessionFuellingModal } from "../components/SessionFuellingModal";
 import { SupplementsTab } from "../components/SupplementsTab";
 import { BodyMetricsTab } from "../components/BodyMetricsTab";
 import { DietitianPlanModal } from "../components/DietitianPlanModal";
+import { HydrationTrackerCard } from "../components/HydrationTrackerCard";
+import { useAuthStore } from "@features/auth/authStore";
 
 const NUTRITION_STORAGE_KEY = "apex_daily_nutrition_data";
 
 export const NutritionPage: React.FC = () => {
   const { t } = useTranslation();
+  const { user } = useAuthStore();
 
   // Selected date
   const [selectedDate, setSelectedDate] = useState<string>(
@@ -322,9 +323,7 @@ export const NutritionPage: React.FC = () => {
   });
 
   // Hydration state
-  const [waterLiters, setWaterLiters] = useState(2.75);
-  const [caffeineMg, setCaffeineMg] = useState(160);
-  const [sodiumMg, setSodiumMg] = useState(1850);
+  const [caffeineMg] = useState(160);
 
   // Active dietitian meal plan
   const [activePlan, setActivePlan] = useState<DietitianMealPlan | null>({
@@ -515,36 +514,6 @@ export const NutritionPage: React.FC = () => {
     });
   };
 
-  const addFluid = (amount: number) => {
-    const next = +(waterLiters + amount).toFixed(2);
-    setWaterLiters(next);
-    showToast({
-      title: "Folyadékbevitel rögzítve",
-      message: `Ma összesen: ${next} liter`,
-      type: "success"
-    });
-  };
-
-  const addCaffeine = (amount: number) => {
-    const next = caffeineMg + amount;
-    setCaffeineMg(next);
-    showToast({
-      title: "Koffein rögzítve",
-      message: `Ma összesen: ${next} mg koffein`,
-      type: "info"
-    });
-  };
-
-  const addSodium = (amount: number) => {
-    const next = sodiumMg + amount;
-    setSodiumMg(next);
-    showToast({
-      title: "Elektrolit / Nátrium rögzítve",
-      message: `Ma összesen: ${next} mg nátrium`,
-      type: "info"
-    });
-  };
-
   const mealLabels: Record<MealType, string> = {
     breakfast: "Reggeli",
     during_training: "Edzés közben",
@@ -586,36 +555,11 @@ export const NutritionPage: React.FC = () => {
         </div>
 
         {/* Date Switcher & Add Food */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center rounded-12 bg-bg-surface border border-border-hairline p-1">
-            <button
-              type="button"
-              onClick={() => {
-                const d = new Date(selectedDate);
-                d.setDate(d.getDate() - 1);
-                setSelectedDate(d.toISOString().split("T")[0]!);
-              }}
-              className="p-1.5 text-text-secondary hover:text-text-primary rounded-8 transition-colors"
-              aria-label="Előző nap"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="px-3 text-12 font-bold tabular-nums text-text-primary">
-              {selectedDate}
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                const d = new Date(selectedDate);
-                d.setDate(d.getDate() + 1);
-                setSelectedDate(d.toISOString().split("T")[0]!);
-              }}
-              className="p-1.5 text-text-secondary hover:text-text-primary rounded-8 transition-colors"
-              aria-label="Következő nap"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <DaySwitcher
+            selectedDate={selectedDate}
+            onDateChange={setSelectedDate}
+          />
 
           <Button
             variant="primary"
@@ -786,8 +730,8 @@ export const NutritionPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Macronutrient Status Boxes */}
-              <div className="grid grid-cols-3 gap-3 pt-2 text-center">
+              {/* Macronutrient & Caffeine Status Boxes */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 text-center">
                 <div className="rounded-16 bg-bg-elevated p-4 border border-border-hairline">
                   <span className="text-12 text-text-secondary font-medium block">
                     Fehérje
@@ -821,60 +765,26 @@ export const NutritionPage: React.FC = () => {
                     Cél: {currentTarget.targetFatGrams}g
                   </span>
                 </div>
+                <div className="rounded-16 bg-bg-elevated p-4 border border-border-hairline">
+                  <span className="text-12 text-text-secondary font-medium block">
+                    Koffein (Italok)
+                  </span>
+                  <span className="text-20 font-bold text-amber-400 mt-1 block tabular-nums">
+                    {caffeineMg} mg
+                  </span>
+                  <span className="text-11 text-text-tertiary">
+                    Max: 400 mg (EFSA)
+                  </span>
+                </div>
               </div>
             </Card>
 
-            {/* Hydration & Electrolytes Quick Card */}
-            <Card variant="surface" radius="20" className="p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-brand">
-                  <Droplets className="h-5 w-5" />
-                  <h3 className="text-13 font-bold uppercase tracking-wider text-text-primary">
-                    Hidratáció & Sók
-                  </h3>
-                </div>
-                <span className="text-20 font-bold text-text-primary tabular-nums">
-                  {waterLiters} l
-                </span>
-              </div>
-
-              <p className="text-12 text-text-secondary">
-                Napi folyadékcél az edzésterhelés alapján:{" "}
-                <strong className="text-text-primary">{currentTarget.targetHydrationLiters} liter</strong>.
-              </p>
-
-              {/* Quick Add Buttons */}
-              <div className="grid grid-cols-2 gap-2">
-                <Button variant="secondary" size="sm" onClick={() => addFluid(0.25)}>
-                  +250 ml Víz
-                </Button>
-                <Button variant="secondary" size="sm" onClick={() => addFluid(0.5)}>
-                  +500 ml Víz
-                </Button>
-                <Button variant="secondary" size="sm" onClick={() => addCaffeine(80)}>
-                  +80mg Koffein
-                </Button>
-                <Button variant="secondary" size="sm" onClick={() => addSodium(300)}>
-                  +300mg Só
-                </Button>
-              </div>
-
-              <div className="rounded-12 bg-bg-elevated p-3 border border-border-hairline space-y-1 text-11 text-text-secondary">
-                <div className="flex justify-between">
-                  <span>Koffein ma:</span>
-                  <span className="font-bold text-text-primary tabular-nums">{caffeineMg} mg</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Nátriumbevitel:</span>
-                  <span className="font-bold text-text-primary tabular-nums">{sodiumMg} mg</span>
-                </div>
-                {currentTarget.electrolyteHint && (
-                  <p className="text-status-caution font-medium pt-1">
-                    {currentTarget.electrolyteHint}
-                  </p>
-                )}
-              </div>
-            </Card>
+            {/* Beverage-Engine Driven Hydration Card */}
+            <HydrationTrackerCard
+              userId={user?.uid}
+              date={selectedDate}
+              targetLiters={currentTarget.targetHydrationLiters}
+            />
           </div>
 
           {/* Session Fuelling Quick Card */}

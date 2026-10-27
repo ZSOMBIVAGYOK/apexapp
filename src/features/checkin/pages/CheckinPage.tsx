@@ -16,6 +16,7 @@ import {
   SorenessBodyMap,
   BottomSheet,
   Toggle,
+  DaySwitcher,
   showToast
 } from "@shared/ui";
 import {
@@ -26,8 +27,12 @@ import {
 import {
   persistDailyCheckin,
   getLocalDaily,
-  getAllLocalDailies
+  getAllLocalDailies,
+  getLocalSessions
 } from "@shared/lib/offline/offlineStorage";
+import {
+  recomputeLoadsFromDate
+} from "@shared/lib/load/loadRecomputation";
 import {
   DailyAggregateDocument,
   DataSourceOrigin
@@ -52,7 +57,10 @@ export const CheckinPage: React.FC = () => {
   const todayStr = new Date().toISOString().split("T")[0] as string;
   const athleteId = user?.uid || "demo-athlete-001";
 
-  // Check if today already has a saved checkin
+  // Selected date on checkin page (supports any earlier date)
+  const [selectedDate, setSelectedDate] = useState<string>(todayStr);
+
+  // Check if target day already has a saved checkin
   const [existingDoc, setExistingDoc] = useState<DailyAggregateDocument | null>(null);
   const [readinessResult, setReadinessResult] = useState<ReadinessResult | null>(null);
 
@@ -90,9 +98,9 @@ export const CheckinPage: React.FC = () => {
   const [showOptionalFields, setShowOptionalFields] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Load existing daily checkin on mount if available
-  useEffect(() => {
-    const existing = getLocalDaily(athleteId, todayStr);
+  // Load daily checkin data for selected date
+  const loadDateData = React.useCallback((targetDate: string) => {
+    const existing = getLocalDaily(athleteId, targetDate);
     if (existing) {
       setExistingDoc(existing);
       setSleepDurationMinutes(existing.sleep.durationMinutes);
@@ -140,8 +148,16 @@ export const CheckinPage: React.FC = () => {
         historicalDaysCount: historicalDays
       });
       setReadinessResult(res);
+    } else {
+      setExistingDoc(null);
+      setReadinessResult(null);
+      setNotes("");
     }
-  }, [athleteId, todayStr]);
+  }, [athleteId]);
+
+  useEffect(() => {
+    loadDateData(selectedDate);
+  }, [selectedDate, loadDateData]);
 
   // Bed & Wake time duration calculation
   const handleTimeChange = (bed: string, wake: string) => {
@@ -177,7 +193,7 @@ export const CheckinPage: React.FC = () => {
     try {
       const historicalCount = getAllLocalDailies(athleteId).length;
       const readiness = calculateReadiness({
-        date: todayStr,
+        date: selectedDate,
         sleep: {
           durationMinutes: sleepDurationMinutes,
           qualityScore: sleepQuality,
@@ -205,7 +221,7 @@ export const CheckinPage: React.FC = () => {
       });
 
       const docData: DailyAggregateDocument = {
-        date: todayStr,
+        date: selectedDate,
         athleteId,
         sleep: {
           durationMinutes: sleepDurationMinutes,
@@ -262,11 +278,19 @@ export const CheckinPage: React.FC = () => {
       setExistingDoc(docData);
       setReadinessResult(readiness);
 
+      // Recompute loads & readiness from the selected date forward
+      const allSessions = getLocalSessions(athleteId);
+      recomputeLoadsFromDate({
+        athleteId,
+        sessions: allSessions,
+        affectedFromDate: selectedDate
+      });
+
       showToast({
         title: isHu ? "Check-in elmentve" : "Check-in saved",
         message: isHu
-          ? `Mai készenléti index: ${readiness.score}/100 (${readiness.band.toUpperCase()})`
-          : `Readiness score: ${readiness.score}/100 (${readiness.band.toUpperCase()})`,
+          ? `${selectedDate === todayStr ? "Mai" : selectedDate} készenléti index: ${readiness.score}/100 (${readiness.band.toUpperCase()})`
+          : `Readiness score for ${selectedDate}: ${readiness.score}/100 (${readiness.band.toUpperCase()})`,
         type: readiness.band === "green" ? "success" : readiness.band === "amber" ? "info" : "warning"
       });
     } catch {
@@ -296,6 +320,15 @@ export const CheckinPage: React.FC = () => {
           </Badge>
           <SyncStatusBadge />
         </div>
+      </div>
+
+      {/* Day Switcher (supports any earlier date) */}
+      <div className="flex items-center justify-between pb-1">
+        <DaySwitcher
+          selectedDate={selectedDate}
+          onDateChange={setSelectedDate}
+          allowFuture={false}
+        />
       </div>
 
       {/* If Completed / Computed: Readiness Result Cockpit Card */}

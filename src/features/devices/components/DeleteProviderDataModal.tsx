@@ -8,7 +8,7 @@ export interface DeleteProviderDataModalProps {
   onClose: () => void;
   provider: DeviceProvider | null;
   providerName: string;
-  onConfirmDelete: (provider: DeviceProvider) => void;
+  onConfirmDelete: (provider: DeviceProvider) => Promise<void> | void;
 }
 
 export const DeleteProviderDataModal: React.FC<DeleteProviderDataModalProps> = ({
@@ -22,18 +22,27 @@ export const DeleteProviderDataModal: React.FC<DeleteProviderDataModalProps> = (
 
   if (!provider) return null;
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     setIsDeleting(true);
-    setTimeout(() => {
-      onConfirmDelete(provider);
-      setIsDeleting(false);
+    try {
+      await onConfirmDelete(provider);
       showToast({
         title: "Adatok törölve",
-        message: `A(z) ${providerName} által rögzített összes korábbi edzés és biometrikus adat törölve lett.`,
+        message: `A(z) ${providerName} által rögzített összes korábbi edzés és szinkronizált adat törölve lett.`,
         type: "success"
       });
       onClose();
-    }, 600);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Nem sikerült az adatok törlése.";
+      showToast({
+        title: "Törlési hiba",
+        message,
+        type: "error"
+      });
+    } finally {
+
+      setIsDeleting(false);
+    }
   };
 
   return (

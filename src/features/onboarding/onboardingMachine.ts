@@ -18,6 +18,8 @@ export interface OnboardingData {
 
   // Step 2: Athlete profile
   mainSports: string[];
+  sports?: string[];
+  mainSport?: string;
   level: AthleteLevel;
   birthDate?: string;
   sex?: "male" | "female" | "other" | "prefer_not_to_say";
@@ -38,6 +40,7 @@ export interface OnboardingData {
   // Step 5: Baseline
   sleepHoursBaseline?: number;
   trainingDaysPerWeek?: number;
+  trainingDays?: number[];
   restingHeartRateBaseline?: number;
   currentInjuries?: string;
 
@@ -72,9 +75,13 @@ export const defaultOnboardingData: OnboardingData = {
   roles: ["athlete"],
   specialties: [],
   mainSports: ["Triatlon"],
+  sports: ["Triatlon"],
+  mainSport: "Triatlon",
   level: "national",
   dataMode: "hybrid",
   supportMode: ["solo"],
+  trainingDays: [1, 2, 3, 4, 5],
+  trainingDaysPerWeek: 5,
   dietaryPreferences: [],
   allergiesIntolerances: [],
   nutritionGoal: "performance",
@@ -223,15 +230,29 @@ export const onboardingDataToUserProfile = (
   data: OnboardingData
 ): Partial<UserProfile> => {
   const primaryRole = data.roles[0] || "athlete";
-  const primarySport = data.mainSports[0] || "Egyéb sport";
+  const selectedSports = data.sports && data.sports.length > 0 ? data.sports : data.mainSports;
+  const primarySport =
+    data.mainSport ||
+    (data.sports && data.sports[0]) ||
+    data.mainSports[0] ||
+    "Triatlon";
+
+  const trainingDays =
+    data.trainingDays && data.trainingDays.length > 0
+      ? data.trainingDays
+      : data.trainingDaysPerWeek
+        ? [1, 2, 3, 4, 5, 6, 7].slice(0, data.trainingDaysPerWeek)
+        : [1, 2, 3, 4, 5];
+  const trainingDaysCount = trainingDays.length;
 
   return {
     roles: data.roles,
     role: primaryRole,
     specialties: data.specialties,
     discipline: data.specialties[0],
-    sports: data.mainSports,
+    sports: selectedSports,
     sport: primarySport,
+    mainSport: primarySport,
     level: data.level,
     birthDate: data.birthDate,
     sex: data.sex,
@@ -245,7 +266,8 @@ export const onboardingDataToUserProfile = (
     supportInviteEmail: data.supportInviteEmail,
     supportInviteCode: data.supportInviteCode,
     sleepHoursBaseline: data.sleepHoursBaseline,
-    trainingDaysPerWeek: data.trainingDaysPerWeek,
+    trainingDays,
+    trainingDaysPerWeek: trainingDaysCount,
     restingHeartRateBaseline: data.restingHeartRateBaseline,
     currentInjuries: data.currentInjuries,
     dietaryPreferences: data.dietaryPreferences,

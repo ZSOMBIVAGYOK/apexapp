@@ -24,13 +24,18 @@ import { GeneratedSeasonPlan } from "@shared/lib/planner/soloPlanGenerator";
 import {
   Button,
   Badge,
+  SegmentedControl,
   showToast
 } from "@shared/ui";
 import {
   Plus,
   Sliders,
   ClipboardList,
-  UserCheck
+  UserCheck,
+  Calendar as CalendarIcon,
+  Dumbbell,
+  Wrench,
+  Trophy
 } from "lucide-react";
 
 import { SeasonPlannerTimeline } from "../components/SeasonPlannerTimeline";
@@ -41,6 +46,14 @@ import { WorkoutFeedbackModal } from "../components/WorkoutFeedbackModal";
 import { SoloPlanGeneratorWizard } from "../components/SoloPlanGeneratorWizard";
 import { ThresholdsAndZonesModal } from "../components/ThresholdsAndZonesModal";
 import { ManualSessionModal } from "../components/ManualSessionModal";
+import { SessionDetailModal } from "../components/SessionDetailModal";
+import { SessionShareModal } from "../components/SessionShareModal";
+import { ExerciseLibraryView } from "../components/ExerciseLibraryView";
+import { RecordsCoursesView } from "@features/records/components/RecordsCoursesView";
+import { EquipmentView } from "@features/equipment/components/EquipmentView";
+import { getEquipmentList, hasDueMaintenance } from "@shared/lib/equipment";
+import { getLocalSessions } from "@shared/lib/offline/offlineStorage";
+import { CompletedSessionDocument } from "@shared/types";
 
 export const TrainingPage: React.FC = () => {
   const { i18n } = useTranslation();
@@ -53,6 +66,17 @@ export const TrainingPage: React.FC = () => {
 
   // State: selected date on calendar
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
+
+  // Segmented control navigation: Naptár · Gyakorlatok · Eszközök · Rekordok
+  const [activeTab, setActiveTab] = useState<"calendar" | "exercises" | "equipment" | "records">("calendar");
+  const [hasMaintenanceDue, setHasMaintenanceDue] = useState(false);
+
+  useEffect(() => {
+    getEquipmentList(athleteId).then((items) => {
+      setHasMaintenanceDue(hasDueMaintenance(items).hasDue);
+    });
+  }, [athleteId, activeTab]);
+
 
   // Default A-race 12 weeks ahead
   const defaultARaceDate = useMemo(() => {
@@ -336,6 +360,72 @@ export const TrainingPage: React.FC = () => {
   const [isSoloGeneratorOpen, setIsSoloGeneratorOpen] = useState(false);
   const [isZonesModalOpen, setIsZonesModalOpen] = useState(false);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [sessionToEditInManual, setSessionToEditInManual] = useState<CompletedSessionDocument | null>(null);
+  const [selectedSessionForDetail, setSelectedSessionForDetail] = useState<CompletedSessionDocument | null>(null);
+
+  const handleOpenSessionDetail = (workout: PlannedWorkout) => {
+    const allSessions = getLocalSessions(athleteId);
+    const existing = allSessions.find(
+      (s) => s.sessionId === workout.id || (s.date === workout.date && s.sport === workout.sport)
+    );
+
+    if (existing) {
+      setSelectedSessionForDetail(existing);
+    } else {
+      const fallbackSession: CompletedSessionDocument = {
+        sessionId: workout.id,
+        athleteId,
+        date: workout.date,
+        sport: workout.sport,
+        title: workout.title,
+        startTime: "09:00",
+        durationMinutes: workout.actualDurationMinutes || workout.plannedDurationMinutes,
+        rpe: workout.actualRpe || 6,
+        targetIntensityRpe: workout.actualRpe || 6,
+        trainingLoad: workout.plannedLoad,
+        completed: true,
+        source: "manual",
+        confidence: 0.95,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        updatedBy: athleteId
+      };
+      setSelectedSessionForDetail(fallbackSession);
+    }
+  };
+
+  const [sessionForShare, setSessionForShare] = useState<CompletedSessionDocument | null>(null);
+
+  const handleOpenShareSession = (workout: PlannedWorkout) => {
+    const allSessions = getLocalSessions(athleteId);
+    const existing = allSessions.find(
+      (s) => s.sessionId === workout.id || (s.date === workout.date && s.sport === workout.sport)
+    );
+
+    if (existing) {
+      setSessionForShare(existing);
+    } else {
+      const fallbackSession: CompletedSessionDocument = {
+        sessionId: workout.id,
+        athleteId,
+        date: workout.date,
+        sport: workout.sport,
+        title: workout.title,
+        startTime: "09:00",
+        durationMinutes: workout.actualDurationMinutes || workout.plannedDurationMinutes,
+        rpe: workout.actualRpe || 6,
+        targetIntensityRpe: workout.actualRpe || 6,
+        trainingLoad: workout.plannedLoad,
+        completed: true,
+        source: "manual",
+        confidence: 0.95,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        updatedBy: athleteId
+      };
+      setSessionForShare(fallbackSession);
+    }
+  };
 
   // Compute historical & planned daily loads mapping
   const { historicalDailyLoads, plannedLoads } = useMemo(() => {
@@ -592,46 +682,98 @@ export const TrainingPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 1. SEASON PLANNER TIMELINE */}
-      <SeasonPlannerTimeline
-        phases={phases}
-        competitions={competitions}
-        onOpenSoloGenerator={() => setIsSoloGeneratorOpen(true)}
-        onAddCompetition={() => {
-          const nextDate = new Date();
-          nextDate.setDate(nextDate.getDate() + 18 * 7);
-          const newComp: Competition = {
-            id: `comp-${Date.now()}`,
-            title: isHu ? "Új Célverseny (C)" : "New Target Race (C)",
-            date: nextDate.toISOString().split("T")[0] as string,
-            priority: "C",
-            sport: "running"
-          };
-          setCompetitions((prev) => [...prev, newComp]);
-          showToast({
-            title: isHu ? "Új verseny hozzáadva" : "Race added",
-            description: newComp.title,
-            type: "success"
-          });
-        }}
-      />
+      {/* Navigation Segmented Control: Naptár · Gyakorlatok (Eszközök & Rekordok reserved) */}
+      <div className="flex items-center justify-between gap-4 border-b border-white/5 pb-4">
+        <SegmentedControl
+          value={activeTab}
+          onChange={(val) => setActiveTab(val as "calendar" | "exercises" | "equipment" | "records")}
+          options={[
+            {
+              value: "calendar",
+              label: isHu ? "Naptár & Tervezés" : "Calendar & Plan",
+              icon: <CalendarIcon className="w-4 h-4 text-brand-400" />
+            },
+            {
+              value: "exercises",
+              label: isHu ? "Gyakorlatok könyvtára" : "Exercise Library",
+              icon: <Dumbbell className="w-4 h-4 text-purple-400" />
+            },
+            {
+              value: "equipment",
+              label: isHu ? "Eszközök" : "Equipment",
+              icon: <Wrench className="w-4 h-4 text-amber-400" />,
+              badge: hasMaintenanceDue ? (isHu ? "Karbantartás!" : "Due!") : undefined
+            },
+            {
+              value: "records",
+              label: isHu ? "Rekordok & Pályák" : "Records & Courses",
+              icon: <Trophy className="w-4 h-4 text-amber-500" />
+            }
+          ]}
+        />
+      </div>
 
-      {/* 2. PERFORMANCE MANAGEMENT CHART (PMC) */}
-      <PerformanceManagementChart
-        data={pmcSeries}
-        summary={loadSummary}
-        todayStr={todayStr}
-      />
+      {/* TAB CONTENT */}
+      {activeTab === "calendar" ? (
+        <>
+          {/* 1. SEASON PLANNER TIMELINE */}
+          <SeasonPlannerTimeline
+            phases={phases}
+            competitions={competitions}
+            onOpenSoloGenerator={() => setIsSoloGeneratorOpen(true)}
+            onAddCompetition={() => {
+              const nextDate = new Date();
+              nextDate.setDate(nextDate.getDate() + 18 * 7);
+              const newComp: Competition = {
+                id: `comp-${Date.now()}`,
+                title: isHu ? "Új Célverseny (C)" : "New Target Race (C)",
+                date: nextDate.toISOString().split("T")[0] as string,
+                priority: "C",
+                sport: "running"
+              };
+              setCompetitions((prev) => [...prev, newComp]);
+              showToast({
+                title: isHu ? "Új verseny hozzáadva" : "Race added",
+                description: newComp.title,
+                type: "success"
+              });
+            }}
+          />
 
-      {/* 3. INTERACTIVE TRAINING CALENDAR */}
-      <TrainingCalendar
-        workouts={workouts}
-        selectedDate={selectedDate}
-        onSelectDate={setSelectedDate}
-        onOpenWorkoutBuilder={handleOpenBuilder}
-        onOpenWorkoutFeedback={handleOpenFeedback}
-        onRescheduleWorkout={handleRescheduleWorkout}
-      />
+          {/* 2. PERFORMANCE MANAGEMENT CHART (PMC) */}
+          <PerformanceManagementChart
+            data={pmcSeries}
+            summary={loadSummary}
+            todayStr={todayStr}
+          />
+
+          {/* 3. INTERACTIVE TRAINING CALENDAR */}
+          <TrainingCalendar
+            workouts={workouts}
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
+            onOpenWorkoutBuilder={handleOpenBuilder}
+            onOpenWorkoutFeedback={handleOpenFeedback}
+            onRescheduleWorkout={handleRescheduleWorkout}
+            onOpenSessionDetail={handleOpenSessionDetail}
+            onOpenShareSession={handleOpenShareSession}
+            onOpenManualLog={(dateStr) => {
+              setSelectedDate(dateStr);
+              setSessionToEditInManual(null);
+              setIsManualModalOpen(true);
+            }}
+          />
+        </>
+      ) : activeTab === "exercises" ? (
+        /* EXERCISE LIBRARY TAB */
+        <ExerciseLibraryView athleteId={athleteId} />
+      ) : activeTab === "equipment" ? (
+        /* EQUIPMENT & MAINTENANCE TAB */
+        <EquipmentView athleteId={athleteId} />
+      ) : (
+        /* RECORDS & COURSES TAB */
+        <RecordsCoursesView athleteId={athleteId} />
+      )}
 
       {/* MODALS */}
 
@@ -673,13 +815,47 @@ export const TrainingPage: React.FC = () => {
         onSave={handleSaveThresholds}
       />
 
+      {/* Session Detail Modal (Charts & SVG Route Outline & Attach File) */}
+      <SessionDetailModal
+        isOpen={Boolean(selectedSessionForDetail)}
+        onClose={() => setSelectedSessionForDetail(null)}
+        session={selectedSessionForDetail}
+        athleteId={athleteId}
+        onEditSession={(sess) => {
+          setSelectedSessionForDetail(null);
+          setSessionToEditInManual(sess);
+          setIsManualModalOpen(true);
+        }}
+        onSessionUpdated={(updated) => {
+          setSelectedSessionForDetail(updated);
+          setWorkouts((prev) =>
+            prev.map((w) =>
+              w.id === updated.sessionId
+                ? {
+                    ...w,
+                    title: updated.title,
+                    sport: updated.sport as SportType,
+                    actualDurationMinutes: updated.durationMinutes,
+                    actualRpe: updated.rpe,
+                    plannedLoad: updated.trainingLoad || w.plannedLoad
+                  }
+                : w
+            )
+          );
+        }}
+      />
+
       {/* Manual Quick Session Modal */}
       <ManualSessionModal
         isOpen={isManualModalOpen}
-        onClose={() => setIsManualModalOpen(false)}
+        onClose={() => {
+          setIsManualModalOpen(false);
+          setSessionToEditInManual(null);
+        }}
+        sessionToEdit={sessionToEditInManual}
         defaultDate={selectedDate}
         onSessionSaved={(session) => {
-          // Add to workouts as completed
+          // Add or update in workouts as completed
           const newWorkout: PlannedWorkout = {
             id: session.sessionId,
             athleteId,
@@ -692,10 +868,19 @@ export const TrainingPage: React.FC = () => {
             actualRpe: session.rpe,
             plannedLoad: session.trainingLoad || 50,
             status: "completed",
-            blocks: []
+            blocks: [],
+            strengthExercises: session.strengthExercises
           };
           handleSaveWorkout(newWorkout);
         }}
+      />
+
+      {/* Share Workout Modal */}
+      <SessionShareModal
+        isOpen={!!sessionForShare}
+        onClose={() => setSessionForShare(null)}
+        session={sessionForShare}
+        athleteId={athleteId}
       />
     </div>
   );

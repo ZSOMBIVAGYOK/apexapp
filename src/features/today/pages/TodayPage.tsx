@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuthStore } from "@features/auth/authStore";
 import { useAppMode } from "@shared/hooks/useAppMode";
@@ -28,7 +28,8 @@ import {
   MessageSquare,
   Sparkles,
   Info,
-  Check
+  Check,
+  Wrench
 } from "lucide-react";
 import {
   getLocalDaily,
@@ -40,6 +41,10 @@ import {
   bandToStatus
 } from "@shared/lib/readiness";
 import { ManualSessionModal } from "@features/training/components/ManualSessionModal";
+import { HydrationTrackerCard } from "@features/nutrition/components/HydrationTrackerCard";
+import { getEquipmentList, hasDueMaintenance } from "@shared/lib/equipment";
+import { getRecoveryLogs } from "@shared/lib/recovery";
+import { RecoveryActivityLog } from "@shared/types/recovery";
 
 export const TodayPage: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -62,6 +67,16 @@ export const TodayPage: React.FC = () => {
   const [todayRestingHr, setTodayRestingHr] = useState(48);
   const [todayHrv, setTodayHrv] = useState(85);
   const [historicalDaysCount, setHistoricalDaysCount] = useState(0);
+
+  // Recovery activities for today
+  const [todayRecoveryLogs, setTodayRecoveryLogs] = useState<RecoveryActivityLog[]>([]);
+
+  // Equipment maintenance due status
+  const [dueMaintenanceInfo, setDueMaintenanceInfo] = useState<{
+    hasDue: boolean;
+    overdueCount: number;
+    dueSoonCount: number;
+  }>({ hasDue: false, overdueCount: 0, dueSoonCount: 0 });
 
   // Workout adaptive suggestion state (when readiness is amber/red)
   const [suggestionState, setSuggestionState] = useState<"pending" | "applied" | "dismissed">("pending");
@@ -120,6 +135,16 @@ export const TodayPage: React.FC = () => {
       });
       setReadinessResult(baselineRes);
     }
+
+    // Load today's recovery activities
+    getRecoveryLogs(athleteId).then((logs) => {
+      setTodayRecoveryLogs(logs.filter((l) => l.date === todayStr));
+    });
+
+    // Check equipment maintenance status
+    getEquipmentList(athleteId).then((items) => {
+      setDueMaintenanceInfo(hasDueMaintenance(items));
+    });
   }, [athleteId, todayStr]);
 
   const handleAddWater = (amountMl = 250) => {
@@ -183,6 +208,24 @@ export const TodayPage: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-20">
+      {/* Unfinished Onboarding Banner */}
+      {user && !user.onboardingCompleted && (
+        <div className="flex items-center justify-between p-3.5 rounded-16 bg-brand/10 border border-brand/25 text-13">
+          <div className="flex items-center gap-2.5">
+            <Sparkles className="h-4 w-4 text-brand shrink-0" />
+            <span className="text-text-primary">
+              A sportolói profil beállítása még nem fejeződött be.
+            </span>
+          </div>
+          <Link
+            to="/onboarding"
+            className="text-brand font-bold hover:underline shrink-0 flex items-center gap-1 text-12 ml-2"
+          >
+            Beállítás folytatása &rarr;
+          </Link>
+        </div>
+      )}
+
       {/* Top Cockpit Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -233,6 +276,40 @@ export const TodayPage: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      {/* Maintenance Due Alert Banner */}
+      {dueMaintenanceInfo.hasDue && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+              <Wrench className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-sm font-bold text-text-primary flex items-center gap-2">
+                <span>{isHu ? "Karbantartás esedékes!" : "Maintenance Required!"}</span>
+                <Badge variant="caution" size="sm">
+                  {dueMaintenanceInfo.overdueCount > 0
+                    ? `${dueMaintenanceInfo.overdueCount} esedékes`
+                    : "Hamarosan"}
+                </Badge>
+              </div>
+              <p className="text-xs text-text-secondary mt-0.5">
+                {isHu
+                  ? "Egy vagy több sportfelszerelésed elérte a szervizintervallumot."
+                  : "One or more equipment items have reached their service interval."}
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => navigate("/training")}
+            className="shrink-0"
+          >
+            {isHu ? "Eszközök &rarr;" : "View &rarr;"}
+          </Button>
+        </div>
+      )}
 
       {/* First-Day Experience Banner if fresh user with 0 historical check-ins */}
       {historicalDaysCount === 0 && !hasCheckedInToday && (
@@ -490,6 +567,48 @@ export const TodayPage: React.FC = () => {
         />
       </div>
 
+      {/* Today's Recovery Activities Summary */}
+      <div className="bg-surface rounded-20 p-4 border border-border-hairline flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-12 bg-purple-500/15 text-purple-400 flex items-center justify-center shrink-0">
+            <Sparkles className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wider text-text-tertiary">
+              {isHu ? "Mai regenerációs aktivitások" : "Today's Recovery Protocols"}
+            </div>
+            {todayRecoveryLogs.length > 0 ? (
+              <div className="flex items-center gap-2 flex-wrap mt-1">
+                {todayRecoveryLogs.map((log) => (
+                  <span
+                    key={log.id}
+                    className="inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full bg-surface-elevated border border-border-hairline text-text-primary font-medium"
+                  >
+                    <span>{log.activityName}</span>
+                    <span className="text-text-tertiary">({log.durationMinutes}p)</span>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <div className="text-xs text-text-secondary mt-0.5">
+                {isHu
+                  ? "Mára még nincs rögzített regeneráció (szauna, hidegfürdő, masszázs, nyújtás)"
+                  : "No recovery logged yet today (sauna, cold plunge, massage, mobility)"}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <Button
+          variant="tertiary"
+          size="sm"
+          onClick={() => navigate("/insights?tab=recovery")}
+          className="text-xs shrink-0 self-start sm:self-auto"
+        >
+          {isHu ? "Regeneráció napló &rarr;" : "Recovery log &rarr;"}
+        </Button>
+      </div>
+
       {/* Today's Workout & Nutrition Sections */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Planned Workout Card */}
@@ -718,6 +837,13 @@ export const TodayPage: React.FC = () => {
           </div>
         </Card>
       </div>
+
+      {/* Beverage-Engine Driven Hydration Section */}
+      <HydrationTrackerCard
+        userId={athleteId}
+        date={todayStr}
+        targetLiters={3.5}
+      />
 
       {/* Manual Session Quick Modal */}
       <ManualSessionModal

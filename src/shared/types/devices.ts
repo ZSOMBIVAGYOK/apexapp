@@ -131,13 +131,15 @@ export interface DeviceConnection {
   provider: DeviceProvider;
   name: string;
   connected: boolean;
-  status: "connected" | "disconnected" | "syncing" | "error" | "mock_active";
+  status: "connected" | "disconnected" | "syncing" | "error" | "mock_active" | "not_configured";
   lastSyncAt: string | null;
+  isConfigured?: boolean;
   scopes?: string[];
   mockMode?: boolean;
   error?: string;
   dataQualityNotice?: string;
 }
+
 
 /**
  * User-configured multi-source priority hierarchy per metric

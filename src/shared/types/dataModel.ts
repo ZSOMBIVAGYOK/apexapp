@@ -1,4 +1,5 @@
 import { UserRole } from "./index";
+import { StrengthExercise } from "./training";
 
 /**
  * Standard data record metadata required on EVERY record
@@ -192,6 +193,23 @@ export interface DailyAggregateDocument extends StandardRecordMetadata {
   notes?: string;
 }
 
+export interface SessionTimeSeriesPoint {
+  timeOffsetSeconds: number;
+  heartRate?: number;
+  powerWatts?: number;
+  speedMps?: number;
+  paceSecondsPerKm?: number;
+  elevationMeters?: number;
+  distanceMeters?: number;
+  lat?: number;
+  lon?: number;
+}
+
+export interface SessionTimeSeriesData {
+  points: SessionTimeSeriesPoint[];
+  svgRouteOutline?: string;
+}
+
 /**
  * Completed training session in athletes/{id}/sessions/{sessionId}
  */
@@ -203,6 +221,7 @@ export interface CompletedSessionDocument extends StandardRecordMetadata {
   title: string;
   startTime: string; // ISO
   durationMinutes: number;
+  durationSeconds?: number; // Optional high precision duration
   rpe: number; // 1-10
   targetIntensityRpe: number; // 1-10
   trainingLoad?: number; // Calculated TRIMP / TSS / sRPE
@@ -210,6 +229,7 @@ export interface CompletedSessionDocument extends StandardRecordMetadata {
     avgHeartRate?: number;
     maxHeartRate?: number;
     avgPower?: number;
+    avgPowerWatts?: number;
     normalizedPower?: number;
     distanceMeters?: number;
     elevationGainMeters?: number;
@@ -225,6 +245,16 @@ export interface CompletedSessionDocument extends StandardRecordMetadata {
   }>;
   coachFeedback?: string;
   notes?: string;
+  strengthExercises?: StrengthExercise[];
+  equipmentIds?: string[];
+  courseId?: string;
+  // File import tracking & downsampled time series (max ~500 points)
+  fileRef?: string;
+  fileType?: "fit" | "gpx" | "tcx" | "csv";
+  fileName?: string;
+  fileSizeBytes?: number;
+  importedAt?: string;
+  timeSeries?: SessionTimeSeriesData;
   completed: boolean;
 }
 

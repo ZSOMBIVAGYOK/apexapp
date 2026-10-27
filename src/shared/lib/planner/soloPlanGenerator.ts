@@ -20,6 +20,7 @@ export interface PlanGeneratorInput {
   goal: string;
   aRaceDate: string; // YYYY-MM-DD
   trainingDaysPerWeek: number; // 3 to 6
+  trainingDays?: number[]; // [1..7] where 1 is Monday
   weeklyAvailableHours: number; // e.g. 5 to 20
   startDate?: string; // YYYY-MM-DD
 }
@@ -223,6 +224,7 @@ export class RuleBasedPlanGenerator implements IPlanGenerator {
       goal,
       aRaceDate,
       trainingDaysPerWeek,
+      trainingDays,
       weeklyAvailableHours,
       startDate
     } = input;
@@ -243,8 +245,13 @@ export class RuleBasedPlanGenerator implements IPlanGenerator {
     };
 
     // Calculate daily workout template mapping for days of the week:
-    // E.g., for 4 days/week: Tue (intervals), Thu (tempo), Sat (endurance), Sun (recovery)
-    const dayIndices = this.selectTrainingDayIndices(trainingDaysPerWeek);
+    // If explicit trainingDays array is provided (1=Mon ... 7=Sun), map to 0-based week offsets (d - 1)
+    const effectiveDaysCount =
+      trainingDays && trainingDays.length > 0 ? trainingDays.length : trainingDaysPerWeek;
+    const dayIndices =
+      trainingDays && trainingDays.length > 0
+        ? trainingDays.map((d) => d - 1)
+        : this.selectTrainingDayIndices(trainingDaysPerWeek);
 
     // Populate workouts for each phase
     phases.forEach((phase) => {
@@ -265,7 +272,7 @@ export class RuleBasedPlanGenerator implements IPlanGenerator {
           const { title, intent, durationMin, plannedLoad } = this.determineSessionProfile(
             phase.type,
             idx,
-            trainingDaysPerWeek,
+            effectiveDaysCount,
             phase.targetWeeklyVolumeMinutes
           );
 

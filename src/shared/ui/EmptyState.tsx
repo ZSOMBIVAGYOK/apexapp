@@ -1,11 +1,19 @@
 import React from "react";
 import { Inbox } from "lucide-react";
 
+import { Button } from "./Button";
+
+export interface EmptyStateActionObject {
+  label: string;
+  onClick: () => void;
+}
+
 export interface EmptyStateProps {
   icon?: React.ReactNode;
   title: string;
   description?: string;
-  action?: React.ReactNode;
+  message?: string;
+  action?: React.ReactNode | EmptyStateActionObject;
   className?: string;
 }
 
@@ -13,9 +21,14 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   icon,
   title,
   description,
+  message,
   action,
   className = ""
 }) => {
+  const effectiveDescription = description || message;
+  const isActionObject =
+    action && typeof action === "object" && "label" in action && "onClick" in action;
+
   return (
     <div
       className={`rounded-28 border border-dashed border-border-subtle bg-bg-surface/50 p-8 sm:p-12 text-center flex flex-col items-center justify-center select-none ${className}`}
@@ -28,13 +41,23 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         {title}
       </h3>
 
-      {description && (
+      {effectiveDescription && (
         <p className="mt-1 max-w-sm text-14 text-text-secondary leading-normal">
-          {description}
+          {effectiveDescription}
         </p>
       )}
 
-      {action && <div className="mt-5">{action}</div>}
+      {action && (
+        <div className="mt-5">
+          {isActionObject ? (
+            <Button onClick={(action as EmptyStateActionObject).onClick}>
+              {(action as EmptyStateActionObject).label}
+            </Button>
+          ) : (
+            action as React.ReactNode
+          )}
+        </div>
+      )}
     </div>
   );
 };

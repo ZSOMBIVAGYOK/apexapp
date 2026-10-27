@@ -72,6 +72,12 @@ service cloud.firestore {
         allow write: if canWriteModule(athleteId, 'training');
       }
 
+      // Subcollection: exercises (TRAINING module - exercise library)
+      match /exercises/{exerciseId} {
+        allow read: if canReadModule(athleteId, 'training');
+        allow write: if canWriteModule(athleteId, 'training');
+      }
+
       // Subcollection: nutritionDays and /entries (NUTRITION module)
       match /nutritionDays/{date} {
         allow read: if canReadModule(athleteId, 'nutrition');
@@ -105,6 +111,54 @@ service cloud.firestore {
       match /devices/{deviceId} {
         allow read: if canReadModule(athleteId, 'devices');
         allow write: if canWriteModule(athleteId, 'devices');
+      }
+
+      // Subcollection: customSports
+      match /customSports/{sportId} {
+        allow read: if isUser(athleteId) || hasActiveRel(athleteId, request.auth.uid);
+        allow write: if isUser(athleteId);
+      }
+
+      // Subcollection: hydration (NUTRITION module)
+      match /hydration/{hydrationId} {
+        allow read: if canReadModule(athleteId, 'nutrition');
+        allow write: if canWriteModule(athleteId, 'nutrition');
+      }
+
+      // Subcollection: customBeverages
+      match /customBeverages/{beverageId} {
+        allow read: if isUser(athleteId) || canReadModule(athleteId, 'nutrition');
+        allow write: if isUser(athleteId);
+      }
+
+      // Subcollection: recoveryActivities (RECOVERY module)
+      match /recoveryActivities/{activityId} {
+        allow read: if canReadModule(athleteId, 'recovery');
+        allow write: if canWriteModule(athleteId, 'recovery');
+      }
+
+      // Subcollection: customRecoveryActivities (RECOVERY module)
+      match /customRecoveryActivities/{typeId} {
+        allow read: if canReadModule(athleteId, 'recovery');
+        allow write: if isUser(athleteId);
+      }
+
+      // Subcollection: records (TRAINING module)
+      match /records/{recordId} {
+        allow read: if canReadModule(athleteId, 'training');
+        allow write: if canWriteModule(athleteId, 'training');
+      }
+
+      // Subcollection: courses (TRAINING module)
+      match /courses/{courseId} {
+        allow read: if canReadModule(athleteId, 'training');
+        allow write: if canWriteModule(athleteId, 'training');
+      }
+
+      // Subcollection: equipment (TRAINING module)
+      match /equipment/{equipmentId} {
+        allow read: if canReadModule(athleteId, 'training');
+        allow write: if canWriteModule(athleteId, 'training');
       }
     }
 
@@ -174,9 +228,24 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // 6. Device Integrations (Server-side only collections)
+    // integrations_tokens: OAuth access/refresh tokens (STRICT ZERO-CLIENT ACCESS)
+    // integrations_events: Idempotent webhook event store (STRICT ZERO-CLIENT ACCESS)
+    // integrations_states: OAuth state nonces & PKCE verifiers (STRICT ZERO-CLIENT ACCESS)
+    match /integrations_tokens/{doc=**} {
+      allow read, write: if false;
+    }
+    match /integrations_events/{doc=**} {
+      allow read, write: if false;
+    }
+    match /integrations_states/{doc=**} {
+      allow read, write: if false;
+    }
+
     // Default deny everything else
     match /{document=**} {
       allow read, write: if false;
     }
   }
 }
+

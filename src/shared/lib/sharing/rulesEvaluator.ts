@@ -152,6 +152,14 @@ export const evaluateFirestoreRules = (
       return { allowed: canWriteModule(athleteId, "training") };
     }
 
+    // exercises (TRAINING module - exercise library)
+    if (subcollection === "exercises") {
+      if (operation === "read") {
+        return { allowed: canReadModule(athleteId, "training") };
+      }
+      return { allowed: canWriteModule(athleteId, "training") };
+    }
+
     // nutritionDays and /entries (NUTRITION module)
     if (subcollection === "nutritionDays") {
       if (operation === "read") {
@@ -190,6 +198,46 @@ export const evaluateFirestoreRules = (
         return { allowed: canReadModule(athleteId, "devices") };
       }
       return { allowed: canWriteModule(athleteId, "devices") };
+    }
+
+    // recoveryActivities (RECOVERY module)
+    if (subcollection === "recoveryActivities") {
+      if (operation === "read") {
+        return { allowed: canReadModule(athleteId, "recovery") };
+      }
+      return { allowed: canWriteModule(athleteId, "recovery") };
+    }
+
+    // customRecoveryActivities (RECOVERY module read, athlete write)
+    if (subcollection === "customRecoveryActivities") {
+      if (operation === "read") {
+        return { allowed: canReadModule(athleteId, "recovery") };
+      }
+      return { allowed: isUser(athleteId) };
+    }
+
+    // records (TRAINING module)
+    if (subcollection === "records") {
+      if (operation === "read") {
+        return { allowed: canReadModule(athleteId, "training") };
+      }
+      return { allowed: canWriteModule(athleteId, "training") };
+    }
+
+    // courses (TRAINING module)
+    if (subcollection === "courses") {
+      if (operation === "read") {
+        return { allowed: canReadModule(athleteId, "training") };
+      }
+      return { allowed: canWriteModule(athleteId, "training") };
+    }
+
+    // equipment (TRAINING module)
+    if (subcollection === "equipment") {
+      if (operation === "read") {
+        return { allowed: canReadModule(athleteId, "training") };
+      }
+      return { allowed: canWriteModule(athleteId, "training") };
     }
   }
 
@@ -293,6 +341,64 @@ export const evaluateFirestoreRules = (
 
   // Default deny
   return { allowed: false, reason: "Default catch-all deny" };
+};
+
+export interface StorageEvaluationRequest {
+  auth: RulesAuthContext | null;
+  path: string; // e.g. "athletes/ath-1/workouts/sess-1/run.fit"
+  operation: "read" | "write";
+  fileSizeBytes?: number;
+  contentType?: string;
+}
+
+/**
+ * Pure evaluator replicating storage.rules for client-side tests and validation
+ */
+export const evaluateStorageRules = (
+  req: StorageEvaluationRequest,
+  db: MockDatabase
+): { allowed: boolean; reason?: string } => {
+  const { auth, path, operation, fileSizeBytes = 1024, contentType = "application/octet-stream" } = req;
+  const segments = path.split("/").filter(Boolean);
+
+  const isAuthenticated = Boolean(auth && auth.uid);
+  const isUser = (uid: string) => isAuthenticated && auth?.uid === uid;
+
+  if (segments[0] === "athletes" && segments[2] === "workouts") {
+    const athleteId = segments[1]!;
+
+    if (operation === "read") {
+      if (isUser(athleteId)) return { allowed: true };
+      if (!isAuthenticated || !auth?.uid) return { allowed: false, reason: "Unauthenticated" };
+
+      const key = `${athleteId}_${auth.uid}`;
+      const rel = db.relationships?.[key];
+      const hasTrainingRead = Boolean(
+        rel && rel.status === "active" && rel.permissions.training && rel.permissions.training !== "none"
+      );
+
+      return { allowed: hasTrainingRead };
+    }
+
+    if (operation === "write") {
+      if (!isUser(athleteId)) {
+        return { allowed: false, reason: "Only athlete can upload their workout files" };
+      }
+
+      const isValidSize = fileSizeBytes <= 25 * 1024 * 1024;
+      const isValidType =
+        contentType.startsWith("application/") ||
+        contentType.startsWith("text/") ||
+        contentType === "application/octet-stream";
+
+      if (!isValidSize) return { allowed: false, reason: "File exceeds 25 MB" };
+      if (!isValidType) return { allowed: false, reason: "Invalid content type" };
+
+      return { allowed: true };
+    }
+  }
+
+  return { allowed: false, reason: "Default storage deny" };
 };
 
 /**

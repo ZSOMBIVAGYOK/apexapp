@@ -7,7 +7,7 @@ import {
   StrengthExercise,
   WorkoutTemplate
 } from "@shared/types/training";
-import { BottomSheet, Button, Badge } from "@shared/ui";
+import { BottomSheet, Button, Badge, showToast } from "@shared/ui";
 import {
   Plus,
   Trash2,
@@ -17,8 +17,13 @@ import {
   Layers,
   Save,
   Clock,
-  Sparkles
+  Sparkles,
+  Bookmark,
+  Video
 } from "lucide-react";
+import { ExercisePickerModal } from "./ExercisePickerModal";
+import { VideoPlayerModal } from "./VideoPlayerModal";
+import { saveExercise, ExerciseDocument } from "@shared/lib/exercises";
 
 interface WorkoutBuilderModalProps {
   isOpen: boolean;
@@ -231,6 +236,14 @@ export const WorkoutBuilderModal: React.FC<WorkoutBuilderModalProps> = ({
     return d.toISOString().split("T")[0] as string;
   });
 
+  // Exercise library picker & video modal
+  const [isExercisePickerOpen, setIsExercisePickerOpen] = useState(false);
+  const [videoModalExercise, setVideoModalExercise] = useState<{
+    name: string;
+    description?: string;
+    videoUrl?: string;
+  } | null>(null);
+
   // Populate from workoutToEdit
   useEffect(() => {
     if (workoutToEdit) {
@@ -321,6 +334,79 @@ export const WorkoutBuilderModal: React.FC<WorkoutBuilderModalProps> = ({
   const handleRemoveExercise = (id: string) => {
     if (strengthExercises.length > 1) {
       setStrengthExercises(strengthExercises.filter((e) => e.id !== id));
+    }
+  };
+
+  const handleAddExerciseFromLibrary = (libEx: ExerciseDocument) => {
+    const newEx: StrengthExercise = {
+      id: `ex-snap-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      libraryExerciseId: libEx.id,
+      name: libEx.name,
+      sets: 3,
+      reps: 10,
+      loadKg: 0,
+      rpe: 7,
+      restSeconds: 60,
+      description: libEx.description,
+      videoUrl: libEx.videoUrl,
+      notes: libEx.defaultSetsRepsLoad
+    };
+    setStrengthExercises((prev) => [...prev, newEx]);
+    showToast({
+      title: "Gyakorlat hozzáadva",
+      description: `${libEx.name} másolva az edzésbe (könyvtár változatlan)`,
+      type: "success"
+    });
+  };
+
+  const handleSaveExerciseToLibrary = async (ex: StrengthExercise) => {
+    try {
+      const saved = await saveExercise(athleteId, {
+        name: ex.name,
+        description: ex.description,
+        videoUrl: ex.videoUrl,
+        defaultSetsRepsLoad: `${ex.sets}x${ex.reps}${ex.loadKg ? ` @ ${ex.loadKg}kg` : ""}`,
+        tags: ["Kondi / Erő"],
+        isFavorite: false
+      });
+      setStrengthExercises((prev) =>
+        prev.map((item) => (item.id === ex.id ? { ...item, libraryExerciseId: saved.id } : item))
+      );
+      showToast({
+        title: "Mentve a könyvtárba",
+        description: `${saved.name} sikeresen elmentve a könyvtárba.`,
+        type: "success"
+      });
+    } catch {
+      showToast({
+        title: "Hiba",
+        description: "Nem sikerült elmenteni a könyvtárba.",
+        type: "error"
+      });
+    }
+  };
+
+  const handleUpdateLibraryExercise = async (ex: StrengthExercise) => {
+    if (!ex.libraryExerciseId) return;
+    try {
+      await saveExercise(athleteId, {
+        id: ex.libraryExerciseId,
+        name: ex.name,
+        description: ex.description,
+        videoUrl: ex.videoUrl,
+        defaultSetsRepsLoad: `${ex.sets}x${ex.reps}${ex.loadKg ? ` @ ${ex.loadKg}kg` : ""}`
+      });
+      showToast({
+        title: "Könyvtár bejegyzés frissítve",
+        description: `${ex.name} adatai frissültek a könyvtárban.`,
+        type: "success"
+      });
+    } catch {
+      showToast({
+        title: "Hiba",
+        description: "Nem sikerült frissíteni a könyvtárat.",
+        type: "error"
+      });
     }
   };
 
@@ -690,17 +776,28 @@ export const WorkoutBuilderModal: React.FC<WorkoutBuilderModalProps> = ({
           /* STRENGTH EXERCISES BUILDER */
           <div>
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
-                {isHu ? "Gyakorlatok listája" : "Exercise List"}
+              <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
+                <Dumbbell className="w-3.5 h-3.5 text-purple-400" />
+                <span>{isHu ? `Gyakorlatok listája (${strengthExercises.length})` : `Exercise List (${strengthExercises.length})`}</span>
               </span>
-              <button
-                type="button"
-                onClick={handleAddExercise}
-                className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1 font-medium"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>{isHu ? "Gyakorlat hozzáadása" : "Add exercise"}</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsExercisePickerOpen(true)}
+                  className="text-xs text-brand-400 hover:text-brand-300 flex items-center gap-1 font-medium bg-brand-500/10 px-2.5 py-1 rounded-lg border border-brand-500/20"
+                >
+                  <Bookmark className="w-3.5 h-3.5" />
+                  <span>{isHu ? "Könyvtárból választás" : "From library"}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAddExercise}
+                  className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1 font-medium bg-purple-500/10 px-2.5 py-1 rounded-lg border border-purple-500/20"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>{isHu ? "Új sor" : "New row"}</span>
+                </button>
+              </div>
             </div>
 
             <div className="space-y-2.5">
@@ -722,13 +819,46 @@ export const WorkoutBuilderModal: React.FC<WorkoutBuilderModalProps> = ({
                       }}
                       className="bg-transparent text-white font-medium text-xs flex-1 focus:outline-none"
                     />
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveExercise(ex.id)}
-                      className="text-text-secondary hover:text-rose-400 p-1"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      {(ex.videoUrl || ex.description) && (
+                        <button
+                          type="button"
+                          onClick={() => setVideoModalExercise(ex)}
+                          className="p-1 text-brand-400 hover:text-brand-300"
+                          title={isHu ? "Videó és leírás megtekintése" : "View video & description"}
+                        >
+                          <Video className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+
+                      {ex.libraryExerciseId ? (
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateLibraryExercise(ex)}
+                          className="text-[10px] text-purple-400 hover:underline px-1.5 py-0.5 rounded bg-purple-500/10"
+                          title={isHu ? "Könyvtár bejegyzés frissítése" : "Update library exercise"}
+                        >
+                          {isHu ? "Frissítés könyvtárban" : "Update in library"}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleSaveExerciseToLibrary(ex)}
+                          className="text-[10px] text-emerald-400 hover:underline px-1.5 py-0.5 rounded bg-emerald-500/10"
+                          title={isHu ? "Mentés a könyvtárba" : "Save to library"}
+                        >
+                          {isHu ? "Mentés könyvtárba" : "Save to library"}
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveExercise(ex.id)}
+                        className="text-text-secondary hover:text-rose-400 p-1"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-4 gap-2 text-xs font-mono">
@@ -881,6 +1011,25 @@ export const WorkoutBuilderModal: React.FC<WorkoutBuilderModalProps> = ({
           </Button>
         </div>
       </div>
+
+      {/* Exercise Picker Modal */}
+      <ExercisePickerModal
+        isOpen={isExercisePickerOpen}
+        onClose={() => setIsExercisePickerOpen(false)}
+        athleteId={athleteId}
+        onSelectExercise={handleAddExerciseFromLibrary}
+      />
+
+      {/* Video Player Modal */}
+      {videoModalExercise && (
+        <VideoPlayerModal
+          isOpen={true}
+          onClose={() => setVideoModalExercise(null)}
+          title={videoModalExercise.name}
+          videoUrl={videoModalExercise.videoUrl}
+          description={videoModalExercise.description}
+        />
+      )}
     </BottomSheet>
   );
 };

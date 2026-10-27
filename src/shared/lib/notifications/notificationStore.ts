@@ -6,6 +6,7 @@ export type NotificationType =
   | "upcoming_workout"
   | "coach_message"
   | "staff_alert"
+  | "equipment_maintenance"
   | "system";
 
 export interface ApexNotification {
@@ -25,6 +26,7 @@ export interface NotificationSettings {
   workoutReminderEnabled: boolean;
   coachMessageEnabled: boolean;
   staffAlertsEnabled: boolean;
+  maintenanceRemindersEnabled: boolean;
   quietHoursEnabled: boolean;
   quietHoursStart: string; // e.g. "22:00"
   quietHoursEnd: string; // e.g. "07:00"
@@ -50,6 +52,7 @@ const DEFAULT_SETTINGS: NotificationSettings = {
   workoutReminderEnabled: true,
   coachMessageEnabled: true,
   staffAlertsEnabled: true,
+  maintenanceRemindersEnabled: true,
   quietHoursEnabled: true,
   quietHoursStart: "22:00",
   quietHoursEnd: "07:00"
