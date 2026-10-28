@@ -11,9 +11,10 @@ import {
   browserLocalPersistence,
   User as FirebaseUser
 } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, waitForPendingWrites } from "firebase/firestore";
 import { auth, firestore, sanitizeForFirestore } from "@shared/lib/firebase";
 import { clearUserLocalData } from "@shared/lib/storage/userStorage";
+import { getPendingMutationsCount } from "@shared/lib/offline/offlineStorage";
 import { UserProfile, UserRole } from "@shared/types";
 
 // Ensure persistent sessions
@@ -228,12 +229,49 @@ export const triggerPasswordReset = async (email: string) => {
 };
 
 /**
- * Sign out
+ * Checks for any pending writes or un-flushed offline mutations before logging out.
  */
-export const signOutAuth = async () => {
+export const checkPendingWritesBeforeSignOut = async (): Promise<{ safe: boolean; pendingCount: number }> => {
+  const queueCount = getPendingMutationsCount();
+  if (queueCount > 0) {
+    return { safe: false, pendingCount: queueCount };
+  }
+
+  try {
+    const timeoutPromise = new Promise<{ timeout: true }>((resolve) =>
+      setTimeout(() => resolve({ timeout: true }), 1500)
+    );
+    const result = await Promise.race([
+      waitForPendingWrites(firestore).then(() => ({ timeout: false })),
+      timeoutPromise
+    ]);
+
+    if (result.timeout) {
+      return { safe: false, pendingCount: 1 };
+    }
+  } catch {
+    // Offline or error waiting
+  }
+
+  return { safe: true, pendingCount: 0 };
+};
+
+/**
+ * Sign out safely with pending write checks
+ */
+export const signOutAuth = async (force = false): Promise<{ success: boolean; blocked?: boolean; pendingCount?: number }> => {
   const currentUid = auth.currentUser?.uid;
+
+  if (!force) {
+    const check = await checkPendingWritesBeforeSignOut();
+    if (!check.safe) {
+      return { success: false, blocked: true, pendingCount: check.pendingCount };
+    }
+  }
+
   await firebaseSignOut(auth);
   clearUserLocalData(currentUid);
+  return { success: true };
 };
 
 /**

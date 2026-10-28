@@ -21,7 +21,7 @@ interface AuthState {
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
   setLoading: (loading: boolean) => void;
   loginDemo: (role?: "athlete" | "coach") => void;
-  signOut: () => Promise<void>;
+  signOut: (force?: boolean) => Promise<{ success: boolean; blocked?: boolean; pendingCount?: number }>;
 }
 
 let activeProfileUnsubscribe: Unsubscribe | null = null;
@@ -107,16 +107,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     });
   },
 
-  signOut: async () => {
+  signOut: async (force = false) => {
+    try {
+      const res = await signOutAuth(force);
+      if (res.blocked) {
+        return res;
+      }
+    } catch {
+      // Ignore in demo mode or offline
+    }
+
     if (activeProfileUnsubscribe) {
       activeProfileUnsubscribe();
       activeProfileUnsubscribe = null;
-    }
-
-    try {
-      await signOutAuth();
-    } catch {
-      // Ignore in demo mode or offline
     }
 
     set({
@@ -126,6 +129,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isProfileLoading: false,
       isDemoUser: false
     });
+
+    return { success: true };
   }
 }));
 

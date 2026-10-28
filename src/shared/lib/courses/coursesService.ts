@@ -10,6 +10,7 @@ import {
   query,
   orderBy
 } from "firebase/firestore";
+import { sanitizeForFirestore } from "@shared/lib/firebase/sanitize";
 
 const LOCAL_COURSES_PREFIX = "apex_courses_";
 
@@ -270,7 +271,7 @@ export async function saveCourse(
 
   try {
     const docRef = doc(db, "athletes", athleteId, "courses", id);
-    await setDoc(docRef, course);
+    await setDoc(docRef, sanitizeForFirestore({ ...course, schemaVersion: 1 }));
   } catch {
     // offline
   }

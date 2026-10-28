@@ -30,6 +30,7 @@ import {
   getAllLocalDailies,
   getLocalSessions
 } from "@shared/lib/offline/offlineStorage";
+import { getDayCheckin } from "@shared/lib/repositories/checkinRepository";
 import {
   recomputeLoadsFromDate
 } from "@shared/lib/load/loadRecomputation";
@@ -100,8 +101,7 @@ export const CheckinPage: React.FC = () => {
 
   // Load daily checkin data for selected date
   const loadDateData = React.useCallback((targetDate: string) => {
-    const existing = getLocalDaily(athleteId, targetDate);
-    if (existing) {
+    const applyDoc = (existing: DailyAggregateDocument) => {
       setExistingDoc(existing);
       setSleepDurationMinutes(existing.sleep.durationMinutes);
       setSleepQuality(existing.sleep.qualityScore);
@@ -148,11 +148,23 @@ export const CheckinPage: React.FC = () => {
         historicalDaysCount: historicalDays
       });
       setReadinessResult(res);
+    };
+
+    const existing = getLocalDaily(athleteId, targetDate);
+    if (existing) {
+      applyDoc(existing);
     } else {
       setExistingDoc(null);
       setReadinessResult(null);
       setNotes("");
     }
+
+    // Also fetch from Firestore in background to ensure freshness
+    getDayCheckin(athleteId, targetDate).then((serverDoc) => {
+      if (serverDoc) {
+        applyDoc(serverDoc);
+      }
+    });
   }, [athleteId]);
 
   useEffect(() => {

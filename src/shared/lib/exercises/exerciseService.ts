@@ -11,9 +11,9 @@ import {
   collection,
   doc,
   getDocs,
-  setDoc,
-  deleteDoc
+  setDoc
 } from "firebase/firestore";
+import { sanitizeForFirestore } from "@shared/lib/firebase/sanitize";
 
 const STORAGE_KEY_PREFIX = "apex_exercises_";
 
@@ -241,7 +241,7 @@ export async function saveExercise(
   if (typeof navigator !== "undefined" && navigator.onLine) {
     try {
       const docRef = doc(db, "athletes", athleteId, "exercises", id);
-      await setDoc(docRef, fullDoc, { merge: true });
+      await setDoc(docRef, sanitizeForFirestore({ ...fullDoc, schemaVersion: 1 }), { merge: true });
     } catch {
       // Offline fallback
     }
@@ -251,17 +251,18 @@ export async function saveExercise(
 }
 
 /**
- * Delete an exercise from the library
+ * Delete an exercise from the library (soft delete)
  */
 export async function deleteExercise(athleteId: string, exerciseId: string): Promise<void> {
   const existingList = getLocalExercises(athleteId);
-  const updatedList = existingList.filter((e) => e.id !== exerciseId);
-  saveLocalExercises(athleteId, updatedList);
+  const now = new Date().toISOString();
+  const updatedList = existingList.map((e) => (e.id === exerciseId ? { ...e, deletedAt: now } : e));
+  saveLocalExercises(athleteId, updatedList.filter((e) => !e.deletedAt));
 
   if (typeof navigator !== "undefined" && navigator.onLine) {
     try {
       const docRef = doc(db, "athletes", athleteId, "exercises", exerciseId);
-      await deleteDoc(docRef);
+      await setDoc(docRef, { deletedAt: now }, { merge: true });
     } catch {
       // Offline fallback
     }

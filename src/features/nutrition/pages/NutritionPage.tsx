@@ -43,6 +43,7 @@ import { BodyMetricsTab } from "../components/BodyMetricsTab";
 import { DietitianPlanModal } from "../components/DietitianPlanModal";
 import { HydrationTrackerCard } from "../components/HydrationTrackerCard";
 import { useAuthStore } from "@features/auth/authStore";
+import { getNutritionDay, saveNutritionDay } from "@shared/lib/repositories/nutritionRepository";
 import {
   normalizeNutritionMeals,
   CANONICAL_MEAL_TYPES,
@@ -401,15 +402,29 @@ export const NutritionPage: React.FC = () => {
   const [showFuellingModal, setShowFuellingModal] = useState(false);
   const [showDietitianPlanModal, setShowDietitianPlanModal] = useState(false);
 
-  // Persist meals
+  // Load daily meals from nutrition repository on user/date change
+  useEffect(() => {
+    if (user?.uid) {
+      getNutritionDay(user.uid, selectedDate).then((serverData) => {
+        if (serverData?.meals) {
+          setMeals(normalizeNutritionMeals(serverData.meals));
+        }
+      });
+    }
+  }, [user?.uid, selectedDate]);
+
+  // Persist meals to local storage and Firestore
   useEffect(() => {
     try {
       const storageKey = getUserStorageKey("daily_nutrition_data", user?.uid);
       localStorage.setItem(storageKey, JSON.stringify(meals));
+      if (user?.uid) {
+        saveNutritionDay(user.uid, selectedDate, { meals });
+      }
     } catch {
       // ignore
     }
-  }, [meals, user?.uid]);
+  }, [meals, user?.uid, selectedDate]);
 
   // Persist hide calories setting
   const toggleHideCalories = (val: boolean) => {

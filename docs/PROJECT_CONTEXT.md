@@ -1016,5 +1016,27 @@ All nutrition constants and formulas are documented in `src/shared/lib/nutrition
 
 ### F. Verification & Quality
 - **Unit Tests:** `src/shared/lib/share/video/video.test.ts` (17 tests covering tabular duration/pace, 5 HR zones, sample point and midpoint interpolation, clamp boundaries, ISO BMFF QuickTime creation date parser, export dimensions, and overlay HUD layouts).
-- **Full Test Suite:** **275 / 275 tests passing** across 23 test files.
+- **Full Test Suite:** **310 / 310 tests passing** across 29 test files.
 - **Build & Quality Gates:** `npm run typecheck`, `npm run lint`, and `npm run build` pass with 0 errors and 0 warnings.
+
+---
+
+## 18. Critical Data Safety, Persistence Architecture & Disaster Recovery (COMPLETED)
+
+### A. Root Cause Resolution
+- **Undefined Field Sanitization (`sanitizeForFirestore`):** Recursive pre-write cleanup removing `undefined` properties, nested map values, and array entries that previously caused Firestore writes to crash silently with `Unsupported field value: undefined`.
+- **Legacy Storage Migration:** Replaced isolated local-only storage keys (`apex_planned_workouts_${athleteId}`, `apex_competitions_${athleteId}`) with bidirectional Firestore sync under `athletes/{athleteId}/...`.
+- **Logout Isolation Guard (`clearUserLocalData` & `checkPendingWritesBeforeSignOut`):** Signout intercepts unsynced offline mutations, prompts the athlete with `LogoutConfirmationModal`, and strictly preserves global sync queues (`apex_offline_mutation_queue`), theme preferences, and internationalization state.
+
+### B. Central Typed Repository Layer (`src/shared/lib/repositories/`)
+- **`sessionRepository.ts`:** Manages completed sessions under `athletes/{athleteId}/sessions/{sessionId}`. Writes 30-day revision snapshots to `sessions/{sessionId}/revisions/{revId}` on each edit for disaster recovery. Implements soft deletion with `deletedAt`.
+- **`plannedWorkoutRepository.ts`:** Syncs structured workout plans with Firestore and local caches.
+- **`checkinRepository.ts` & `nutritionRepository.ts`:** Centralized daily check-ins (`athletes/{athleteId}/days/{date}`) and meal plans (`athletes/{athleteId}/nutritionDays/{date}`).
+- **`competitionRepository.ts`:** Manages athlete target events and A/B/C race dates under `athletes/{athleteId}/competitions/{compId}`.
+- **`trashRepository.ts`:** Unified soft-delete trash manager providing 30-day retention countdown, one-click restoration, and permanent purge across all entity types.
+
+### C. UI & Recovery Controls
+- **Sync Status & Outbox Screen (`SettingsPage.tsx`):** Real-time badge in settings indicating cloud sync status and pending outbox count with manual "Szinkronizálás most" force trigger.
+- **Full JSON Data Export & 30-Day Reminder:** Complete data export covering profile, sessions, planned workouts, daily check-ins, nutrition, equipment, exercises, and competitions, with automated 30-day backup reminder alert.
+- **Emergency Data Recovery Routine (`recoveryRoutine.ts`):** Automatically invoked on application startup to discover orphaned legacy data keys in browser localStorage and cleanly back them up to Firestore.
+

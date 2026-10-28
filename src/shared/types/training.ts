@@ -44,6 +44,8 @@ export interface ExerciseDocument {
   createdBy?: string;
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string | null;
+  schemaVersion?: number;
 }
 
 export type WorkoutBlockType =
@@ -137,6 +139,8 @@ export interface PlannedWorkout {
   updatedBy?: string;
   source?: DataSourceOrigin;
   confidence?: number;
+  deletedAt?: string | null;
+  schemaVersion?: number;
 }
 
 /**

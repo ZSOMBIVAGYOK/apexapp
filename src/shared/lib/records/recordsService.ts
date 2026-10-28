@@ -10,6 +10,7 @@ import {
   query,
   orderBy
 } from "firebase/firestore";
+import { sanitizeForFirestore } from "@shared/lib/firebase/sanitize";
 
 const LOCAL_RECORDS_PREFIX = "apex_records_";
 
@@ -163,7 +164,7 @@ export async function saveRecord(
 
   try {
     const docRef = doc(db, "athletes", athleteId, "records", id);
-    await setDoc(docRef, newRecord);
+    await setDoc(docRef, sanitizeForFirestore({ ...newRecord, schemaVersion: 1 }));
 
     // Update others in Firestore if their best status changed
     if (isCandidateBest) {

@@ -25,17 +25,22 @@ export const clearUserLocalData = (userId?: string | null): void => {
       const key = localStorage.key(i);
       if (!key) continue;
 
-      // Never remove global non-sensitive app settings
-      if (key === "apex_theme" || key === "i18nextLng") {
+      // Never remove global non-sensitive app settings, sync queues, or outbox
+      if (
+        key === "apex_theme" ||
+        key === "i18nextLng" ||
+        key === "apex_offline_mutation_queue" ||
+        key === "apex_last_synced_at" ||
+        key === "apex_hide_calories"
+      ) {
         continue;
       }
 
       if (userId) {
-        if (key.includes(userId) || key.startsWith("apex_")) {
+        // Only remove keys strictly namespaced to this user
+        if (key.startsWith(`apex_${userId}_`) || key.endsWith(`_${userId}`)) {
           keysToRemove.push(key);
         }
-      } else if (key.startsWith("apex_")) {
-        keysToRemove.push(key);
       }
     }
 

@@ -11,10 +11,10 @@ import {
 } from "@shared/ui";
 import { CompletedSessionDocument, StrengthExercise } from "@shared/types";
 import {
-  persistTrainingSession,
-  removeTrainingSession,
-  getLocalSessions
-} from "@shared/lib/offline/offlineStorage";
+  saveSession,
+  softDeleteSession
+} from "@shared/lib/repositories/sessionRepository";
+import { getLocalSessions } from "@shared/lib/offline/offlineStorage";
 import { recomputeLoadsFromDate } from "@shared/lib/load/loadRecomputation";
 import {
   getSportById,
@@ -419,7 +419,7 @@ export const ManualSessionModal: React.FC<ManualSessionModalProps> = ({
         );
       }
       const merged = mergeFileIntoSession(duplicateMatch.existingSession, parsedFileResult, fileRef);
-      await persistTrainingSession(merged);
+      await saveSession(merged);
 
       const allSessions = getLocalSessions(athleteId);
       recomputeLoadsFromDate({
@@ -619,7 +619,7 @@ export const ManualSessionModal: React.FC<ManualSessionModalProps> = ({
         updatedBy: athleteId
       };
 
-      await persistTrainingSession(sessionDoc);
+      await saveSession(sessionDoc);
 
       if (selectedEquipmentIds.length > 0) {
         setLastUsedEquipment(athleteId, sportId, selectedEquipmentIds);
@@ -674,7 +674,7 @@ export const ManualSessionModal: React.FC<ManualSessionModalProps> = ({
     if (!sessionToEdit) return;
     try {
       const deleteDate = sessionToEdit.date;
-      await removeTrainingSession(athleteId, sessionToEdit.sessionId);
+      await softDeleteSession(athleteId, sessionToEdit.sessionId);
 
       // Recompute loads after deletion from deleted session date forward
       const remainingSessions = getLocalSessions(athleteId);
@@ -689,8 +689,8 @@ export const ManualSessionModal: React.FC<ManualSessionModalProps> = ({
 
       onSessionDeleted?.(sessionToEdit.sessionId);
       showToast({
-        title: "Edzés törölve",
-        message: `${sessionToEdit.title} eltávolítva, terhelési mutatók újraszámolva.`,
+        title: "Edzés a kukába helyezve",
+        message: `${sessionToEdit.title} áthelyezve a kukába (30 napig visszaállítható a Beállításokban).`,
         type: "info"
       });
       onClose();

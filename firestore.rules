@@ -64,6 +64,11 @@ service cloud.firestore {
       match /sessions/{sessionId} {
         allow read: if canReadModule(athleteId, 'training');
         allow write: if canWriteModule(athleteId, 'training');
+
+        match /revisions/{revId} {
+          allow read: if canReadModule(athleteId, 'training');
+          allow write: if canWriteModule(athleteId, 'training');
+        }
       }
 
       // Subcollection: plannedWorkouts (TRAINING module)
@@ -157,6 +162,12 @@ service cloud.firestore {
 
       // Subcollection: equipment (TRAINING module)
       match /equipment/{equipmentId} {
+        allow read: if canReadModule(athleteId, 'training');
+        allow write: if canWriteModule(athleteId, 'training');
+      }
+
+      // Subcollection: competitions (TRAINING module)
+      match /competitions/{compId} {
         allow read: if canReadModule(athleteId, 'training');
         allow write: if canWriteModule(athleteId, 'training');
       }

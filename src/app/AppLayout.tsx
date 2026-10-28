@@ -29,6 +29,9 @@ import { NotificationCenter } from "@shared/ui/NotificationCenter";
 import { SyncStatusBadge } from "@shared/ui/SyncStatusBadge";
 import { ErrorBoundary } from "@shared/ui/ErrorBoundary";
 import { useNotificationStore } from "@shared/lib/notifications/notificationStore";
+import { LogoutConfirmationModal } from "@features/auth/components/LogoutConfirmationModal";
+import { flushOfflineQueue } from "@shared/lib/offline/offlineStorage";
+import { runEmergencyDataRecovery } from "@shared/lib/storage/recoveryRoutine";
 
 export const AppLayout: React.FC = () => {
   const { i18n } = useTranslation();
@@ -89,9 +92,42 @@ export const AppLayout: React.FC = () => {
     setTheme(next);
   };
 
-  const handleSignOut = async () => {
-    await signOut();
+  // Emergency recovery routine on login/mount
+  useEffect(() => {
+    if (user?.uid) {
+      runEmergencyDataRecovery(user.uid).then((res) => {
+        if (res.recoveredSessions > 0 || res.recoveredWorkouts > 0 || res.recoveredDailies > 0) {
+          showToast({
+            title: "Helyi adatok helyreállítva",
+            message: `${res.recoveredSessions + res.recoveredWorkouts + res.recoveredDailies} korábban elmentett elem feltöltve a felhőbe!`,
+            type: "success"
+          });
+        }
+      });
+    }
+  }, [user?.uid]);
+
+  const [pendingLogoutCount, setPendingLogoutCount] = useState<number | null>(null);
+  const [isSyncingLogout, setIsSyncingLogout] = useState(false);
+
+  const handleSignOut = async (force = false) => {
+    const res = await signOut(force);
+    if (res?.blocked) {
+      setPendingLogoutCount(res.pendingCount || 1);
+      return;
+    }
+    setPendingLogoutCount(null);
     navigate("/auth");
+  };
+
+  const handleSyncAndSignOut = async () => {
+    setIsSyncingLogout(true);
+    try {
+      await flushOfflineQueue();
+      await handleSignOut(true);
+    } catch {
+      setIsSyncingLogout(false);
+    }
   };
 
   // Switch athlete/coach mode for role-aware demo
@@ -288,7 +324,7 @@ export const AppLayout: React.FC = () => {
               </div>
               <button
                 type="button"
-                onClick={handleSignOut}
+                onClick={() => handleSignOut()}
                 aria-label="Kijelentkezés"
                 title="Kijelentkezés"
                 className="h-9 w-9 rounded-12 border border-border-hairline bg-bg-surface hover:bg-status-rest/10 hover:text-status-rest text-text-secondary flex items-center justify-center transition-colors"
@@ -561,6 +597,16 @@ export const AppLayout: React.FC = () => {
       <NotificationCenter
         isOpen={showNotifications}
         onClose={() => setShowNotifications(false)}
+      />
+
+      {/* Logout Safety Confirmation */}
+      <LogoutConfirmationModal
+        isOpen={pendingLogoutCount !== null}
+        pendingCount={pendingLogoutCount || 0}
+        isSyncing={isSyncingLogout}
+        onClose={() => setPendingLogoutCount(null)}
+        onSync={handleSyncAndSignOut}
+        onForceLogout={() => handleSignOut(true)}
       />
 
       {/* App-Wide Toasts & PWA Updates */}

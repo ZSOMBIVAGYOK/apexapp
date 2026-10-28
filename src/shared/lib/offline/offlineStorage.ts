@@ -12,6 +12,8 @@ import {
 } from "@shared/types";
 import { db } from "@shared/lib/firebase";
 import { doc, setDoc, deleteDoc } from "firebase/firestore";
+import { sanitizeForFirestore } from "@shared/lib/firebase/sanitize";
+import { useSyncStatusStore } from "@shared/lib/sync/syncStatusStore";
 
 export type SyncState = "synced" | "pending" | "syncing" | "offline";
 
@@ -179,70 +181,99 @@ export function saveLocalSleepTarget(athleteId: string, targetHours: number): vo
   }
 }
 
+// Helper functions for pending checks
+export function getPendingMutationsCount(): number {
+  return getQueue().length;
+}
+
+export function hasUnsyncedData(): boolean {
+  return getPendingMutationsCount() > 0;
+}
+
 // 5. Unified Save Orchestrator with Offline Queue Fallback
 export async function persistDailyCheckin(docData: DailyAggregateDocument): Promise<void> {
+  const normalized: DailyAggregateDocument = {
+    ...docData,
+    schemaVersion: 1
+  };
+
   // Always write immediately to local store
-  saveLocalDaily(docData);
+  saveLocalDaily(normalized);
 
   const isOnline = typeof navigator !== "undefined" ? navigator.onLine : true;
   if (!isOnline) {
     enqueueMutation({
-      id: `daily_${docData.athleteId}_${docData.date}`,
+      id: `daily_${normalized.athleteId}_${normalized.date}`,
       type: "save_daily",
-      athleteId: docData.athleteId,
-      dateOrId: docData.date,
-      payload: docData
+      athleteId: normalized.athleteId,
+      dateOrId: normalized.date,
+      payload: normalized
     });
     return;
   }
 
+  useSyncStatusStore.getState().setSyncing();
+
   try {
-    // Attempt Firestore write
-    const ref = doc(db, "athletes", docData.athleteId, "days", docData.date);
-    await setDoc(ref, docData, { merge: true });
+    const sanitized = sanitizeForFirestore(normalized);
+    const ref = doc(db, "athletes", normalized.athleteId, "days", normalized.date);
+    await setDoc(ref, sanitized, { merge: true });
     localStorage.setItem(STORAGE_KEYS.LAST_SYNC, new Date().toISOString());
+    useSyncStatusStore.getState().setSaved();
     notifyListeners();
-  } catch {
-    // On network failure or emulator unavailability, enqueue for retry
+  } catch (err: any) {
+    console.warn("Firestore daily write failed, falling back to offline queue:", err);
     enqueueMutation({
-      id: `daily_${docData.athleteId}_${docData.date}`,
+      id: `daily_${normalized.athleteId}_${normalized.date}`,
       type: "save_daily",
-      athleteId: docData.athleteId,
-      dateOrId: docData.date,
-      payload: docData
+      athleteId: normalized.athleteId,
+      dateOrId: normalized.date,
+      payload: normalized
     });
+    useSyncStatusStore.getState().setError(err?.message || "Hiba a mentéskor", () => flushOfflineQueue().then(() => {}));
   }
 }
 
 export async function persistTrainingSession(session: CompletedSessionDocument): Promise<void> {
+  const normalized: CompletedSessionDocument = {
+    ...session,
+    schemaVersion: 1
+  };
+
   // Always write immediately to local store
-  saveLocalSession(session);
+  saveLocalSession(normalized);
 
   const isOnline = typeof navigator !== "undefined" ? navigator.onLine : true;
   if (!isOnline) {
     enqueueMutation({
-      id: `session_${session.athleteId}_${session.sessionId}`,
+      id: `session_${normalized.athleteId}_${normalized.sessionId}`,
       type: "save_session",
-      athleteId: session.athleteId,
-      dateOrId: session.sessionId,
-      payload: session
+      athleteId: normalized.athleteId,
+      dateOrId: normalized.sessionId,
+      payload: normalized
     });
     return;
   }
 
+  useSyncStatusStore.getState().setSyncing();
+
   try {
-    const ref = doc(db, "athletes", session.athleteId, "sessions", session.sessionId);
-    await setDoc(ref, session, { merge: true });
+    const sanitized = sanitizeForFirestore(normalized);
+    const ref = doc(db, "athletes", normalized.athleteId, "sessions", normalized.sessionId);
+    await setDoc(ref, sanitized, { merge: true });
     localStorage.setItem(STORAGE_KEYS.LAST_SYNC, new Date().toISOString());
+    useSyncStatusStore.getState().setSaved();
     notifyListeners();
-  } catch {
+  } catch (err: any) {
+    console.warn("Firestore session write failed, falling back to offline queue:", err);
     enqueueMutation({
-      id: `session_${session.athleteId}_${session.sessionId}`,
+      id: `session_${normalized.athleteId}_${normalized.sessionId}`,
       type: "save_session",
-      athleteId: session.athleteId,
-      dateOrId: session.sessionId,
-      payload: session
+      athleteId: normalized.athleteId,
+      dateOrId: normalized.sessionId,
+      payload: normalized
     });
+    useSyncStatusStore.getState().setError(err?.message || "Hiba az edzés mentésekor", () => flushOfflineQueue().then(() => {}));
   }
 }
 
@@ -283,6 +314,7 @@ export async function flushOfflineQueue(): Promise<{ synced: number; failed: num
 
   isSyncing = true;
   notifyListeners();
+  useSyncStatusStore.getState().setSyncing();
 
   let syncedCount = 0;
   let failedCount = 0;
@@ -292,16 +324,19 @@ export async function flushOfflineQueue(): Promise<{ synced: number; failed: num
     try {
       if (item.type === "save_daily") {
         const ref = doc(db, "athletes", item.athleteId, "days", item.dateOrId);
-        await setDoc(ref, item.payload as Record<string, unknown>, { merge: true });
+        const cleanPayload = sanitizeForFirestore(item.payload as Record<string, unknown>);
+        await setDoc(ref, cleanPayload, { merge: true });
       } else if (item.type === "save_session") {
         const ref = doc(db, "athletes", item.athleteId, "sessions", item.dateOrId);
-        await setDoc(ref, item.payload as Record<string, unknown>, { merge: true });
+        const cleanPayload = sanitizeForFirestore(item.payload as Record<string, unknown>);
+        await setDoc(ref, cleanPayload, { merge: true });
       } else if (item.type === "delete_session") {
         const ref = doc(db, "athletes", item.athleteId, "sessions", item.dateOrId);
         await deleteDoc(ref);
       }
       syncedCount++;
-    } catch {
+    } catch (err) {
+      console.warn("Queue item sync failed:", item, err);
       failedCount++;
       remainingQueue.push({ ...item, retries: item.retries + 1 });
     }
@@ -311,6 +346,11 @@ export async function flushOfflineQueue(): Promise<{ synced: number; failed: num
   isSyncing = false;
   if (syncedCount > 0) {
     localStorage.setItem(STORAGE_KEYS.LAST_SYNC, new Date().toISOString());
+  }
+  if (failedCount === 0) {
+    useSyncStatusStore.getState().setSaved();
+  } else {
+    useSyncStatusStore.getState().setError(`${failedCount} elem szinkronizálása sikertelen`, () => flushOfflineQueue().then(() => {}));
   }
   notifyListeners();
 

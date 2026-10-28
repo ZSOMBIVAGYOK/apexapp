@@ -11,9 +11,9 @@ import {
   collection,
   doc,
   getDocs,
-  setDoc,
-  deleteDoc
+  setDoc
 } from "firebase/firestore";
+import { sanitizeForFirestore } from "@shared/lib/firebase/sanitize";
 import { differenceInDays, parseISO, format } from "date-fns";
 
 const LOCAL_EQUIPMENT_PREFIX = "apex_equipment_";
@@ -243,7 +243,7 @@ export async function saveEquipmentItem(
 
   try {
     const docRef = doc(db, "athletes", athleteId, "equipment", id);
-    await setDoc(docRef, fullItem);
+    await setDoc(docRef, sanitizeForFirestore({ ...fullItem, schemaVersion: 1 }), { merge: true });
   } catch {
     // offline
   }
@@ -252,10 +252,11 @@ export async function saveEquipmentItem(
 }
 
 /**
- * Delete an equipment item
+ * Delete an equipment item (soft delete)
  */
 export async function deleteEquipmentItem(athleteId: string, equipmentId: string): Promise<void> {
   const local = getLocalEquipment(athleteId);
+  const now = new Date().toISOString();
   setLocalEquipment(
     athleteId,
     local.filter((e) => e.id !== equipmentId)
@@ -263,7 +264,7 @@ export async function deleteEquipmentItem(athleteId: string, equipmentId: string
 
   try {
     const docRef = doc(db, "athletes", athleteId, "equipment", equipmentId);
-    await deleteDoc(docRef);
+    await setDoc(docRef, { deletedAt: now }, { merge: true });
   } catch {
     // offline
   }

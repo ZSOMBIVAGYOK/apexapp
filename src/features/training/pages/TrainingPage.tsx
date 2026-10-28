@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuthStore } from "@features/auth/authStore";
 import { useAppMode } from "@shared/hooks/useAppMode";
@@ -54,6 +54,15 @@ import { EquipmentView } from "@features/equipment/components/EquipmentView";
 import { getEquipmentList, hasDueMaintenance } from "@shared/lib/equipment";
 import { getLocalSessions } from "@shared/lib/offline/offlineStorage";
 import { CompletedSessionDocument } from "@shared/types";
+import { getSessions } from "@shared/lib/repositories/sessionRepository";
+import {
+  getPlannedWorkouts,
+  savePlannedWorkout
+} from "@shared/lib/repositories/plannedWorkoutRepository";
+import {
+  getCompetitions
+} from "@shared/lib/repositories/competitionRepository";
+import { RefreshCw, AlertCircle } from "lucide-react";
 
 export const TrainingPage: React.FC = () => {
   const { i18n } = useTranslation();
@@ -380,6 +389,78 @@ export const TrainingPage: React.FC = () => {
     return initial;
   });
 
+  // Data Loading & Error state
+  const [isLoadingData, setIsLoadingData] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Load from repositories (Firestore + local offline cache)
+  const loadTrainingData = useCallback(async () => {
+    setIsLoadingData(true);
+    setLoadError(null);
+    try {
+      const [serverWorkouts, serverSessions, serverCompetitions] = await Promise.all([
+        getPlannedWorkouts(athleteId),
+        getSessions(athleteId),
+        getCompetitions(athleteId)
+      ]);
+
+      const isRealUser = athleteId !== "demo-athlete-001" || import.meta.env.PROD;
+
+      if (isRealUser || serverWorkouts.length > 0 || serverSessions.length > 0) {
+        const mergedWorkouts = [...serverWorkouts];
+
+        serverSessions.forEach((s) => {
+          const existingIdx = mergedWorkouts.findIndex((w) => w.id === s.sessionId);
+          if (existingIdx >= 0) {
+            const current = mergedWorkouts[existingIdx];
+            if (current) {
+              mergedWorkouts[existingIdx] = {
+                ...current,
+                id: current.id,
+                status: "completed",
+                actualDurationMinutes: s.durationMinutes,
+                actualRpe: s.rpe,
+                plannedLoad: s.trainingLoad || current.plannedLoad,
+                strengthExercises: s.strengthExercises || current.strengthExercises
+              };
+            }
+          } else {
+            mergedWorkouts.push({
+              id: s.sessionId,
+              athleteId,
+              author: { id: athleteId, name: "Sportoló", role: "athlete" },
+              title: s.title,
+              sport: s.sport as SportType,
+              date: s.date,
+              plannedDurationMinutes: s.durationMinutes,
+              actualDurationMinutes: s.durationMinutes,
+              actualRpe: s.rpe,
+              plannedLoad: s.trainingLoad || 50,
+              status: "completed",
+              blocks: [],
+              strengthExercises: s.strengthExercises
+            });
+          }
+        });
+
+        setWorkouts(mergedWorkouts);
+      }
+
+      if (serverCompetitions.length > 0) {
+        setCompetitions(serverCompetitions as Competition[]);
+      }
+    } catch (err: any) {
+      console.error("Failed loading training data:", err);
+      setLoadError(err?.message || "Nem sikerült betölteni az edzéseket.");
+    } finally {
+      setIsLoadingData(false);
+    }
+  }, [athleteId]);
+
+  useEffect(() => {
+    loadTrainingData();
+  }, [loadTrainingData]);
+
   // Save workouts & competitions to localStorage on change
   useEffect(() => {
     localStorage.setItem(`apex_planned_workouts_${athleteId}`, JSON.stringify(workouts));
@@ -519,7 +600,7 @@ export const TrainingPage: React.FC = () => {
     setIsFeedbackOpen(true);
   };
 
-  const handleSaveWorkout = (workout: PlannedWorkout, saveAsTemplate?: boolean) => {
+  const handleSaveWorkout = async (workout: PlannedWorkout, saveAsTemplate?: boolean) => {
     const existingIndex = workouts.findIndex((w) => w.id === workout.id);
     if (existingIndex >= 0) {
       const updated = [...workouts];
@@ -539,6 +620,12 @@ export const TrainingPage: React.FC = () => {
       });
     }
 
+    try {
+      await savePlannedWorkout(workout);
+    } catch (err) {
+      console.warn("Failed saving planned workout:", err);
+    }
+
     if (saveAsTemplate) {
       showToast({
         title: isHu ? "Sablon elmentve" : "Template saved",
@@ -548,10 +635,19 @@ export const TrainingPage: React.FC = () => {
     }
   };
 
-  const handleRescheduleWorkout = (workoutId: string, newDateStr: string) => {
-    setWorkouts((prev) =>
-      prev.map((w) => (w.id === workoutId ? { ...w, date: newDateStr } : w))
-    );
+  const handleRescheduleWorkout = async (workoutId: string, newDateStr: string) => {
+    const target = workouts.find((w) => w.id === workoutId);
+    if (target) {
+      const updated = { ...target, date: newDateStr };
+      setWorkouts((prev) =>
+        prev.map((w) => (w.id === workoutId ? updated : w))
+      );
+      try {
+        await savePlannedWorkout(updated);
+      } catch (err) {
+        console.warn("Failed rescheduling planned workout:", err);
+      }
+    }
     showToast({
       title: isHu ? "Edzés áthelyezve" : "Workout rescheduled",
       description: `${isHu ? "Új időpont:" : "New date:"} ${newDateStr}`,
@@ -559,7 +655,7 @@ export const TrainingPage: React.FC = () => {
     });
   };
 
-  const handleSaveFeedback = (
+  const handleSaveFeedback = async (
     workoutId: string,
     feedback: {
       status: "completed" | "modified" | "skipped";
@@ -570,10 +666,11 @@ export const TrainingPage: React.FC = () => {
       modificationReason?: string;
     }
   ) => {
+    let updatedWorkout: PlannedWorkout | null = null;
     setWorkouts((prev) =>
       prev.map((w) => {
         if (w.id === workoutId) {
-          return {
+          updatedWorkout = {
             ...w,
             status: feedback.status,
             actualDurationMinutes: feedback.actualDurationMinutes,
@@ -582,10 +679,20 @@ export const TrainingPage: React.FC = () => {
             skipReason: feedback.skipReason,
             modificationReason: feedback.modificationReason
           };
+          return updatedWorkout;
         }
         return w;
       })
     );
+
+    if (updatedWorkout) {
+      try {
+        await savePlannedWorkout(updatedWorkout);
+      } catch (err) {
+        console.warn("Failed saving feedback:", err);
+      }
+    }
+
     showToast({
       title: isHu ? "Visszajelzés rögzítve" : "Feedback saved",
       description: isHu ? "A terhelési görbék automatikusan frissültek." : "Load curves updated.",
@@ -721,6 +828,25 @@ export const TrainingPage: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      {/* Error state with retry button */}
+      {loadError && (
+        <div className="p-4 rounded-xl bg-status-caution/15 border border-status-caution/30 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 text-status-caution">
+            <AlertCircle className="w-5 h-5 shrink-0" />
+            <p className="text-sm font-medium">{loadError}</p>
+          </div>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => loadTrainingData()}
+            disabled={isLoadingData}
+            leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${isLoadingData ? "animate-spin" : ""}`} />}
+          >
+            {isHu ? "Újrapróbálás" : "Retry"}
+          </Button>
+        </div>
+      )}
 
       {/* Navigation Segmented Control: Naptár · Gyakorlatok (Eszközök & Rekordok reserved) */}
       <div className="flex items-center justify-between gap-4 border-b border-white/5 pb-4">

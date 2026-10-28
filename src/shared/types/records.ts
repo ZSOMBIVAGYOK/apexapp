@@ -33,6 +33,8 @@ export interface AthleteRecord {
   isCurrentBest: boolean;
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string | null;
+  schemaVersion?: number;
 }
 
 export interface TrackPoint {

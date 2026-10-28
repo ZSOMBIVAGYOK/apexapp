@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuthStore } from "@features/auth/authStore";
@@ -6,7 +6,24 @@ import { useThemeStore } from "@shared/lib/theme/themeStore";
 import { callDeleteUserData } from "@features/auth/authService";
 import { DataMode, SupportMode, UnitSystem } from "@shared/types";
 import { useNotificationStore } from "@shared/lib/notifications/notificationStore";
-import { getAllLocalDailies, getLocalSessions } from "@shared/lib/offline/offlineStorage";
+import { flushOfflineQueue } from "@shared/lib/offline/offlineStorage";
+import { useSyncState } from "@shared/hooks/useSyncState";
+import { LogoutConfirmationModal } from "@features/auth/components/LogoutConfirmationModal";
+import {
+  getTrashItems,
+  restoreTrashItem,
+  permanentDeleteTrashItem,
+  TrashItem,
+  getSessions,
+  getPlannedWorkouts,
+  getAllDayCheckins,
+  getAllNutritionDays,
+  getCompetitions
+} from "@shared/lib/repositories";
+import { getEquipmentList } from "@shared/lib/equipment";
+import { getExercises } from "@shared/lib/exercises";
+import { getRecords } from "@shared/lib/records";
+import { differenceInDays, parseISO } from "date-fns";
 import {
   Card,
   Button,
@@ -32,7 +49,11 @@ import {
   ShieldCheck,
   AlertTriangle,
   Flame,
-  ChevronRight
+  ChevronRight,
+  RotateCcw,
+  RefreshCw,
+  CheckCircle,
+  Cloud
 } from "lucide-react";
 
 export const SettingsPage: React.FC = () => {
@@ -40,10 +61,27 @@ export const SettingsPage: React.FC = () => {
   const { user, signOut, updateProfile, isDemoUser } = useAuthStore();
   const { theme, setTheme } = useThemeStore();
   const navigate = useNavigate();
+  const { status: syncStatus, pendingCount: outboxCount } = useSyncState();
+
+  const athleteId = user?.uid || "demo-athlete-001";
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isSyncingManual, setIsSyncingManual] = useState(false);
+
+  // Trash state
+  const [trashItems, setTrashItems] = useState<TrashItem[]>([]);
+  const [isLoadingTrash, setIsLoadingTrash] = useState(false);
+
+  // Backup reminder state
+  const [lastBackupDate, setLastBackupDate] = useState<string | null>(() => {
+    return localStorage.getItem(`apex_last_backup_${athleteId}`);
+  });
+
+  // Logout safety modal state
+  const [pendingLogoutCount, setPendingLogoutCount] = useState<number | null>(null);
+  const [isSyncingLogout, setIsSyncingLogout] = useState(false);
 
   // Notifications from store
   const { settings: notifSettings, updateSettings: updateNotifSettings } = useNotificationStore();
@@ -97,19 +135,147 @@ export const SettingsPage: React.FC = () => {
     await updateProfile({ supportMode: updated });
   };
 
-  // Export User Data as JSON
-  const handleExportData = () => {
+  // Load Trash Items
+  const loadTrash = useCallback(async () => {
+    if (!athleteId) return;
+    setIsLoadingTrash(true);
+    try {
+      const items = await getTrashItems(athleteId);
+      setTrashItems(items);
+    } catch (err) {
+      console.warn("Failed loading trash:", err);
+    } finally {
+      setIsLoadingTrash(false);
+    }
+  }, [athleteId]);
+
+  useEffect(() => {
+    loadTrash();
+  }, [loadTrash]);
+
+  const handleRestoreTrash = async (item: TrashItem) => {
+    try {
+      await restoreTrashItem(item);
+      showToast({
+        title: "Elem visszaállítva",
+        message: `${item.title} sikeresen visszaállítva a kukából.`,
+        type: "success"
+      });
+      loadTrash();
+    } catch {
+      showToast({
+        title: "Hiba",
+        message: "Nem sikerült visszaállítani az elemet.",
+        type: "error"
+      });
+    }
+  };
+
+  const handlePermanentDelete = async (item: TrashItem) => {
+    const confirmed = window.confirm(
+      `Biztosan véglegesen törölni szeretnéd a(z) "${item.title}" elemet? Ez a művelet nem vonható vissza!`
+    );
+    if (!confirmed) return;
+
+    try {
+      await permanentDeleteTrashItem(item);
+      showToast({
+        title: "Véglegesen törölve",
+        message: `${item.title} véglegesen törölve a kukából.`,
+        type: "info"
+      });
+      loadTrash();
+    } catch {
+      showToast({
+        title: "Hiba",
+        message: "Nem sikerült véglegesen törölni az elemet.",
+        type: "error"
+      });
+    }
+  };
+
+  // Manual Trigger Sync
+  const handleManualSync = async () => {
+    setIsSyncingManual(true);
+    try {
+      const res = await flushOfflineQueue();
+      showToast({
+        title: "Szinkronizálás befejezve",
+        message: res.failed === 0 ? "Minden adat a felhőbe mentve." : `${res.failed} elem mentése sikertelen volt.`,
+        type: res.failed === 0 ? "success" : "warning"
+      });
+    } catch {
+      showToast({
+        title: "Szinkronizálási hiba",
+        message: "Nem sikerült szinkronizálni a felhővel.",
+        type: "error"
+      });
+    } finally {
+      setIsSyncingManual(false);
+    }
+  };
+
+  // Safe Sign Out Handler
+  const handleSignOutClick = async (force = false) => {
+    const res = await signOut(force);
+    if (res?.blocked) {
+      setPendingLogoutCount(res.pendingCount || 1);
+      return;
+    }
+    setPendingLogoutCount(null);
+    navigate("/auth");
+  };
+
+  const handleSyncAndSignOut = async () => {
+    setIsSyncingLogout(true);
+    try {
+      await flushOfflineQueue();
+      await handleSignOutClick(true);
+    } finally {
+      setIsSyncingLogout(false);
+    }
+  };
+
+  // Full User Data Export (GDPR Art. 20 + Safety Backup)
+  const handleExportData = async () => {
     setIsExporting(true);
     try {
-      const athleteId = user?.uid || "demo-athlete-001";
+      const [
+        sessions,
+        plannedWorkouts,
+        checkins,
+        nutrition,
+        equipment,
+        exercises,
+        records,
+        competitions
+      ] = await Promise.all([
+        getSessions(athleteId, { includeDeleted: true }),
+        getPlannedWorkouts(athleteId, { includeDeleted: true }),
+        getAllDayCheckins(athleteId),
+        getAllNutritionDays(athleteId),
+        getEquipmentList(athleteId),
+        getExercises(athleteId),
+        getRecords(athleteId),
+        getCompetitions(athleteId, { includeDeleted: true })
+      ]);
+
+      const now = new Date().toISOString();
       const exportPayload = {
-        exportedAt: new Date().toISOString(),
-        version: "1.1.0",
+        exportedAt: now,
+        version: "2.0.0",
         app: "Apex Athletic Platform",
+        athleteId,
         compliance: "GDPR Article 20 - Right to Data Portability",
         profile: user,
-        dailies: getAllLocalDailies(athleteId),
-        trainingSessions: getLocalSessions(athleteId),
+        sessions,
+        plannedWorkouts,
+        checkins,
+        nutrition,
+        equipment,
+        exercises,
+        records,
+        competitions,
         system: {
           userAgent: navigator.userAgent,
           language: i18n.language,
@@ -123,18 +289,22 @@ export const SettingsPage: React.FC = () => {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `apex-athlete-data-${user?.uid || "export"}.json`;
+      link.download = `apex-teljes-mentes-${athleteId}-${now.split("T")[0]}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
+      localStorage.setItem(`apex_last_backup_${athleteId}`, now);
+      setLastBackupDate(now);
+
       showToast({
-        title: t("settings.exportDataTitle"),
-        message: "A JSON adatexport sikeresen letöltődött a gépedre.",
+        title: "Adataim letöltve",
+        message: "A teljes JSON biztonsági mentés sikeresen letöltődött a gépedre.",
         type: "success"
       });
-    } catch {
+    } catch (err) {
+      console.error("Export error:", err);
       showToast({
         title: t("common.error"),
         message: "Nem sikerült exportálni az adatokat.",
@@ -241,10 +411,7 @@ export const SettingsPage: React.FC = () => {
               variant="danger"
               size="sm"
               leftIcon={<LogOut className="h-3.5 w-3.5" />}
-              onClick={async () => {
-                await signOut();
-                navigate("/auth");
-              }}
+              onClick={() => handleSignOutClick()}
             >
               {t("common.logout")}
             </Button>
@@ -590,20 +757,104 @@ export const SettingsPage: React.FC = () => {
         </div>
       </Card>
 
-      {/* GDPR Data Portability & Export */}
-      <Card variant="surface" radius="20" className="p-6 space-y-3">
+      {/* Cloud Sync & Storage Outbox Status */}
+      <Card variant="surface" radius="20" className="p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-text-primary">
+            <Cloud className="h-4 w-4 text-brand" aria-hidden="true" />
+            <h4 className="text-14 font-bold">Szinkronizálás és Felhő Állapot</h4>
+          </div>
+          <Badge
+            variant={syncStatus === "synced" ? "ready" : syncStatus === "offline" ? "neutral" : "caution"}
+            size="sm"
+          >
+            {syncStatus === "synced" ? "Mentve ✓" : syncStatus === "offline" ? "Offline" : syncStatus === "syncing" ? "Szinkronizálás..." : "Függőben"}
+          </Badge>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-12">
+          <div className="p-3 rounded-12 bg-surface-elevated border border-border-hairline space-y-1">
+            <span className="text-text-tertiary block">Kapcsolat:</span>
+            <span className="font-semibold text-text-primary flex items-center gap-1.5">
+              {typeof navigator !== "undefined" && navigator.onLine ? (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-status-ready inline-block" />
+                  Online (Csatlakozva a Firestore szerverhez)
+                </>
+              ) : (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-status-caution inline-block" />
+                  Offline (Helyi gyorsítótár)
+                </>
+              )}
+            </span>
+          </div>
+
+          <div className="p-3 rounded-12 bg-surface-elevated border border-border-hairline space-y-1">
+            <span className="text-text-tertiary block">Függőben lévő írások:</span>
+            <span className="font-semibold text-text-primary">
+              {outboxCount > 0 ? `${outboxCount} elem szinkronra vár` : "Nincs függőben lévő adat (Minden mentve)"}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between pt-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            isLoading={isSyncingManual}
+            disabled={outboxCount === 0 && syncStatus === "synced"}
+            leftIcon={<RefreshCw className={`h-3.5 w-3.5 ${isSyncingManual ? "animate-spin" : ""}`} />}
+            onClick={handleManualSync}
+          >
+            Szinkronizálás most
+          </Button>
+          <span className="text-11 text-text-tertiary">
+            Automatikus háttérszinkron minden módosításkor aktív
+          </span>
+        </div>
+      </Card>
+
+      {/* Backup & Data Portability with 30-day reminder */}
+      <Card variant="surface" radius="20" className="p-6 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-text-primary">
             <Download className="h-4 w-4 text-brand" aria-hidden="true" />
-            <h4 className="text-14 font-bold">{t("settings.exportDataTitle")}</h4>
+            <h4 className="text-14 font-bold">Biztonsági mentés & Adataim letöltése</h4>
           </div>
           <Badge variant="brand" size="sm">
             GDPR Art. 20
           </Badge>
         </div>
+
         <p className="text-12 text-text-secondary">
-          {t("settings.exportDataDesc")}
+          Töltsd le az összes edzésedet, tervezett edzéseidet, napi check-in adataidat, étrendedet, felszereléseidet és rekordjaidat egyetlen szabványos JSON archívumban.
         </p>
+
+        {/* 30-day Backup Reminder Banner */}
+        {(() => {
+          const isOverdue = !lastBackupDate || differenceInDays(new Date(), parseISO(lastBackupDate)) >= 30;
+          const daysAgo = lastBackupDate ? differenceInDays(new Date(), parseISO(lastBackupDate)) : null;
+          return (
+            <div className={`p-3 rounded-12 border flex items-center justify-between gap-3 text-12 ${
+              isOverdue
+                ? "bg-status-caution/10 border-status-caution/30 text-status-caution"
+                : "bg-surface-elevated border-border-hairline text-text-secondary"
+            }`}>
+              <div className="flex items-center gap-2">
+                {isOverdue ? <AlertTriangle className="h-4 w-4 shrink-0" /> : <CheckCircle className="h-4 w-4 shrink-0 text-status-ready" />}
+                <span>
+                  {daysAgo === null
+                    ? "Még nem készítettél biztonsági mentést. Javasolt havi biztonsági mentést letölteni."
+                    : isOverdue
+                      ? `Utolsó mentés: ${daysAgo} napja. Javasolt friss havi biztonsági mentést készíteni!`
+                      : `Biztonsági mentés naprakész (Utoljára letöltve: ${daysAgo} napja).`}
+                </span>
+              </div>
+            </div>
+          );
+        })()}
+
         <div>
           <Button
             variant="secondary"
@@ -612,9 +863,81 @@ export const SettingsPage: React.FC = () => {
             leftIcon={<Download className="h-3.5 w-3.5" />}
             onClick={handleExportData}
           >
-            {t("settings.exportDataBtn")}
+            {isExporting ? "Archívum összeállítása..." : "Teljes adatmentés letöltése (JSON)"}
           </Button>
         </div>
+      </Card>
+
+      {/* Trash & Soft-Delete Archive */}
+      <Card variant="surface" radius="20" className="p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-text-primary">
+            <Trash2 className="h-4 w-4 text-purple-400" aria-hidden="true" />
+            <h4 className="text-14 font-bold">Kuka (Lomtár)</h4>
+          </div>
+          <Badge variant="neutral" size="sm">
+            30 napos megőrzés
+          </Badge>
+        </div>
+
+        <p className="text-12 text-text-secondary">
+          A törölt edzések, tervek és felszerelések nem törlődnek azonnal, hanem ide kerülnek 30 napra. Bármikor visszaállíthatod őket egyetlen kattintással.
+        </p>
+
+        {isLoadingTrash ? (
+          <div className="py-4 text-center text-12 text-text-tertiary flex items-center justify-center gap-2">
+            <RefreshCw className="h-4 w-4 animate-spin text-brand" />
+            <span>Lomtár betöltése...</span>
+          </div>
+        ) : trashItems.length === 0 ? (
+          <div className="p-4 rounded-12 bg-surface-elevated/50 border border-border-hairline text-center text-12 text-text-tertiary">
+            A kuka üres. Nincs törölt elem az elmúlt 30 napból.
+          </div>
+        ) : (
+          <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+            {trashItems.map((item) => (
+              <div
+                key={`${item.type}_${item.id}`}
+                className="p-3 rounded-12 bg-surface-elevated border border-border-hairline flex items-center justify-between gap-3 text-12"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="brand" size="sm">
+                      {item.type === "session" ? "Edzés" : item.type === "workout" ? "Edzésterv" : item.type === "equipment" ? "Eszköz" : item.type === "exercise" ? "Gyakorlat" : "Rekord"}
+                    </Badge>
+                    <span className="font-semibold text-text-primary truncate">{item.title}</span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-1 text-11 text-text-tertiary">
+                    <span>{item.subtitle}</span>
+                    <span>•</span>
+                    <span className="text-status-caution font-medium">Még {item.daysRemaining} napig visszaállítható</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    leftIcon={<RotateCcw className="h-3 w-3 text-status-ready" />}
+                    onClick={() => handleRestoreTrash(item)}
+                    title="Visszaállítás"
+                  >
+                    Visszaállítás
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-status-rest hover:bg-status-rest/10"
+                    onClick={() => handlePermanentDelete(item)}
+                    title="Végleges törlés"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
 
       {/* Danger Zone: Account Deletion */}
@@ -680,6 +1003,16 @@ export const SettingsPage: React.FC = () => {
           </div>
         </div>
       </BottomSheet>
+
+      {/* Logout Safety Confirmation */}
+      <LogoutConfirmationModal
+        isOpen={pendingLogoutCount !== null}
+        pendingCount={pendingLogoutCount || 0}
+        isSyncing={isSyncingLogout}
+        onClose={() => setPendingLogoutCount(null)}
+        onSync={handleSyncAndSignOut}
+        onForceLogout={() => handleSignOutClick(true)}
+      />
 
       {/* Diagnostics */}
       <div className="text-center text-11 text-text-tertiary space-y-1">

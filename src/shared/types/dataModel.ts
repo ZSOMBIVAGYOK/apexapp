@@ -12,6 +12,9 @@ export interface StandardRecordMetadata {
   createdAt: string; // ISO 8601
   updatedAt: string; // ISO 8601
   updatedBy: string; // User UID
+  deletedAt?: string | null;
+  deletedBy?: string;
+  schemaVersion?: number;
 }
 
 /**

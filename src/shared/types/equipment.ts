@@ -61,4 +61,6 @@ export interface EquipmentItem {
   maintenanceHistory: MaintenanceLog[];
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string | null;
+  schemaVersion?: number;
 }
