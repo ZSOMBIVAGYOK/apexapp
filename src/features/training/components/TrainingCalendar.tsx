@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { PlannedWorkout, SportType } from "@shared/types/training";
 import { calculateEstimatedDurationMinutes, getBlockHeaderSummary } from "@shared/lib/blocks";
-import { Card, Button, BottomSheet } from "@shared/ui";
+import { Card, Button, BottomSheet, Badge } from "@shared/ui";
 import {
   ChevronLeft,
   ChevronRight,
@@ -12,12 +12,18 @@ import {
   AlertCircle,
   XCircle,
   Calendar as CalendarIcon,
-  UserCheck,
   MoveHorizontal,
-  Share2
+  Share2,
+  Activity,
+  Bike,
+  Waves,
+  Dumbbell,
+  Trophy,
+  Zap,
+  ArrowRight
 } from "lucide-react";
 
-interface TrainingCalendarProps {
+export interface TrainingCalendarProps {
   workouts: PlannedWorkout[];
   selectedDate: string; // YYYY-MM-DD
   onSelectDate: (dateStr: string) => void;
@@ -54,7 +60,7 @@ export const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
   const { i18n } = useTranslation();
   const isHu = i18n.language.startsWith("hu");
 
-  const todayStr = new Date().toISOString().split("T")[0] as string;
+  const todayStr = useMemo(() => new Date().toISOString().split("T")[0] as string, []);
 
   const [calendarView, setCalendarView] = useState<"week" | "month" | "day">("week");
   const [currentReferenceDate, setCurrentReferenceDate] = useState<Date>(
@@ -89,7 +95,7 @@ export const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
     return week;
   };
 
-  const currentWeekDays = React.useMemo(
+  const currentWeekDays = useMemo(
     () => getWeekDays(currentReferenceDate),
     [currentReferenceDate]
   );
@@ -117,7 +123,7 @@ export const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
     onSelectDate(formatDateStr(now));
   };
 
-  // Sport color helpers
+  // Sport color and icon helpers
   const getSportColorClasses = (sport: SportType) => {
     switch (sport) {
       case "running":
@@ -125,44 +131,90 @@ export const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
           bg: "bg-emerald-500/10",
           border: "border-emerald-500/30",
           text: "text-emerald-300",
-          indicator: "bg-emerald-500"
+          indicator: "bg-emerald-500",
+          chip: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
         };
       case "cycling":
         return {
           bg: "bg-blue-500/10",
           border: "border-blue-500/30",
           text: "text-blue-300",
-          indicator: "bg-blue-500"
+          indicator: "bg-blue-500",
+          chip: "bg-blue-500/15 text-blue-300 border-blue-500/30"
         };
       case "swimming":
         return {
           bg: "bg-cyan-500/10",
           border: "border-cyan-500/30",
           text: "text-cyan-300",
-          indicator: "bg-cyan-500"
+          indicator: "bg-cyan-500",
+          chip: "bg-cyan-500/15 text-cyan-300 border-cyan-500/30"
         };
       case "strength":
         return {
           bg: "bg-purple-500/10",
           border: "border-purple-500/30",
           text: "text-purple-300",
-          indicator: "bg-purple-500"
+          indicator: "bg-purple-500",
+          chip: "bg-purple-500/15 text-purple-300 border-purple-500/30"
         };
       case "triathlon":
         return {
           bg: "bg-amber-500/10",
           border: "border-amber-500/30",
           text: "text-amber-300",
-          indicator: "bg-amber-500"
+          indicator: "bg-amber-500",
+          chip: "bg-amber-500/15 text-amber-300 border-amber-500/30"
         };
       default:
         return {
           bg: "bg-white/5",
           border: "border-white/10",
           text: "text-white",
-          indicator: "bg-brand-500"
+          indicator: "bg-brand-500",
+          chip: "bg-white/10 text-text-primary border-white/10"
         };
     }
+  };
+
+  const getSportIcon = (sport: SportType) => {
+    switch (sport) {
+      case "running":
+        return <Activity className="w-3.5 h-3.5 shrink-0" />;
+      case "cycling":
+        return <Bike className="w-3.5 h-3.5 shrink-0" />;
+      case "swimming":
+        return <Waves className="w-3.5 h-3.5 shrink-0" />;
+      case "strength":
+        return <Dumbbell className="w-3.5 h-3.5 shrink-0" />;
+      case "triathlon":
+        return <Trophy className="w-3.5 h-3.5 shrink-0" />;
+      default:
+        return <Zap className="w-3.5 h-3.5 shrink-0" />;
+    }
+  };
+
+  const getSourceBadge = (workout: PlannedWorkout) => {
+    if (workout.author?.role === "coach") {
+      return { label: isHu ? "Edző" : "Coach", variant: "brand" as const };
+    }
+    const src = (workout.source as string) || "";
+    if (src === "garmin") {
+      return { label: "Garmin", variant: "neutral" as const };
+    }
+    if (src === "coros") {
+      return { label: "COROS", variant: "neutral" as const };
+    }
+    if (workout.source === "file") {
+      return { label: isHu ? "Fájl" : "File", variant: "ready" as const };
+    }
+    if (workout.author?.role === "solo_generator") {
+      return { label: "Solo", variant: "neutral" as const };
+    }
+    if (workout.status === "completed") {
+      return { label: isHu ? "Kézi" : "Manual", variant: "neutral" as const };
+    }
+    return null;
   };
 
   // Drag and drop handlers
@@ -183,7 +235,7 @@ export const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
   };
 
   // Week Summary calculation
-  const weekSummary = React.useMemo(() => {
+  const weekSummary = useMemo(() => {
     const weekStartStr = formatDateStr(currentWeekDays[0]!);
     const weekEndStr = formatDateStr(currentWeekDays[6]!);
 
@@ -220,7 +272,7 @@ export const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
     };
   }, [currentWeekDays, workouts]);
 
-  const headerTitle = React.useMemo(() => {
+  const headerTitle = useMemo(() => {
     const m = isHu
       ? MONTH_NAMES_HU[currentReferenceDate.getMonth()]
       : MONTH_NAMES_EN[currentReferenceDate.getMonth()];
@@ -228,32 +280,176 @@ export const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
     return `${m} ${y}`;
   }, [currentReferenceDate, isHu]);
 
+  // Selected Day workouts and total load
+  const selectedDayWorkouts = useMemo(
+    () => workouts.filter((w) => w.date === selectedDate),
+    [workouts, selectedDate]
+  );
+
+  const selectedDayTotalLoad = useMemo(
+    () =>
+      selectedDayWorkouts.reduce(
+        (sum, w) =>
+          sum +
+          (w.status === "completed"
+            ? w.actualRpe
+              ? (w.actualDurationMinutes || w.plannedDurationMinutes) * w.actualRpe
+              : w.plannedLoad
+            : w.plannedLoad),
+        0
+      ),
+    [selectedDayWorkouts]
+  );
+
+  // Modular Session Card Item Component
+  const renderSessionCard = (workout: PlannedWorkout, isCompact = false) => {
+    const colors = getSportColorClasses(workout.sport);
+    const isCompleted = workout.status === "completed";
+    const isModified = workout.status === "modified";
+    const isSkipped = workout.status === "skipped";
+    const sourceBadge = getSourceBadge(workout);
+
+    const estDuration =
+      workout.blocks && workout.blocks.length > 0
+        ? calculateEstimatedDurationMinutes(workout.blocks)
+        : workout.plannedDurationMinutes;
+    const durationText = isCompleted && workout.actualDurationMinutes
+      ? `${workout.actualDurationMinutes}p`
+      : `${estDuration}p`;
+
+    return (
+      <div
+        key={workout.id}
+        draggable
+        onDragStart={(e) => handleDragStart(e, workout.id)}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (workout.status === "completed" && onOpenSessionDetail) {
+            onOpenSessionDetail(workout);
+          } else {
+            onOpenWorkoutFeedback(workout);
+          }
+        }}
+        className={`rounded-16 p-3 text-xs cursor-pointer border transition-all active:scale-[0.99] ${
+          isCompleted
+            ? `${colors.bg} ${colors.border} shadow-sm`
+            : isModified
+            ? "bg-amber-500/10 border-amber-500/30"
+            : isSkipped
+            ? "bg-rose-500/5 border-rose-500/20 opacity-60 line-through"
+            : "bg-surface-elevated/70 border-dashed border-border hover:border-text-tertiary"
+        }`}
+      >
+        <div className="flex items-start justify-between gap-2 mb-1.5">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className={`w-6 h-6 rounded-8 flex items-center justify-center shrink-0 ${colors.chip}`}>
+              {getSportIcon(workout.sport)}
+            </div>
+            <span
+              className={`font-semibold text-12 leading-tight truncate ${
+                isCompleted
+                  ? colors.text
+                  : isModified
+                  ? "text-amber-300"
+                  : isSkipped
+                  ? "text-rose-400"
+                  : "text-text-primary"
+              }`}
+            >
+              {workout.title}
+            </span>
+          </div>
+
+          <div className="shrink-0 flex items-center gap-1">
+            {isCompleted ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            ) : isModified ? (
+              <AlertCircle className="w-4 h-4 text-amber-400" />
+            ) : isSkipped ? (
+              <XCircle className="w-4 h-4 text-rose-400" />
+            ) : (
+              <Clock className="w-4 h-4 text-text-tertiary" />
+            )}
+          </div>
+        </div>
+
+        {/* Duration & Load & Badges */}
+        <div className="flex items-center justify-between text-11 text-text-secondary font-mono pt-1">
+          <div className="flex items-center gap-1.5">
+            <span>{durationText}</span>
+            {sourceBadge && (
+              <Badge variant={sourceBadge.variant} size="sm" className="px-1.5 py-0 text-[10px]">
+                {sourceBadge.label}
+              </Badge>
+            )}
+          </div>
+          <span className="font-semibold text-text-primary">{workout.plannedLoad} TSS</span>
+        </div>
+
+        {/* Card footer actions if not compact */}
+        {!isCompact && (
+          <div className="mt-2 pt-1.5 border-t border-border-hairline flex items-center justify-between text-11">
+            {isCompleted && onOpenShareSession ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenShareSession(workout);
+                }}
+                className="text-text-secondary flex items-center gap-1 hover:text-brand transition-colors"
+                title={isHu ? "Edzés megosztása" : "Share workout"}
+              >
+                <Share2 className="w-3 h-3" />
+                <span>{isHu ? "Megosztás" : "Share"}</span>
+              </button>
+            ) : (
+              <div />
+            )}
+
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setWorkoutToMove(workout);
+                setTargetMoveDate(workout.date);
+              }}
+              className="sm:hidden text-text-secondary flex items-center gap-1 hover:text-text-primary"
+            >
+              <MoveHorizontal className="w-3 h-3" />
+              <span>{isHu ? "Áthelyezés" : "Move"}</span>
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
-    <Card className="p-4 sm:p-6 mb-6">
+    <Card variant="surface" radius="28" className="p-3 sm:p-6 mb-6">
       {/* Top Header: Navigation & View Toggle */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border-hairline">
         <div className="flex items-center gap-3">
-          <h2 className="text-lg font-bold text-white tracking-tight">
+          <h2 className="text-18 font-bold text-text-primary tracking-tight">
             {headerTitle}
           </h2>
-          <div className="flex items-center gap-1 bg-[#0B0C0F] p-1 rounded-xl border border-white/5">
+          <div className="flex items-center gap-1 bg-surface-elevated/70 p-1 rounded-12 border border-border-hairline">
             <button
               onClick={handlePrev}
               aria-label="Previous"
-              className="p-1 rounded-lg text-text-secondary hover:text-white hover:bg-white/5 transition-colors"
+              className="p-1 rounded-8 text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <button
               onClick={handleToday}
-              className="px-2 py-0.5 rounded-lg text-xs font-semibold text-brand-400 hover:text-white hover:bg-white/5 transition-colors"
+              className="px-2 py-0.5 rounded-8 text-11 font-semibold text-brand hover:text-text-primary hover:bg-white/5 transition-colors"
             >
               {isHu ? "Ma" : "Today"}
             </button>
             <button
               onClick={handleNext}
               aria-label="Next"
-              className="p-1 rounded-lg text-text-secondary hover:text-white hover:bg-white/5 transition-colors"
+              className="p-1 rounded-8 text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -261,33 +457,33 @@ export const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
         </div>
 
         {/* View Switcher: Week / Month / Day */}
-        <div className="flex items-center bg-[#0B0C0F] p-1 rounded-xl border border-white/5 self-start sm:self-auto text-xs">
+        <div className="flex items-center bg-surface-elevated/70 p-1 rounded-12 border border-border-hairline self-start sm:self-auto text-xs">
           <button
             onClick={() => setCalendarView("week")}
-            className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
+            className={`px-3 py-1.5 rounded-8 font-medium transition-all ${
               calendarView === "week"
-                ? "bg-brand-500 text-white shadow"
-                : "text-text-secondary hover:text-white"
+                ? "bg-brand text-white shadow-glass-sm"
+                : "text-text-secondary hover:text-text-primary"
             }`}
           >
             {isHu ? "Hét nézet" : "Week View"}
           </button>
           <button
             onClick={() => setCalendarView("month")}
-            className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
+            className={`px-3 py-1.5 rounded-8 font-medium transition-all ${
               calendarView === "month"
-                ? "bg-brand-500 text-white shadow"
-                : "text-text-secondary hover:text-white"
+                ? "bg-brand text-white shadow-glass-sm"
+                : "text-text-secondary hover:text-text-primary"
             }`}
           >
             {isHu ? "Hónap nézet" : "Month View"}
           </button>
           <button
             onClick={() => setCalendarView("day")}
-            className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
+            className={`px-3 py-1.5 rounded-8 font-medium transition-all ${
               calendarView === "day"
-                ? "bg-brand-500 text-white shadow"
-                : "text-text-secondary hover:text-white"
+                ? "bg-brand text-white shadow-glass-sm"
+                : "text-text-secondary hover:text-text-primary"
             }`}
           >
             {isHu ? "Nap nézet" : "Day View"}
@@ -296,32 +492,32 @@ export const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
       </div>
 
       {/* WEEKLY SUMMARY ROW */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-3 my-3 bg-[#0B0C0F] p-3 rounded-2xl border border-white/5 text-xs">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-3 my-3 bg-surface-elevated/40 p-3 rounded-20 border border-border-hairline text-xs">
         <div>
-          <span className="text-[11px] text-text-secondary block">
+          <span className="text-11 text-text-tertiary block">
             {isHu ? "Heti volumen" : "Weekly Volume"}
           </span>
-          <div className="font-mono font-bold text-white text-sm mt-0.5">
+          <div className="font-mono font-bold text-text-primary text-14 mt-0.5">
             {weekSummary.completedVolumeHours} / {weekSummary.plannedVolumeHours} {isHu ? "óra" : "hrs"}
           </div>
         </div>
 
         <div>
-          <span className="text-[11px] text-text-secondary block">
+          <span className="text-11 text-text-tertiary block">
             {isHu ? "Heti terhelés" : "Weekly Load"}
           </span>
-          <div className="font-mono font-bold text-amber-400 text-sm mt-0.5">
+          <div className="font-mono font-bold text-amber-400 text-14 mt-0.5">
             {weekSummary.completedLoad} / {weekSummary.plannedLoad} TSS
           </div>
         </div>
 
         <div>
-          <span className="text-[11px] text-text-secondary block">
-            {isHu ? "Edzéstervezés teljesülés" : "Compliance Rate"}
+          <span className="text-11 text-text-tertiary block">
+            {isHu ? "Teljesülés" : "Compliance"}
           </span>
           <div className="flex items-center gap-2 mt-0.5">
             <span
-              className={`font-mono font-bold text-sm ${
+              className={`font-mono font-bold text-14 ${
                 weekSummary.compliancePercent >= 85
                   ? "text-emerald-400"
                   : weekSummary.compliancePercent >= 70
@@ -335,338 +531,451 @@ export const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
         </div>
 
         <div>
-          <span className="text-[11px] text-text-secondary block">
-            {isHu ? "Edzésszám" : "Total Workouts"}
+          <span className="text-11 text-text-tertiary block">
+            {isHu ? "Edzésszám" : "Workouts"}
           </span>
-          <div className="font-mono font-bold text-white text-sm mt-0.5">
-            {weekSummary.workoutsCount} {isHu ? "edzés a héten" : "sessions"}
+          <div className="font-mono font-bold text-text-primary text-14 mt-0.5">
+            {weekSummary.workoutsCount} {isHu ? "edzés" : "sessions"}
           </div>
         </div>
       </div>
 
       {/* VIEW: WEEK VIEW */}
       {calendarView === "week" && (
-        <div className="grid grid-cols-1 sm:grid-cols-7 gap-2.5 mt-4">
-          {currentWeekDays.map((dayDate, idx) => {
-            const dateStr = formatDateStr(dayDate);
-            const isToday = dateStr === todayStr;
-            const isSelected = dateStr === selectedDate;
+        <div className="mt-4">
+          {/* 1. MOBILE ONLY: 7-DAY HORIZONTAL WEEK STRIP + SELECTED DAY LIST */}
+          <div className="block sm:hidden space-y-4">
+            {/* Week Strip */}
+            <div className="grid grid-cols-7 gap-1">
+              {currentWeekDays.map((dayDate, idx) => {
+                const dateStr = formatDateStr(dayDate);
+                const isSelected = dateStr === selectedDate;
+                const isToday = dateStr === todayStr;
+                const dayWorkouts = workouts.filter((w) => w.date === dateStr);
 
-            // Day workouts
-            const dayWorkouts = workouts.filter((w) => w.date === dateStr);
-            const dayTotalLoad = dayWorkouts.reduce(
-              (sum, w) =>
-                sum +
-                (w.status === "completed"
-                  ? w.actualRpe
-                    ? (w.actualDurationMinutes || w.plannedDurationMinutes) * w.actualRpe
-                    : w.plannedLoad
-                  : w.plannedLoad),
-              0
-            );
+                return (
+                  <button
+                    key={dateStr}
+                    type="button"
+                    onClick={() => onSelectDate(dateStr)}
+                    className={`py-2 px-1 rounded-14 border text-center transition-all flex flex-col items-center justify-between min-h-[64px] ${
+                      isSelected
+                        ? "bg-brand/15 border-brand/60 ring-1 ring-brand/40 shadow-glass-sm"
+                        : isToday
+                        ? "bg-surface-elevated border-brand/40"
+                        : "bg-surface-elevated/40 border-border-hairline"
+                    }`}
+                  >
+                    <span className={`text-[10px] font-semibold uppercase ${isSelected ? "text-brand" : "text-text-tertiary"}`}>
+                      {isHu ? DAY_NAMES_HU[idx] : DAY_NAMES_EN[idx]}
+                    </span>
+                    <span
+                      className={`text-14 font-mono font-bold my-0.5 ${
+                        isSelected ? "text-brand" : isToday ? "text-brand" : "text-text-primary"
+                      }`}
+                    >
+                      {dayDate.getDate()}
+                    </span>
+                    {/* Dots for workouts */}
+                    <div className="flex items-center gap-0.5 h-2 justify-center">
+                      {dayWorkouts.slice(0, 3).map((w) => (
+                        <span
+                          key={w.id}
+                          className={`w-1.5 h-1.5 rounded-full ${getSportColorClasses(w.sport).indicator}`}
+                        />
+                      ))}
+                      {dayWorkouts.length > 3 && (
+                        <span className="w-1 h-1 rounded-full bg-text-tertiary" />
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
 
-            return (
-              <div
-                key={dateStr}
-                onDragOver={handleDragOver}
-                onDrop={(e) => handleDrop(dateStr, e)}
-                onClick={() => onSelectDate(dateStr)}
-                className={`min-h-[220px] rounded-2xl p-2.5 flex flex-col justify-between border transition-all ${
-                  isSelected
-                    ? "bg-[#14161B] border-brand-500/60 ring-1 ring-brand-500/30"
-                    : "bg-[#0B0C0F] border-white/5 hover:border-white/10"
-                }`}
-              >
-                {/* Day Header */}
+            {/* Selected Day List on Mobile */}
+            <div className="p-3.5 rounded-20 bg-surface-elevated/60 border border-border-hairline space-y-3">
+              <div className="flex items-center justify-between pb-2 border-b border-border-hairline">
                 <div>
-                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/5">
+                  <span className="text-[10px] font-semibold text-text-tertiary uppercase tracking-wider">
+                    {isHu ? "Kiválasztott nap" : "Selected Day"}
+                  </span>
+                  <h3 className="text-14 font-bold text-text-primary font-mono">
+                    {selectedDate} {selectedDate === todayStr && `(${isHu ? "Ma" : "Today"})`}
+                  </h3>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {selectedDayTotalLoad > 0 && (
+                    <Badge variant="brand" size="sm">
+                      {selectedDayTotalLoad} TSS
+                    </Badge>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() =>
+                      onOpenManualLog ? onOpenManualLog(selectedDate) : onOpenWorkoutBuilder(selectedDate)
+                    }
+                    leftIcon={<Plus className="w-3.5 h-3.5" />}
+                  >
+                    {isHu ? "Edzés" : "Add"}
+                  </Button>
+                </div>
+              </div>
+
+              {selectedDayWorkouts.length === 0 ? (
+                <div className="py-6 text-center text-text-tertiary text-12">
+                  <p>{isHu ? "Pihenőnap • Nincs betervezett edzés" : "Rest day • No workouts scheduled"}</p>
+                  <Button
+                    size="sm"
+                    variant="tertiary"
+                    className="mt-2 text-11"
+                    onClick={() => onOpenWorkoutBuilder(selectedDate)}
+                  >
+                    {isHu ? "+ Edzés tervezése" : "+ Plan workout"}
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {selectedDayWorkouts.map((w) => renderSessionCard(w))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 2. TABLET & LAPTOP LAYOUT (sm: and up) */}
+          <div className="hidden sm:grid sm:grid-cols-1 lg:grid-cols-12 gap-4">
+            {/* 7-DAY CALENDAR GRID (Main area) */}
+            <div className="lg:col-span-8 grid grid-cols-7 gap-2">
+              {currentWeekDays.map((dayDate, idx) => {
+                const dateStr = formatDateStr(dayDate);
+                const isToday = dateStr === todayStr;
+                const isSelected = dateStr === selectedDate;
+                const dayWorkouts = workouts.filter((w) => w.date === dateStr);
+                const dayTotalLoad = dayWorkouts.reduce(
+                  (sum, w) =>
+                    sum +
+                    (w.status === "completed"
+                      ? w.actualRpe
+                        ? (w.actualDurationMinutes || w.plannedDurationMinutes) * w.actualRpe
+                        : w.plannedLoad
+                      : w.plannedLoad),
+                  0
+                );
+
+                return (
+                  <div
+                    key={dateStr}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(dateStr, e)}
+                    onClick={() => onSelectDate(dateStr)}
+                    className={`min-h-[220px] rounded-18 p-2 flex flex-col justify-between border transition-all ${
+                      isSelected
+                        ? "bg-surface-elevated border-brand/60 ring-1 ring-brand/30 shadow-glass-sm"
+                        : "bg-surface-elevated/40 border-border-hairline hover:border-border"
+                    }`}
+                  >
                     <div>
-                      <span className="text-[11px] font-semibold text-text-secondary uppercase">
-                        {isHu ? DAY_NAMES_HU[idx] : DAY_NAMES_EN[idx]}
-                      </span>
-                      <div
-                        className={`text-sm font-bold font-mono ${
-                          isToday ? "text-brand-400" : "text-white"
-                        }`}
-                      >
-                        {dayDate.getDate()}
+                      {/* Day Header */}
+                      <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-border-hairline">
+                        <div>
+                          <span className="text-[10px] font-semibold text-text-tertiary uppercase">
+                            {isHu ? DAY_NAMES_HU[idx] : DAY_NAMES_EN[idx]}
+                          </span>
+                          <div
+                            className={`text-13 font-bold font-mono ${
+                              isToday ? "text-brand" : "text-text-primary"
+                            }`}
+                          >
+                            {dayDate.getDate()}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          {dayTotalLoad > 0 && (
+                            <span className="text-[9px] font-mono font-semibold px-1 py-0.2 rounded-full bg-white/5 text-amber-300">
+                              {dayTotalLoad}
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onOpenWorkoutBuilder(dateStr);
+                            }}
+                            title={isHu ? "Új edzés hozzáadása" : "Add workout"}
+                            className="p-1 rounded-8 text-text-tertiary hover:text-text-primary hover:bg-white/10"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Workouts list for the day */}
+                      <div className="space-y-1.5">
+                        {dayWorkouts.map((w) => renderSessionCard(w, true))}
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5">
-                      {dayTotalLoad > 0 && (
-                        <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded-full bg-white/5 text-amber-300">
-                          {dayTotalLoad} TSS
-                        </span>
-                      )}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onOpenWorkoutBuilder(dateStr);
-                        }}
-                        title={isHu ? "Új edzés hozzáadása" : "Add workout"}
-                        className="p-1 rounded-lg text-text-secondary hover:text-white hover:bg-white/10"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                    {/* Empty day prompt */}
+                    {dayWorkouts.length === 0 && (
+                      <div className="text-[10px] text-text-tertiary text-center py-2">
+                        {isHu ? "Pihenőnap" : "Rest"}
+                      </div>
+                    )}
+
+                    {/* Quick log button */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onOpenManualLog) onOpenManualLog(dateStr);
+                        else onOpenWorkoutBuilder(dateStr);
+                      }}
+                      className="mt-2 w-full py-1 rounded-8 text-[10px] text-text-tertiary hover:text-text-primary hover:bg-white/5 border border-dashed border-border-hairline flex items-center justify-center gap-1 transition-colors"
+                    >
+                      <Plus className="w-2.5 h-2.5" />
+                      <span className="truncate">{isHu ? "Naplózás" : "Log"}</span>
+                    </button>
                   </div>
+                );
+              })}
+            </div>
 
-                  {/* Workouts list for the day */}
-                  <div className="space-y-1.5">
-                    {dayWorkouts.map((workout) => {
-                      const colors = getSportColorClasses(workout.sport);
-                      const isCompleted = workout.status === "completed";
-                      const isModified = workout.status === "modified";
-                      const isSkipped = workout.status === "skipped";
-
-                      return (
-                        <div
-                          key={workout.id}
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, workout.id)}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (workout.status === "completed" && onOpenSessionDetail) {
-                              onOpenSessionDetail(workout);
-                            } else {
-                              onOpenWorkoutFeedback(workout);
-                            }
-                          }}
-                          className={`p-2 rounded-xl text-xs cursor-pointer border transition-all ${
-                            isCompleted
-                              ? `${colors.bg} ${colors.border} shadow-sm`
-                              : isModified
-                              ? "bg-amber-500/10 border-amber-500/30"
-                              : isSkipped
-                              ? "bg-rose-500/5 border-rose-500/20 opacity-60 line-through"
-                              : "bg-[#14161B] border-dashed border-white/20 hover:border-white/40"
-                          }`}
-                        >
-                          {/* Title and Status Icon */}
-                          <div className="flex items-start justify-between gap-1 mb-1">
-                            <span
-                              className={`font-semibold text-[11px] leading-tight line-clamp-2 ${
-                                isCompleted
-                                  ? colors.text
-                                  : isModified
-                                  ? "text-amber-300"
-                                  : isSkipped
-                                  ? "text-rose-400"
-                                  : "text-white"
-                              }`}
-                            >
-                              {workout.title}
-                            </span>
-                            {isCompleted ? (
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                            ) : isModified ? (
-                              <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
-                            ) : isSkipped ? (
-                              <XCircle className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5" />
-                            ) : (
-                              <Clock className="w-3.5 h-3.5 text-text-secondary shrink-0 mt-0.5" />
-                            )}
-                          </div>
-
-                          {/* Details: Duration & Load */}
-                          <div className="flex items-center justify-between text-[10px] text-text-secondary font-mono">
-                            <span>
-                              {isCompleted && workout.actualDurationMinutes
-                                ? `${workout.actualDurationMinutes}p`
-                                : `${(workout.blocks && workout.blocks.length > 0) ? calculateEstimatedDurationMinutes(workout.blocks) : workout.plannedDurationMinutes}p (becsült)`}
-                            </span>
-                            <span>{workout.plannedLoad} TSS</span>
-                          </div>
-
-                          {/* Author Badge */}
-                          {workout.author.role === "coach" && (
-                            <div className="flex items-center gap-1 mt-1 text-[9px] text-indigo-300 font-medium">
-                              <UserCheck className="w-2.5 h-2.5" />
-                              <span className="truncate">{workout.author.name}</span>
-                            </div>
-                          )}
-
-                          {/* Mobile move & share buttons */}
-                          <div className="mt-1.5 pt-1 border-t border-white/5 flex items-center justify-between">
-                            {isCompleted && onOpenShareSession ? (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onOpenShareSession(workout);
-                                }}
-                                className="text-[9px] text-text-secondary flex items-center gap-1 hover:text-brand-300 transition-colors"
-                                title={isHu ? "Edzés megosztása" : "Share workout"}
-                              >
-                                <Share2 className="w-2.5 h-2.5" />
-                                <span>{isHu ? "Megosztás" : "Share"}</span>
-                              </button>
-                            ) : (
-                              <div />
-                            )}
-
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setWorkoutToMove(workout);
-                                setTargetMoveDate(workout.date);
-                              }}
-                              className="sm:hidden text-[9px] text-text-secondary flex items-center gap-1 hover:text-white"
-                            >
-                              <MoveHorizontal className="w-2.5 h-2.5" />
-                              <span>{isHu ? "Áthelyezés" : "Move"}</span>
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
+            {/* SIDE PANEL: SELECTED DAY DETAIL & DROP TARGET (lg: screens) */}
+            <div
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(selectedDate, e)}
+              className="lg:col-span-4 rounded-20 p-4 bg-surface-elevated/80 border border-border-hairline flex flex-col justify-between space-y-4"
+            >
+              <div className="space-y-3">
+                <div className="flex items-center justify-between pb-3 border-b border-border-hairline">
+                  <div>
+                    <span className="text-11 font-semibold text-text-tertiary uppercase tracking-wider">
+                      {isHu ? "Kiválasztott nap" : "Selected Day"}
+                    </span>
+                    <h3 className="text-16 font-bold text-text-primary font-mono">
+                      {selectedDate} {selectedDate === todayStr && `(${isHu ? "Ma" : "Today"})`}
+                    </h3>
                   </div>
+                  {selectedDayTotalLoad > 0 && (
+                    <Badge variant="brand" size="md">
+                      {selectedDayTotalLoad} TSS
+                    </Badge>
+                  )}
                 </div>
 
-                {/* Empty day prompt */}
-                {dayWorkouts.length === 0 && (
-                  <div className="text-[10px] text-text-secondary/50 text-center py-2">
-                    {isHu ? "Pihenőnap" : "Rest day"}
-                  </div>
-                )}
+                {/* Drag to reschedule hint */}
+                <div className="text-[11px] text-text-tertiary flex items-center gap-1.5 bg-surface-base/40 p-2 rounded-10 border border-border-hairline">
+                  <ArrowRight className="w-3 h-3 text-brand" />
+                  <span>
+                    {isHu
+                      ? "Húzz ide egy edzést a naptárból az áthelyezéshez."
+                      : "Drag a workout here to reschedule."}
+                  </span>
+                </div>
 
-                {/* Log session for this day action */}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (onOpenManualLog) {
-                      onOpenManualLog(dateStr);
-                    } else {
-                      onOpenWorkoutBuilder(dateStr);
-                    }
-                  }}
-                  className="mt-2 w-full text-center py-1 px-1 rounded-lg text-[10px] font-medium text-brand-400 bg-brand-500/10 hover:bg-brand-500/20 border border-brand-500/20 transition-colors flex items-center justify-center gap-1"
-                  title={isHu ? "Edzés rögzítése erre a napra" : "Log session for this day"}
-                >
-                  <Plus className="w-3 h-3" />
-                  <span className="truncate">{isHu ? "Edzés rögzítése" : "Log session"}</span>
-                </button>
+                {/* Sessions list */}
+                <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
+                  {selectedDayWorkouts.length === 0 ? (
+                    <div className="py-8 text-center text-text-tertiary text-12">
+                      <p>{isHu ? "Nincs betervezett edzés ezen a napon." : "No workouts scheduled on this day."}</p>
+                    </div>
+                  ) : (
+                    selectedDayWorkouts.map((w) => renderSessionCard(w))
+                  )}
+                </div>
               </div>
-            );
-          })}
+
+              {/* Quick Actions in Side Panel */}
+              <div className="pt-3 border-t border-border-hairline flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="flex-1"
+                  onClick={() =>
+                    onOpenManualLog ? onOpenManualLog(selectedDate) : onOpenWorkoutBuilder(selectedDate)
+                  }
+                  leftIcon={<Plus className="w-3.5 h-3.5" />}
+                >
+                  {isHu ? "Gyors naplózás" : "Quick log"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  className="flex-1"
+                  onClick={() => onOpenWorkoutBuilder(selectedDate)}
+                  leftIcon={<Plus className="w-3.5 h-3.5" />}
+                >
+                  {isHu ? "Új tervezés" : "New workout"}
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* VIEW: MONTH VIEW */}
+      {/* VIEW: MONTH VIEW (Fitted for 320px screens with zero horizontal overflow) */}
       {calendarView === "month" && (
         <div className="mt-4">
-          {/* Day Headers */}
-          <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-text-secondary mb-2">
-            {(isHu ? DAY_NAMES_HU : DAY_NAMES_EN).map((d) => (
-              <div key={d} className="py-1">
-                {d}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            {/* Month 35-Day Grid */}
+            <div className="lg:col-span-8">
+              {/* Day Headers */}
+              <div className="grid grid-cols-7 gap-0.5 sm:gap-1.5 text-center text-[10px] sm:text-xs font-semibold text-text-tertiary mb-1.5">
+                {(isHu ? DAY_NAMES_HU : DAY_NAMES_EN).map((d) => (
+                  <div key={d} className="py-1">
+                    {d}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          {/* Month grid (simplified 35 days) */}
-          <div className="grid grid-cols-7 gap-1.5">
-            {Array.from({ length: 35 }).map((_, idx) => {
-              const startOfMonth = new Date(
-                currentReferenceDate.getFullYear(),
-                currentReferenceDate.getMonth(),
-                1
-              );
-              const dayOffset = idx - (startOfMonth.getDay() === 0 ? 6 : startOfMonth.getDay() - 1);
-              const cellDate = new Date(startOfMonth);
-              cellDate.setDate(startOfMonth.getDate() + dayOffset);
-              const dateStr = formatDateStr(cellDate);
+              {/* Month grid (35 cells) */}
+              <div className="grid grid-cols-7 gap-0.5 sm:gap-1.5">
+                {Array.from({ length: 35 }).map((_, idx) => {
+                  const startOfMonth = new Date(
+                    currentReferenceDate.getFullYear(),
+                    currentReferenceDate.getMonth(),
+                    1
+                  );
+                  const dayOffset = idx - (startOfMonth.getDay() === 0 ? 6 : startOfMonth.getDay() - 1);
+                  const cellDate = new Date(startOfMonth);
+                  cellDate.setDate(startOfMonth.getDate() + dayOffset);
+                  const dateStr = formatDateStr(cellDate);
 
-              const isCurrentMonth = cellDate.getMonth() === currentReferenceDate.getMonth();
-              const isToday = dateStr === todayStr;
-              const isSelected = dateStr === selectedDate;
+                  const isCurrentMonth = cellDate.getMonth() === currentReferenceDate.getMonth();
+                  const isToday = dateStr === todayStr;
+                  const isSelected = dateStr === selectedDate;
 
-              const cellWorkouts = workouts.filter((w) => w.date === dateStr);
-              const totalLoad = cellWorkouts.reduce((s, w) => s + w.plannedLoad, 0);
+                  const cellWorkouts = workouts.filter((w) => w.date === dateStr);
+                  const totalLoad = cellWorkouts.reduce((s, w) => s + w.plannedLoad, 0);
 
-              return (
-                <div
-                  key={dateStr}
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => handleDrop(dateStr, e)}
-                  onClick={() => onSelectDate(dateStr)}
-                  className={`min-h-[85px] p-1.5 rounded-xl border flex flex-col justify-between cursor-pointer transition-all ${
-                    isSelected
-                      ? "bg-[#14161B] border-brand-500/60"
-                      : isCurrentMonth
-                      ? "bg-[#0B0C0F] border-white/5 hover:border-white/10"
-                      : "bg-[#0B0C0F]/40 border-transparent opacity-40"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span
-                      className={`text-[11px] font-mono font-bold ${
-                        isToday ? "text-brand-400" : "text-white"
+                  return (
+                    <div
+                      key={dateStr}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(dateStr, e)}
+                      onClick={() => onSelectDate(dateStr)}
+                      className={`min-h-[54px] sm:min-h-[85px] p-1 sm:p-2 rounded-12 sm:rounded-16 border flex flex-col justify-between cursor-pointer transition-all ${
+                        isSelected
+                          ? "bg-surface-elevated border-brand/60 shadow-glass-sm ring-1 ring-brand/30"
+                          : isCurrentMonth
+                          ? "bg-surface-elevated/40 border-border-hairline hover:border-border"
+                          : "bg-surface-elevated/15 border-transparent opacity-35"
                       }`}
                     >
-                      {cellDate.getDate()}
-                    </span>
-                    {totalLoad > 0 && (
-                      <span className="text-[9px] font-mono text-amber-300">
-                        {totalLoad}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Workout dots or chips */}
-                  <div className="space-y-0.5 mt-1">
-                    {cellWorkouts.slice(0, 2).map((w) => {
-                      const colors = getSportColorClasses(w.sport);
-                      return (
-                        <div
-                          key={w.id}
-                          className={`text-[9px] truncate px-1 py-0.5 rounded font-medium ${
-                            w.status === "completed"
-                              ? `${colors.bg} ${colors.text}`
-                              : "text-text-secondary bg-white/5"
+                      <div className="flex items-center justify-between">
+                        <span
+                          className={`text-[10px] sm:text-11 font-mono font-bold ${
+                            isToday ? "text-brand" : "text-text-primary"
                           }`}
                         >
-                          {w.title}
-                        </div>
-                      );
-                    })}
-                    {cellWorkouts.length > 2 && (
-                      <div className="text-[8px] text-text-secondary text-center">
-                        +{cellWorkouts.length - 2}
+                          {cellDate.getDate()}
+                        </span>
+                        {totalLoad > 0 && (
+                          <span className="text-[8px] sm:text-[9px] font-mono text-amber-300">
+                            {totalLoad}
+                          </span>
+                        )}
                       </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
 
-          {/* Selected day action in month view */}
-          <div className="mt-3 p-3 rounded-xl bg-[#0B0C0F] border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-            <span className="text-text-secondary">
-              {isHu ? "Kiválasztott nap:" : "Selected date:"} <strong className="text-white font-mono">{selectedDate}</strong>
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => onOpenManualLog ? onOpenManualLog(selectedDate) : onOpenWorkoutBuilder(selectedDate)}
-                className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors flex items-center gap-1.5"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>{isHu ? "Edzés rögzítése erre a napra" : "Log session for this day"}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => onOpenWorkoutBuilder(selectedDate)}
-                className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-brand-400 bg-brand-500/10 hover:bg-brand-500/20 border border-brand-500/20 transition-colors flex items-center gap-1.5"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>{isHu ? "Tervezés" : "Plan"}</span>
-              </button>
+                      {/* Workout representations: Compact dots on mobile (<sm), chips on desktop (>=sm) */}
+                      <div className="mt-1">
+                        {/* Mobile dots view */}
+                        <div className="flex sm:hidden items-center justify-center gap-0.5 flex-wrap h-2">
+                          {cellWorkouts.slice(0, 3).map((w) => (
+                            <span
+                              key={w.id}
+                              className={`w-1.5 h-1.5 rounded-full ${getSportColorClasses(w.sport).indicator}`}
+                            />
+                          ))}
+                          {cellWorkouts.length > 3 && (
+                            <span className="w-1 h-1 rounded-full bg-text-tertiary" />
+                          )}
+                        </div>
+
+                        {/* Tablet/Desktop chips view */}
+                        <div className="hidden sm:block space-y-0.5">
+                          {cellWorkouts.slice(0, 2).map((w) => {
+                            const colors = getSportColorClasses(w.sport);
+                            return (
+                              <div
+                                key={w.id}
+                                className={`text-[9px] truncate px-1 py-0.5 rounded-6 font-medium ${
+                                  w.status === "completed"
+                                    ? `${colors.bg} ${colors.text}`
+                                    : "text-text-secondary bg-white/5"
+                                }`}
+                              >
+                                {w.title}
+                              </div>
+                            );
+                          })}
+                          {cellWorkouts.length > 2 && (
+                            <div className="text-[8px] text-text-tertiary text-center">
+                              +{cellWorkouts.length - 2}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Selected day side panel in Month View */}
+            <div className="lg:col-span-4 p-4 rounded-20 bg-surface-elevated/80 border border-border-hairline flex flex-col justify-between space-y-3">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-border-hairline">
+                  <div>
+                    <span className="text-11 font-semibold text-text-tertiary uppercase tracking-wider">
+                      {isHu ? "Kiválasztott nap" : "Selected Day"}
+                    </span>
+                    <h3 className="text-15 font-bold text-text-primary font-mono">
+                      {selectedDate} {selectedDate === todayStr && `(${isHu ? "Ma" : "Today"})`}
+                    </h3>
+                  </div>
+                  {selectedDayTotalLoad > 0 && (
+                    <Badge variant="brand" size="sm">
+                      {selectedDayTotalLoad} TSS
+                    </Badge>
+                  )}
+                </div>
+
+                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                  {selectedDayWorkouts.length === 0 ? (
+                    <div className="py-6 text-center text-text-tertiary text-12">
+                      <p>{isHu ? "Nincs betervezett edzés." : "No workouts scheduled."}</p>
+                    </div>
+                  ) : (
+                    selectedDayWorkouts.map((w) => renderSessionCard(w))
+                  )}
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-border-hairline flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="flex-1"
+                  onClick={() =>
+                    onOpenManualLog ? onOpenManualLog(selectedDate) : onOpenWorkoutBuilder(selectedDate)
+                  }
+                  leftIcon={<Plus className="w-3.5 h-3.5" />}
+                >
+                  {isHu ? "Gyors naplózás" : "Quick log"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  className="flex-1"
+                  onClick={() => onOpenWorkoutBuilder(selectedDate)}
+                  leftIcon={<Plus className="w-3.5 h-3.5" />}
+                >
+                  {isHu ? "Tervezés" : "Plan"}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -675,12 +984,12 @@ export const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
       {/* VIEW: DAY VIEW */}
       {calendarView === "day" && (
         <div className="mt-4 space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-white/5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-border-hairline">
             <div>
-              <h3 className="font-bold text-white text-base">
+              <h3 className="font-bold text-text-primary text-16 font-mono">
                 {selectedDate} {selectedDate === todayStr && `(${isHu ? "Ma" : "Today"})`}
               </h3>
-              <p className="text-xs text-text-secondary mt-0.5">
+              <p className="text-11 text-text-tertiary mt-0.5">
                 {isHu ? "Részletes napi edzésprogram és blokkok" : "Detailed daily workout blocks"}
               </p>
             </div>
@@ -688,29 +997,27 @@ export const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => onOpenManualLog ? onOpenManualLog(selectedDate) : onOpenWorkoutBuilder(selectedDate)}
-                className="flex items-center gap-1.5"
+                onClick={() => (onOpenManualLog ? onOpenManualLog(selectedDate) : onOpenWorkoutBuilder(selectedDate))}
+                leftIcon={<Plus className="w-3.5 h-3.5 text-emerald-400" />}
               >
-                <Plus className="w-4 h-4 text-emerald-400" />
-                <span>{isHu ? "Edzés rögzítése erre a napra" : "Log session for this day"}</span>
+                {isHu ? "Gyors naplózás" : "Quick log"}
               </Button>
               <Button
                 variant="primary"
                 size="sm"
                 onClick={() => onOpenWorkoutBuilder(selectedDate)}
-                className="flex items-center gap-1.5"
+                leftIcon={<Plus className="w-3.5 h-3.5" />}
               >
-                <Plus className="w-4 h-4" />
-                <span>{isHu ? "Edzés hozzáadása" : "Add Workout"}</span>
+                {isHu ? "Új edzés" : "Add Workout"}
               </Button>
             </div>
           </div>
 
           {/* List of full workouts for the selected day */}
-          {workouts.filter((w) => w.date === selectedDate).length === 0 ? (
-            <div className="text-center py-12 bg-[#0B0C0F] rounded-2xl border border-white/5">
-              <CalendarIcon className="w-10 h-10 text-text-secondary/40 mx-auto mb-2" />
-              <p className="text-sm font-semibold text-white">
+          {selectedDayWorkouts.length === 0 ? (
+            <div className="text-center py-12 bg-surface-elevated/40 rounded-20 border border-border-hairline">
+              <CalendarIcon className="w-10 h-10 text-text-tertiary/40 mx-auto mb-2" />
+              <p className="text-sm font-semibold text-text-primary">
                 {isHu ? "Nincs betervezett edzés erre a napra" : "No workouts scheduled for this day"}
               </p>
               <p className="text-xs text-text-secondary mt-1">
@@ -718,104 +1025,109 @@ export const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
               </p>
             </div>
           ) : (
-            workouts
-              .filter((w) => w.date === selectedDate)
-              .map((w) => {
-                const colors = getSportColorClasses(w.sport);
-                return (
-                  <div
-                    key={w.id}
-                    className="p-4 rounded-2xl bg-[#0B0C0F] border border-white/5 space-y-3"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full ${colors.indicator}`} />
-                        <h4 className="font-bold text-white text-sm">{w.title}</h4>
+            selectedDayWorkouts.map((w) => {
+              const colors = getSportColorClasses(w.sport);
+              return (
+                <div
+                  key={w.id}
+                  className="p-4 rounded-20 bg-surface-elevated/60 border border-border-hairline space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-7 h-7 rounded-8 flex items-center justify-center ${colors.chip}`}>
+                        {getSportIcon(w.sport)}
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        {w.status === "completed" && onOpenShareSession && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="px-2 text-brand-300 hover:text-white"
-                            onClick={() => onOpenShareSession(w)}
-                            title={isHu ? "Edzés megosztása" : "Share workout"}
-                          >
-                            <Share2 className="w-3.5 h-3.5" />
-                          </Button>
-                        )}
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => {
-                            if (w.status === "completed" && onOpenSessionDetail) {
-                              onOpenSessionDetail(w);
-                            } else {
-                              onOpenWorkoutFeedback(w);
-                            }
-                          }}
-                        >
-                          {w.status === "completed"
-                            ? isHu ? "Részletek / Szerkesztés" : "Details / Edit"
-                            : isHu ? "Lezárás / Visszajelzés" : "Log / Feedback"}
-                        </Button>
+                      <div>
+                        <h4 className="font-bold text-text-primary text-14">{w.title}</h4>
+                        <div className="text-11 text-text-secondary font-mono mt-0.5">
+                          {w.actualDurationMinutes || w.plannedDurationMinutes} perc • {w.plannedLoad} TSS
+                        </div>
                       </div>
                     </div>
+                    <div className="flex items-center gap-1.5">
+                      {w.status === "completed" && onOpenShareSession && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="px-2"
+                          onClick={() => onOpenShareSession(w)}
+                          title={isHu ? "Edzés megosztása" : "Share workout"}
+                        >
+                          <Share2 className="w-3.5 h-3.5 text-brand" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                          if (w.status === "completed" && onOpenSessionDetail) {
+                            onOpenSessionDetail(w);
+                          } else {
+                            onOpenWorkoutFeedback(w);
+                          }
+                        }}
+                      >
+                        {w.status === "completed"
+                          ? isHu ? "Részletek / Szerkesztés" : "Details / Edit"
+                          : isHu ? "Lezárás / Visszajelzés" : "Log / Feedback"}
+                      </Button>
+                    </div>
+                  </div>
 
-                    {/* Workout structured blocks preview */}
-                    {w.blocks && w.blocks.length > 0 && (
-                      <div className="space-y-1.5 pt-2 border-t border-white/5">
-                        <span className="text-[11px] font-semibold text-text-secondary uppercase">
-                          {isHu ? "Blokkok" : "Blocks"}
-                        </span>
-                        {w.blocks.map((b) => {
-                          const summary = getBlockHeaderSummary(b);
-                          const estMinutes = calculateEstimatedDurationMinutes([b]);
-                          return (
-                            <div
-                              key={b.id}
-                              className="flex items-center justify-between text-xs p-2 rounded-xl bg-[#14161B]"
-                            >
-                              <div className="flex flex-col">
-                                <span className="text-white font-medium">{summary}</span>
-                                {b.rows && b.rows.length > 0 && (
-                                  <span className="text-[11px] text-text-tertiary">
-                                    {b.rows.map((r) => r.exerciseName || r.name || "Gyakorlat").join(", ")}
-                                  </span>
-                                )}
-                              </div>
-                              <span className="text-text-secondary font-mono text-[11px] shrink-0 ml-2">
-                                {estMinutes > 0 ? `${estMinutes}p (becsült)` : b.durationMinutes ? `${b.durationMinutes}p` : ""}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* Strength exercises preview */}
-                    {w.strengthExercises && w.strengthExercises.length > 0 && (
-                      <div className="space-y-1.5 pt-2 border-t border-white/5">
-                        <span className="text-[11px] font-semibold text-text-secondary uppercase">
-                          {isHu ? "Gyakorlatok" : "Exercises"}
-                        </span>
-                        {w.strengthExercises.map((e) => (
+                  {/* Workout structured blocks preview */}
+                  {w.blocks && w.blocks.length > 0 && (
+                    <div className="space-y-1.5 pt-2 border-t border-border-hairline">
+                      <span className="text-[11px] font-semibold text-text-tertiary uppercase">
+                        {isHu ? "Blokkok" : "Blocks"}
+                      </span>
+                      {w.blocks.map((b) => {
+                        const summary = getBlockHeaderSummary(b);
+                        const estMinutes = calculateEstimatedDurationMinutes([b]);
+                        return (
                           <div
-                            key={e.id}
-                            className="flex items-center justify-between text-xs p-2 rounded-xl bg-[#14161B]"
+                            key={b.id}
+                            className="flex items-center justify-between text-xs p-2.5 rounded-12 bg-surface-base/60 border border-border-hairline"
                           >
-                            <span className="text-white">{e.name}</span>
-                            <span className="text-text-secondary font-mono">
-                              {e.sets} x {e.reps} @ {e.loadKg} kg
+                            <div className="flex flex-col">
+                              <span className="text-text-primary font-medium">{summary}</span>
+                              {b.rows && b.rows.length > 0 && (
+                                <span className="text-[11px] text-text-tertiary">
+                                  {b.rows.map((r) => r.exerciseName || r.name || "Gyakorlat").join(", ")}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-text-secondary font-mono text-[11px] shrink-0 ml-2">
+                              {estMinutes > 0 ? `${estMinutes}p (becsült)` : b.durationMinutes ? `${b.durationMinutes}p` : ""}
                             </span>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Strength exercises preview */}
+                  {w.strengthExercises && w.strengthExercises.length > 0 && (
+                    <div className="space-y-1.5 pt-2 border-t border-border-hairline">
+                      <span className="text-[11px] font-semibold text-text-tertiary uppercase">
+                        {isHu ? "Gyakorlatok" : "Exercises"}
+                      </span>
+                      {w.strengthExercises.map((e) => (
+                        <div
+                          key={e.id}
+                          className="flex items-center justify-between text-xs p-2.5 rounded-12 bg-surface-base/60 border border-border-hairline"
+                        >
+                          <span className="text-text-primary">{e.name}</span>
+                          <span className="text-text-secondary font-mono">
+                            {e.sets} x {e.reps} @ {e.loadKg} kg
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })
           )}
         </div>
       )}
@@ -828,22 +1140,22 @@ export const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
       >
         {workoutToMove && (
           <div className="space-y-4 text-sm p-2">
-            <div className="bg-[#0B0C0F] p-3 rounded-xl border border-white/5">
-              <span className="font-semibold text-white block">{workoutToMove.title}</span>
+            <div className="bg-surface-elevated p-3 rounded-16 border border-border-hairline">
+              <span className="font-semibold text-text-primary block">{workoutToMove.title}</span>
               <span className="text-xs text-text-secondary font-mono">
                 {isHu ? "Jelenlegi nap:" : "Current date:"} {workoutToMove.date}
               </span>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-semibold text-text-tertiary uppercase tracking-wider mb-1.5">
                 {isHu ? "Új nap kiválasztása" : "Select New Date"}
               </label>
               <input
                 type="date"
                 value={targetMoveDate}
                 onChange={(e) => setTargetMoveDate(e.target.value)}
-                className="w-full bg-[#0B0C0F] border border-white/10 rounded-xl px-3 py-2 text-white font-mono text-sm focus:border-brand-500 focus:outline-none"
+                className="w-full bg-surface-elevated border border-border rounded-12 px-3 py-2 text-text-primary font-mono text-sm focus:border-brand focus:outline-none"
               />
             </div>
 

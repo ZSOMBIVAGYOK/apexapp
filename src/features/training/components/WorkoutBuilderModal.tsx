@@ -20,7 +20,9 @@ import {
   Sparkles,
   Bookmark,
   Video,
-  Timer
+  Timer,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 import { calculateEstimatedDurationMinutes } from "@shared/lib/blocks";
 import { TrainingBlockList } from "./blocks/TrainingBlockList";
@@ -251,6 +253,9 @@ export const WorkoutBuilderModal: React.FC<WorkoutBuilderModalProps> = ({
   // Rest Timer Modal state
   const [isRestTimerOpen, setIsRestTimerOpen] = useState(false);
   const [timerBlock, setTimerBlock] = useState<WorkoutBlock | null>(null);
+
+  // Progressive disclosure for extra details
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
   // Populate from workoutToEdit
   useEffect(() => {
@@ -832,36 +837,52 @@ export const WorkoutBuilderModal: React.FC<WorkoutBuilderModalProps> = ({
           </div>
         </div>
 
-        {/* Notes */}
-        <div>
-          <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
-            {isHu ? "Edzői utasítás / Megjegyzés" : "Instructions / Notes"}
-          </label>
-          <textarea
-            rows={2}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder={
-              isHu
-                ? "pl. Frissítés 30 percenként, könnyű pörgetés lejtőkön..."
-                : "e.g. Fuel every 30 mins, light cadence on downhills..."
-            }
-            className="w-full bg-[#0B0C0F] border border-white/10 rounded-xl p-2.5 text-white text-xs placeholder:text-text-secondary/50 focus:border-brand-500 focus:outline-none resize-none"
-          />
-        </div>
+        {/* Progressive Disclosure: Részletek (collapsed by default) */}
+        <div className="pt-2 border-t border-border-hairline">
+          <button
+            type="button"
+            onClick={() => setIsDetailsOpen(!isDetailsOpen)}
+            className="flex items-center justify-between w-full py-2 text-xs font-semibold text-text-secondary hover:text-text-primary transition-colors"
+          >
+            <span>{isHu ? "Részletek (megjegyzés, sablonmentés)" : "Details (notes, save as template)"}</span>
+            {isDetailsOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
 
-        {/* Save as Template Checkbox */}
-        <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            id="saveTemplate"
-            checked={saveAsTemplate}
-            onChange={(e) => setSaveAsTemplate(e.target.checked)}
-            className="rounded bg-[#0B0C0F] border-white/10 text-brand-500 focus:ring-brand-500"
-          />
-          <label htmlFor="saveTemplate" className="text-xs text-text-secondary cursor-pointer">
-            {isHu ? "Mentés saját sablonként a könyvtárba" : "Save as custom reusable template"}
-          </label>
+          {isDetailsOpen && (
+            <div className="space-y-3 pt-2">
+              {/* Notes */}
+              <div>
+                <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
+                  {isHu ? "Edzői utasítás / Megjegyzés" : "Instructions / Notes"}
+                </label>
+                <textarea
+                  rows={2}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder={
+                    isHu
+                      ? "pl. Frissítés 30 percenként, könnyű pörgetés lejtőkön..."
+                      : "e.g. Fuel every 30 mins, light cadence on downhills..."
+                  }
+                  className="w-full bg-surface-elevated border border-border-hairline rounded-xl p-2.5 text-text-primary text-xs placeholder:text-text-tertiary focus:border-brand focus:outline-none resize-none"
+                />
+              </div>
+
+              {/* Save as Template Checkbox */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="saveTemplate"
+                  checked={saveAsTemplate}
+                  onChange={(e) => setSaveAsTemplate(e.target.checked)}
+                  className="rounded bg-surface-elevated border-border-hairline text-brand focus:ring-brand"
+                />
+                <label htmlFor="saveTemplate" className="text-xs text-text-secondary cursor-pointer">
+                  {isHu ? "Mentés saját sablonként a könyvtárba" : "Save as custom reusable template"}
+                </label>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Action Buttons */}

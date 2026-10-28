@@ -249,26 +249,45 @@ export const TodayPage: React.FC = () => {
           </p>
         </div>
 
-        {/* Quick Actions Header Toolbar */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            variant="secondary"
-            size="sm"
-            leftIcon={<Plus className="h-4 w-4" />}
-            onClick={() => setIsLogModalOpen(true)}
-          >
-            {isHu ? "Edzés rögzítése" : "Log session"}
-          </Button>
+      </div>
 
-          <Button
-            variant="primary"
-            size="sm"
-            leftIcon={<Activity className="h-4 w-4" />}
-            onClick={() => navigate("/checkin")}
-          >
-            {hasCheckedInToday ? (isHu ? "Check-in adatok" : "View check-in") : (isHu ? "Reggeli Check-in (~30 mp)" : "Daily Check-in (~30s)")}
-          </Button>
-        </div>
+      {/* 4 Large Capsule Quick Action Buttons */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        <button
+          type="button"
+          onClick={() => navigate("/checkin")}
+          className="touch-target min-h-[44px] px-3.5 py-2.5 rounded-full bg-bg-surface-solid dark:bg-white/[0.05] border border-border/60 hover:bg-bg-elevated text-text-primary flex items-center justify-center gap-2 text-12 sm:text-13 font-semibold shadow-glass-sm transition-all active:scale-[0.98]"
+        >
+          <Activity className="h-4 w-4 text-brand shrink-0" />
+          <span className="truncate">{hasCheckedInToday ? (isHu ? "Check-in adatok" : "Check-in data") : (isHu ? "Reggeli Check-in" : "Morning check-in")}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setIsLogModalOpen(true)}
+          className="touch-target min-h-[44px] px-3.5 py-2.5 rounded-full bg-bg-surface-solid dark:bg-white/[0.05] border border-border/60 hover:bg-bg-elevated text-text-primary flex items-center justify-center gap-2 text-12 sm:text-13 font-semibold shadow-glass-sm transition-all active:scale-[0.98]"
+        >
+          <Dumbbell className="h-4 w-4 text-brand shrink-0" />
+          <span className="truncate">{isHu ? "Edzés rögzítése" : "Log workout"}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => navigate("/nutrition")}
+          className="touch-target min-h-[44px] px-3.5 py-2.5 rounded-full bg-bg-surface-solid dark:bg-white/[0.05] border border-border/60 hover:bg-bg-elevated text-text-primary flex items-center justify-center gap-2 text-12 sm:text-13 font-semibold shadow-glass-sm transition-all active:scale-[0.98]"
+        >
+          <Plus className="h-4 w-4 text-brand shrink-0" />
+          <span className="truncate">{isHu ? "Étkezés naplózása" : "Log meal"}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleAddWater(250)}
+          className="touch-target min-h-[44px] px-3.5 py-2.5 rounded-full bg-bg-surface-solid dark:bg-white/[0.05] border border-border/60 hover:bg-bg-elevated text-text-primary flex items-center justify-center gap-2 text-12 sm:text-13 font-semibold shadow-glass-sm transition-all active:scale-[0.98]"
+        >
+          <Droplets className="h-4 w-4 text-status-ready shrink-0" />
+          <span className="truncate">{isHu ? "Vízivás (+250ml)" : "Water (+250ml)"}</span>
+        </button>
       </div>
 
       {/* Maintenance Due Alert Banner */}
@@ -446,444 +465,480 @@ export const TodayPage: React.FC = () => {
         </div>
       )}
 
-      {/* Hero Readiness Overview Card */}
-      <Card variant="surface" radius="28" className="p-6 sm:p-8">
-        {hasCheckedInToday && readinessResult ? (
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-6">
-              <ProgressRing
-                value={readinessResult.score}
-                label={isHu ? "Készenlét" : "Readiness"}
-                unit=""
-                size={135}
-                strokeWidth={10}
-                status={bandToStatus(readinessResult.band)}
-              />
-              <div className="space-y-1.5 max-w-xl">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Badge variant={bandToStatus(readinessResult.band)} dot size="sm">
-                    {readinessResult.band === "green"
-                      ? (isHu ? "KIVÁLÓ ÁLLAPOT (READY)" : "OPTIMAL READY")
-                      : readinessResult.band === "amber"
-                        ? (isHu ? "MÉRSÉKELT (CAUTION)" : "MODERATE LOAD")
-                        : (isHu ? "PIHENŐ (REST REQUIRED)" : "RECOVERY REQUIRED")}
-                  </Badge>
-                  <ConfidenceMeter confidence={readinessResult.confidence || 90} size="sm" />
-                  <span className="text-11 text-status-ready font-medium flex items-center gap-1">
-                    <Check className="h-3 w-3" />
-                    {isHu ? "Mai check-in alapján" : "From today's check-in"}
-                  </span>
+      {/* Responsive Cockpit Layout: 2/3 Main on laptop, 1/3 Side */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main 2/3 Column: Readiness + Workout + Biometrics */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Hero Readiness Overview Card */}
+          <Card variant="surface" radius="28" className="p-6 sm:p-8">
+            {hasCheckedInToday && readinessResult ? (
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-6">
+                  <ProgressRing
+                    value={readinessResult.score}
+                    label={isHu ? "Készenlét" : "Readiness"}
+                    unit=""
+                    size={135}
+                    strokeWidth={10}
+                    status={bandToStatus(readinessResult.band)}
+                  />
+                  <div className="space-y-1.5 max-w-xl">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant={bandToStatus(readinessResult.band)} dot size="sm">
+                        {readinessResult.band === "green"
+                          ? (isHu ? "KIVÁLÓ ÁLLAPOT (READY)" : "OPTIMAL READY")
+                          : readinessResult.band === "amber"
+                            ? (isHu ? "MÉRSÉKELT (CAUTION)" : "MODERATE LOAD")
+                            : (isHu ? "PIHENŐ (REST REQUIRED)" : "RECOVERY REQUIRED")}
+                      </Badge>
+                      <ConfidenceMeter confidence={readinessResult.confidence || 90} size="sm" />
+                      <span className="text-11 text-status-ready font-medium flex items-center gap-1">
+                        <Check className="h-3 w-3" />
+                        {isHu ? "Mai check-in alapján" : "From today's check-in"}
+                      </span>
+                    </div>
+
+                    <h2 className="text-20 sm:text-24 font-bold tracking-tight text-text-primary">
+                      {readinessResult.band === "green"
+                        ? (isHu ? "Készen állsz a magas intenzitású kulcsedzésre" : "Ready for High-Intensity Key Training")
+                        : readinessResult.band === "amber"
+                          ? (isHu ? "Mérsékelt terhelhetőség • Kontrollált aerob munka javasolt" : "Moderate Capacity • Controlled Aerobic Load")
+                          : (isHu ? "Alacsony regeneráció • Aktív pihenés javasolt" : "Low Recovery • Active Rest Recommended")}
+                    </h2>
+
+                    <p className="text-13 text-text-secondary leading-relaxed pt-1">
+                      {getDriverSentence()}
+                    </p>
+
+                    {readinessResult.drivers && readinessResult.drivers.length > 0 && (
+                      <div className="flex items-center gap-2 pt-2 flex-wrap">
+                        {readinessResult.drivers.slice(0, 3).map((driver, idx) => (
+                          <div
+                            key={idx}
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-8 text-11 font-medium border ${
+                              driver.impact === "positive"
+                                ? "bg-status-ready/10 text-status-ready border-status-ready/20"
+                                : "bg-status-rest/10 text-status-rest border-status-rest/20"
+                            }`}
+                          >
+                            <span>{driver.impact === "positive" ? "▲" : "▼"}</span>
+                            <span>{isHu ? driver.labelHu : driver.labelEn}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <h2 className="text-20 sm:text-24 font-bold tracking-tight text-text-primary">
-                  {readinessResult.band === "green"
-                    ? (isHu ? "Készen állsz a magas intenzitású kulcsedzésre" : "Ready for High-Intensity Key Training")
-                    : readinessResult.band === "amber"
-                      ? (isHu ? "Mérsékelt terhelhetőség • Kontrollált aerob munka javasolt" : "Moderate Capacity • Controlled Aerobic Load")
-                      : (isHu ? "Alacsony regeneráció • Aktív pihenés javasolt" : "Low Recovery • Active Rest Recommended")}
-                </h2>
+                <div className="flex sm:flex-col gap-2 shrink-0 border-t lg:border-t-0 lg:border-l border-border-hairline pt-4 lg:pt-0 lg:pl-6">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => navigate("/checkin")}
+                  >
+                    {isHu ? "Mérési részletek" : "Check-in Details"}
+                  </Button>
+                  <Button
+                    variant="tertiary"
+                    size="sm"
+                    onClick={() => navigate("/insights")}
+                  >
+                    {isHu ? "Regeneráció Görbe" : "Recovery Curve"}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col md:flex-row items-center justify-between gap-6 py-2">
+                <div className="flex items-center gap-5">
+                  <div className="w-16 h-16 rounded-24 bg-brand/10 text-brand flex items-center justify-center shrink-0 border border-brand/20">
+                    <Activity className="w-8 h-8" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="neutral" size="sm">
+                        {isHu ? "Még nincs mai adat" : "No data today"}
+                      </Badge>
+                    </div>
+                    <h2 className="text-20 sm:text-22 font-bold tracking-tight text-text-primary">
+                      {isHu ? "Kezdd a napot az első check-innel" : "Start your day with morning check-in"}
+                    </h2>
+                    <p className="text-13 text-text-secondary">
+                      {isHu
+                        ? "Rögzítsd a mai alvásidőt, jólléti állapotot és pulzust a személyre szabott edzéskészenlét kiszámításához."
+                        : "Log sleep, wellness, and biometrics to compute your personalized training readiness."}
+                    </p>
+                  </div>
+                </div>
 
-                <p className="text-13 text-text-secondary leading-relaxed pt-1">
-                  {getDriverSentence()}
-                </p>
+                <Button
+                  variant="primary"
+                  size="md"
+                  leftIcon={<Activity className="h-4 w-4" />}
+                  onClick={() => navigate("/checkin")}
+                  className="shrink-0"
+                >
+                  {isHu ? "Napi Check-in kitöltése (~30 mp)" : "Complete Check-in (~30s)"}
+                </Button>
+              </div>
+            )}
+          </Card>
 
-                {readinessResult.drivers && readinessResult.drivers.length > 0 && (
-                  <div className="flex items-center gap-2 pt-2 flex-wrap">
-                    {readinessResult.drivers.slice(0, 3).map((driver, idx) => (
-                      <div
-                        key={idx}
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-8 text-11 font-medium border ${
-                          driver.impact === "positive"
-                            ? "bg-status-ready/10 text-status-ready border-status-ready/20"
-                            : "bg-status-rest/10 text-status-rest border-status-rest/20"
+          {/* Planned Workout Card */}
+          <Card variant="surface" radius="28" className="p-6 flex flex-col justify-between space-y-4">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Dumbbell className="h-5 w-5 text-brand" aria-hidden="true" />
+                  <h3 className="text-16 font-semibold tracking-tight text-text-primary">
+                    {t("today.plannedSession", "Napi Fő Edzés")}
+                  </h3>
+                </div>
+                <Badge variant="neutral" size="sm">
+                  10:00 - 11:30
+                </Badge>
+              </div>
+
+              {/* Adaptive Workout Adjustment Suggestion */}
+              {(readinessResult?.band === "amber" || readinessResult?.band === "red") &&
+                suggestionState !== "dismissed" && (
+                  <div
+                    className={`p-4 rounded-16 border space-y-2.5 transition-all ${
+                      suggestionState === "applied"
+                        ? "border-status-ready/30 bg-status-ready/10"
+                        : "border-status-caution/40 bg-status-caution/10"
+                    }`}
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <AlertTriangle
+                        className={`h-5 w-5 shrink-0 mt-0.5 ${
+                          suggestionState === "applied" ? "text-status-ready" : "text-status-caution"
                         }`}
-                      >
-                        <span>{driver.impact === "positive" ? "▲" : "▼"}</span>
-                        <span>{isHu ? driver.labelHu : driver.labelEn}</span>
+                      />
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-13 font-bold text-text-primary">
+                            {suggestionState === "applied"
+                              ? (isHu ? "Apex Javaslat alkalmazva: Z2 Aerob Állóképesség" : "Suggestion applied: Z2 Aerobic Volume")
+                              : (isHu ? "Apex Terhelési Javaslat (Mérsékelt Készenlét)" : "Apex Load Suggestion (Caution Readiness)")}
+                          </span>
+                          <Badge variant={suggestionState === "applied" ? "ready" : "caution"} size="sm">
+                            {suggestionState === "applied" ? "Alkalmazva" : "Javasolt"}
+                          </Badge>
+                        </div>
+                        <p className="text-12 text-text-secondary leading-relaxed">
+                          {suggestionState === "applied"
+                            ? (isHu
+                                ? "Az edzés intenzitása Z2 aerob alapra csökkentve (60 perc). A laktát-küszöb blokkokat a következő kipihent napra ütemeztük."
+                                : "Intensity stepped down to Z2 aerobic base (60m). High-threshold blocks deferred to next optimal recovery day.")
+                            : (isHu
+                                ? "Az autonóm idegrendszeri terhelés és izomláz alapján javasoljuk az intenzitás csökkentését 1 szinttel (Z4 küszöb helyett Z2 aerob alap, 60 perc), vagy a volumen 30%-os visszavételét."
+                                : "Based on autonomic fatigue, we suggest reducing intensity by one level (Z2 aerobic instead of Z4 threshold, 60m) or trimming volume by 30%.")}
+                        </p>
+                        <p className="text-10 text-text-tertiary italic">
+                          *Az Apex soha nem módosítja önhatalmúan az edzői tervet; a döntést a sportoló vagy az edző hagyja jóvá.
+                        </p>
                       </div>
+                    </div>
+
+                    {suggestionState === "pending" && (
+                      <div className="flex items-center gap-2 pt-1 pl-7">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            setSuggestionState("applied");
+                            showToast({
+                              title: "Edzésterv módosítva a mai napra",
+                              message: "Z2 aerob könnyű edzés rögzítve az optimális adaptációért.",
+                              type: "info"
+                            });
+                          }}
+                          className="text-11 h-7 px-3"
+                        >
+                          {isHu ? "Javaslat alkalmazása (Z2 aerob)" : "Apply suggestion (Z2)"}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSuggestionState("dismissed")}
+                          className="text-11 h-7 px-2 text-text-tertiary"
+                        >
+                          {isHu ? "Eredeti terv megtartása" : "Keep original"}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+              {/* Workout Details Box */}
+              <div className="rounded-16 border border-border-hairline bg-surface-elevated p-4 space-y-2">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h4 className="text-14 font-bold text-text-primary">
+                      {suggestionState === "applied"
+                        ? "60p Folyamatos Z2 Aerob Állóképesség (Úszás)"
+                        : "5 x 400m Laktát-küszöb sorozat (Úszás)"}
+                    </h4>
+                    <p className="text-12 text-text-secondary mt-0.5">
+                      {suggestionState === "applied"
+                        ? "Cél: Z2 aerob zóna (135-145 bpm) • Technikai fókusz • RPE 5.0"
+                        : "Célterhelés: RPE 8.5 • Z4 pulzustartomány (168-175 bpm) • 100m aktív pihenő"}
+                    </p>
+                  </div>
+                  <Badge variant={suggestionState === "applied" ? "ready" : "caution"} size="sm">
+                    {suggestionState === "applied" ? "RPE 5.0" : "RPE 8.5"}
+                  </Badge>
+                </div>
+
+                <div className="flex items-center gap-4 text-12 text-text-secondary pt-2 border-t border-border-hairline">
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+                    {suggestionState === "applied" ? "60 perc" : "90 perc"}
+                  </span>
+                  <span>•</span>
+                  <span className="flex items-center gap-1 font-mono text-brand">
+                    <Flame className="h-3.5 w-3.5" />
+                    {suggestionState === "applied" ? "300 AU terhelés" : "720 AU terhelés"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <Button
+                variant={workoutStarted ? "secondary" : "primary"}
+                fullWidth
+                leftIcon={
+                  workoutStarted ? (
+                    <CheckCircle2 className="h-4 w-4 text-status-ready" />
+                  ) : (
+                    <Play className="h-4 w-4" />
+                  )
+                }
+                onClick={handleToggleWorkout}
+              >
+                {workoutStarted
+                  ? (isHu ? "Edzés folyamatban (Kész)" : "Session running (Done)")
+                  : t("training.startSession", "Edzés indítása")}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => setIsLogModalOpen(true)}
+              >
+                {isHu ? "Kézi naplózás" : "Log session"}
+              </Button>
+            </div>
+          </Card>
+
+          {/* 4 Key Biometrics Cockpit Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <StatTile
+              label={t("today.hrvMetric", "HRV (rMSSD)")}
+              value={todayHrv !== null ? todayHrv : "--"}
+              unit="ms"
+              status={todayHrv !== null ? (todayHrv >= 75 ? "ready" : todayHrv >= 60 ? "caution" : "rest") : "neutral"}
+              subtext={todayHrv !== null ? "Check-in alapján" : (isHu ? "Még nincs mai adat" : "No data yet")}
+              topRight={<SourceBadge source="manual" confidence={todayHrv !== null ? 0.95 : 0} />}
+            />
+            <StatTile
+              label={isHu ? "Nyugalmi pulzus" : "Resting HR"}
+              value={todayRestingHr !== null ? todayRestingHr : "--"}
+              unit="bpm"
+              status={todayRestingHr !== null ? "ready" : "neutral"}
+              subtext={todayRestingHr !== null ? "Check-in alapján" : (isHu ? "Még nincs mai adat" : "No data yet")}
+              topRight={<SourceBadge source="manual" confidence={todayRestingHr !== null ? 0.95 : 0} />}
+            />
+            <StatTile
+              label={t("today.sleepMetric", "Alvásidő")}
+              value={todaySleepDurationHours}
+              unit={isHu ? "óra" : "h"}
+              status={todaySleepDurationHours !== "--" ? (+todaySleepDurationHours >= 7.5 ? "ready" : "caution") : "neutral"}
+              subtext={todaySleepDurationHours !== "--" ? (isHu ? "Kattints az elemzéshez" : "Click for sleep chart") : (isHu ? "Még nincs mai adat" : "No data yet")}
+              topRight={<ConfidenceMeter confidence={todaySleepDurationHours !== "--" ? 92 : 0} size="sm" />}
+              onClick={() => navigate("/insights?tab=sleep")}
+            />
+            <StatTile
+              label={t("nutrition.hydration", "Folyadékbevitel")}
+              value={waterLiters}
+              unit="/ 3.5 l"
+              status={waterLiters >= 3.0 ? "ready" : "caution"}
+              subtext={`${Math.round((waterLiters / 3.5) * 100)}% cél elérve`}
+              topRight={
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => handleAddWater(250)}
+                    className="rounded-8 bg-brand/10 px-2 py-0.5 text-11 font-bold text-brand hover:bg-brand/20 transition-colors"
+                  >
+                    +250ml
+                  </button>
+                </div>
+              }
+            />
+          </div>
+        </div>
+
+        {/* Side 1/3 Column: Countdown + Fuel + Recovery + Hydration */}
+        <div className="lg:col-span-1 space-y-6">
+          {/* Target Race Countdown Card */}
+          {user?.targetCompetition && (
+            <Card variant="surface" radius="28" className="p-5 border border-border/60 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-11 font-bold tracking-widest text-brand uppercase font-mono">
+                  CÉLVERSENY VISSZASZÁMLÁLÓ
+                </span>
+                <Badge variant="brand" size="sm">„A” Verseny</Badge>
+              </div>
+              <div className="flex items-baseline justify-between gap-2">
+                <h4 className="text-15 font-bold text-text-primary truncate">
+                  {user.targetCompetition}
+                </h4>
+                {user.targetCompetitionDate && (() => {
+                  const diffDays = Math.ceil((new Date(user.targetCompetitionDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                  const diffWeeks = Math.max(0, Math.ceil(diffDays / 7));
+                  return (
+                    <div className="text-right shrink-0">
+                      <span className="text-20 font-black font-mono tabular-nums text-text-primary">
+                        {diffDays > 0 ? diffDays : 0}
+                      </span>
+                      <span className="text-12 text-text-secondary ml-1 font-medium">nap</span>
+                      <span className="text-11 text-text-tertiary block font-mono">({diffWeeks} hét)</span>
+                    </div>
+                  );
+                })()}
+              </div>
+            </Card>
+          )}
+
+          {/* Nutrition & Fuel Card */}
+          <Card variant="surface" radius="28" className="p-6 flex flex-col justify-between space-y-4">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Droplets className="h-5 w-5 text-brand" aria-hidden="true" />
+                  <h3 className="text-16 font-semibold tracking-tight text-text-primary">
+                    {t("nutrition.title", "Táplálkozási Célok")}
+                  </h3>
+                </div>
+                <span className="text-14 font-bold text-text-primary tabular-nums">
+                  2 150 / 3 450 kcal
+                </span>
+              </div>
+
+              {/* Session Fuelling Hint Pill */}
+              <div className="p-3 rounded-14 border border-brand/20 bg-brand/5 flex items-start gap-2.5">
+                <Info className="h-4 w-4 text-brand shrink-0 mt-0.5" />
+                <div className="text-12">
+                  <span className="font-bold text-text-primary block">
+                    {isHu ? "Következő edzés előtti üzemanyag hint:" : "Next session fuelling hint:"}
+                  </span>
+                  <p className="text-text-secondary mt-0.5 leading-relaxed">
+                    {isHu
+                      ? "60-90 perccel a 10:00-s úszás előtt: 45g gyorsan felszívódó szénhidrát és 500ml víz javasolt a glikogénraktárak telítéséhez."
+                      : "60-90m before 10:00 swim: 45g rapid carbohydrates and 500ml hydration advised."}
+                  </p>
+                </div>
+              </div>
+
+              {/* Macronutrient Progress Bars */}
+              <div className="space-y-3 pt-1">
+                <div>
+                  <div className="flex justify-between text-12 text-text-secondary mb-1">
+                    <span>{t("nutrition.protein", "Fehérje")} (2.0 g/kg)</span>
+                    <span className="tabular-nums font-medium text-text-primary">155g / 185g (84%)</span>
+                  </div>
+                  <div className="w-full bg-border-hairline rounded-full h-1.5 overflow-hidden">
+                    <div className="bg-brand h-1.5 rounded-full" style={{ width: "84%" }} />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-12 text-text-secondary mb-1">
+                    <span>{t("nutrition.carbs", "Szénhidrát")} (5.5 g/kg)</span>
+                    <span className="tabular-nums font-medium text-text-primary">340g / 450g (75%)</span>
+                  </div>
+                  <div className="w-full bg-border-hairline rounded-full h-1.5 overflow-hidden">
+                    <div className="bg-status-caution h-1.5 rounded-full" style={{ width: "75%" }} />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-12 text-text-secondary mb-1">
+                    <span>{t("nutrition.fats", "Zsír")}</span>
+                    <span className="tabular-nums font-medium text-text-primary">58g / 75g (77%)</span>
+                  </div>
+                  <div className="w-full bg-border-hairline rounded-full h-1.5 overflow-hidden">
+                    <div className="bg-status-ready h-1.5 rounded-full" style={{ width: "77%" }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-3 border-t border-border-hairline">
+              <span className="text-11 text-text-secondary">
+                {isHu ? "Dietetikus: Molnár Eszter" : "Dietitian: Eszter Molnár"}
+              </span>
+              <Button
+                variant="tertiary"
+                size="sm"
+                leftIcon={<Plus className="h-3.5 w-3.5" />}
+                onClick={() => navigate("/nutrition")}
+              >
+                {isHu ? "Étkezés rögzítése" : "Log meal"}
+              </Button>
+            </div>
+          </Card>
+
+          {/* Today's Recovery Activities Summary */}
+          <Card variant="surface" radius="28" className="p-5 border border-border-hairline flex flex-col justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-12 bg-purple-500/15 text-purple-400 flex items-center justify-center shrink-0">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-11 font-semibold uppercase tracking-wider text-text-tertiary">
+                  {isHu ? "Mai regenerációs aktivitások" : "Today's Recovery Protocols"}
+                </div>
+                {todayRecoveryLogs.length > 0 ? (
+                  <div className="flex items-center gap-2 flex-wrap mt-1.5">
+                    {todayRecoveryLogs.map((log) => (
+                      <span
+                        key={log.id}
+                        className="inline-flex items-center gap-1 text-11 px-2.5 py-0.5 rounded-full bg-surface-elevated border border-border-hairline text-text-primary font-medium"
+                      >
+                        <span>{log.activityName}</span>
+                        <span className="text-text-tertiary">({log.durationMinutes}p)</span>
+                      </span>
                     ))}
+                  </div>
+                ) : (
+                  <div className="text-12 text-text-secondary mt-1">
+                    {isHu
+                      ? "Mára még nincs rögzített regeneráció (szauna, hidegfürdő, masszázs, nyújtás)"
+                      : "No recovery logged yet today (sauna, cold plunge, massage, mobility)"}
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="flex sm:flex-col gap-2 shrink-0 border-t lg:border-t-0 lg:border-l border-border-hairline pt-4 lg:pt-0 lg:pl-6">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => navigate("/checkin")}
-              >
-                {isHu ? "Mérési részletek" : "Check-in Details"}
-              </Button>
-              <Button
-                variant="tertiary"
-                size="sm"
-                onClick={() => navigate("/insights")}
-              >
-                {isHu ? "Regeneráció Görbe" : "Recovery Curve"}
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6 py-2">
-            <div className="flex items-center gap-5">
-              <div className="w-16 h-16 rounded-24 bg-brand/10 text-brand flex items-center justify-center shrink-0 border border-brand/20">
-                <Activity className="w-8 h-8" />
-              </div>
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <Badge variant="neutral" size="sm">
-                    {isHu ? "Még nincs mai adat" : "No data today"}
-                  </Badge>
-                </div>
-                <h2 className="text-20 sm:text-22 font-bold tracking-tight text-text-primary">
-                  {isHu ? "Kezdd a napot az első check-innel" : "Start your day with morning check-in"}
-                </h2>
-                <p className="text-13 text-text-secondary">
-                  {isHu
-                    ? "Rögzítsd a mai alvásidőt, jólléti állapotot és pulzust a személyre szabott edzéskészenlét kiszámításához."
-                    : "Log sleep, wellness, and biometrics to compute your personalized training readiness."}
-                </p>
-              </div>
-            </div>
-
-            <Button
-              variant="primary"
-              size="md"
-              leftIcon={<Activity className="h-4 w-4" />}
-              onClick={() => navigate("/checkin")}
-              className="shrink-0"
-            >
-              {isHu ? "Napi Check-in kitöltése (~30 mp)" : "Complete Check-in (~30s)"}
-            </Button>
-          </div>
-        )}
-      </Card>
-
-      {/* 4 Key Biometrics Cockpit Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatTile
-          label={t("today.hrvMetric", "HRV (rMSSD)")}
-          value={todayHrv !== null ? todayHrv : "--"}
-          unit="ms"
-          status={todayHrv !== null ? (todayHrv >= 75 ? "ready" : todayHrv >= 60 ? "caution" : "rest") : "neutral"}
-          subtext={todayHrv !== null ? "Check-in alapján" : (isHu ? "Még nincs mai adat" : "No data yet")}
-          topRight={<SourceBadge source="manual" confidence={todayHrv !== null ? 0.95 : 0} />}
-        />
-        <StatTile
-          label={isHu ? "Nyugalmi pulzus" : "Resting HR"}
-          value={todayRestingHr !== null ? todayRestingHr : "--"}
-          unit="bpm"
-          status={todayRestingHr !== null ? "ready" : "neutral"}
-          subtext={todayRestingHr !== null ? "Check-in alapján" : (isHu ? "Még nincs mai adat" : "No data yet")}
-          topRight={<SourceBadge source="manual" confidence={todayRestingHr !== null ? 0.95 : 0} />}
-        />
-        <StatTile
-          label={t("today.sleepMetric", "Alvásidő")}
-          value={todaySleepDurationHours}
-          unit={isHu ? "óra" : "h"}
-          status={todaySleepDurationHours !== "--" ? (+todaySleepDurationHours >= 7.5 ? "ready" : "caution") : "neutral"}
-          subtext={todaySleepDurationHours !== "--" ? (isHu ? "Kattints az elemzéshez" : "Click for sleep chart") : (isHu ? "Még nincs mai adat" : "No data yet")}
-          topRight={<ConfidenceMeter confidence={todaySleepDurationHours !== "--" ? 92 : 0} size="sm" />}
-          onClick={() => navigate("/insights?tab=sleep")}
-        />
-        <StatTile
-          label={t("nutrition.hydration", "Folyadékbevitel")}
-          value={waterLiters}
-          unit="/ 3.5 l"
-          status={waterLiters >= 3.0 ? "ready" : "caution"}
-          subtext={`${Math.round((waterLiters / 3.5) * 100)}% cél elérve`}
-          topRight={
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => handleAddWater(250)}
-                className="rounded-8 bg-brand/10 px-2 py-0.5 text-11 font-bold text-brand hover:bg-brand/20 transition-colors"
-              >
-                +250ml
-              </button>
-            </div>
-          }
-        />
-      </div>
-
-      {/* Today's Recovery Activities Summary */}
-      <div className="bg-surface rounded-20 p-4 border border-border-hairline flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-12 bg-purple-500/15 text-purple-400 flex items-center justify-center shrink-0">
-            <Sparkles className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-wider text-text-tertiary">
-              {isHu ? "Mai regenerációs aktivitások" : "Today's Recovery Protocols"}
-            </div>
-            {todayRecoveryLogs.length > 0 ? (
-              <div className="flex items-center gap-2 flex-wrap mt-1">
-                {todayRecoveryLogs.map((log) => (
-                  <span
-                    key={log.id}
-                    className="inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full bg-surface-elevated border border-border-hairline text-text-primary font-medium"
-                  >
-                    <span>{log.activityName}</span>
-                    <span className="text-text-tertiary">({log.durationMinutes}p)</span>
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <div className="text-xs text-text-secondary mt-0.5">
-                {isHu
-                  ? "Mára még nincs rögzített regeneráció (szauna, hidegfürdő, masszázs, nyújtás)"
-                  : "No recovery logged yet today (sauna, cold plunge, massage, mobility)"}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <Button
-          variant="tertiary"
-          size="sm"
-          onClick={() => navigate("/insights?tab=recovery")}
-          className="text-xs shrink-0 self-start sm:self-auto"
-        >
-          {isHu ? "Regeneráció napló &rarr;" : "Recovery log &rarr;"}
-        </Button>
-      </div>
-
-      {/* Today's Workout & Nutrition Sections */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Planned Workout Card */}
-        <Card variant="surface" radius="20" className="p-6 flex flex-col justify-between space-y-4">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Dumbbell className="h-5 w-5 text-brand" aria-hidden="true" />
-                <h3 className="text-16 font-semibold tracking-tight text-text-primary">
-                  {t("today.plannedSession", "Napi Fő Edzés")}
-                </h3>
-              </div>
-              <Badge variant="neutral" size="sm">
-                10:00 - 11:30
-              </Badge>
-            </div>
-
-            {/* ADAPTIVE WORKOUT ADJUSTMENT SUGGESTION (if readiness is amber or red) */}
-            {(readinessResult?.band === "amber" || readinessResult?.band === "red") &&
-              suggestionState !== "dismissed" && (
-                <div
-                  className={`p-4 rounded-16 border space-y-2.5 transition-all ${
-                    suggestionState === "applied"
-                      ? "border-status-ready/30 bg-status-ready/10"
-                      : "border-status-caution/40 bg-status-caution/10"
-                  }`}
-                >
-                  <div className="flex items-start gap-2.5">
-                    <AlertTriangle
-                      className={`h-5 w-5 shrink-0 mt-0.5 ${
-                        suggestionState === "applied" ? "text-status-ready" : "text-status-caution"
-                      }`}
-                    />
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-13 font-bold text-text-primary">
-                          {suggestionState === "applied"
-                            ? (isHu ? "Apex Javaslat alkalmazva: Z2 Aerob Állóképesség" : "Suggestion applied: Z2 Aerobic Volume")
-                            : (isHu ? "Apex Terhelési Javaslat (Mérsékelt Készenlét)" : "Apex Load Suggestion (Caution Readiness)")}
-                        </span>
-                        <Badge variant={suggestionState === "applied" ? "ready" : "caution"} size="sm">
-                          {suggestionState === "applied" ? "Alkalmazva" : "Javasolt"}
-                        </Badge>
-                      </div>
-                      <p className="text-12 text-text-secondary leading-relaxed">
-                        {suggestionState === "applied"
-                          ? (isHu
-                              ? "Az edzés intenzitása Z2 aerob alapra csökkentve (60 perc). A laktát-küszöb blokkokat a következő kipihent napra ütemeztük."
-                              : "Intensity stepped down to Z2 aerobic base (60m). High-threshold blocks deferred to next optimal recovery day.")
-                          : (isHu
-                              ? "Az autonóm idegrendszeri terhelés és izomláz alapján javasoljuk az intenzitás csökkentését 1 szinttel (Z4 küszöb helyett Z2 aerob alap, 60 perc), vagy a volumen 30%-os visszavételét."
-                              : "Based on autonomic fatigue, we suggest reducing intensity by one level (Z2 aerobic instead of Z4 threshold, 60m) or trimming volume by 30%.")}
-                      </p>
-                      <p className="text-10 text-text-tertiary italic">
-                        *Az Apex soha nem módosítja önhatalmúan az edzői tervet; a döntést a sportoló vagy az edző hagyja jóvá.
-                      </p>
-                    </div>
-                  </div>
-
-                  {suggestionState === "pending" && (
-                    <div className="flex items-center gap-2 pt-1 pl-7">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => {
-                          setSuggestionState("applied");
-                          showToast({
-                            title: "Edzésterv módosítva a mai napra",
-                            message: "Z2 aerob könnyű edzés rögzítve az optimális adaptációért.",
-                            type: "info"
-                          });
-                        }}
-                        className="text-11 h-7 px-3"
-                      >
-                        {isHu ? "Javaslat alkalmazása (Z2 aerob)" : "Apply suggestion (Z2)"}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSuggestionState("dismissed")}
-                        className="text-11 h-7 px-2 text-text-tertiary"
-                      >
-                        {isHu ? "Eredeti terv megtartása" : "Keep original"}
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-            {/* Workout Details Box */}
-            <div className="rounded-16 border border-border-hairline bg-surface-elevated p-4 space-y-2">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h4 className="text-14 font-bold text-text-primary">
-                    {suggestionState === "applied"
-                      ? "60p Folyamatos Z2 Aerob Állóképesség (Úszás)"
-                      : "5 x 400m Laktát-küszöb sorozat (Úszás)"}
-                  </h4>
-                  <p className="text-12 text-text-secondary mt-0.5">
-                    {suggestionState === "applied"
-                      ? "Cél: Z2 aerob zóna (135-145 bpm) • Technikai fókusz • RPE 5.0"
-                      : "Célterhelés: RPE 8.5 • Z4 pulzustartomány (168-175 bpm) • 100m aktív pihenő"}
-                  </p>
-                </div>
-                <Badge variant={suggestionState === "applied" ? "ready" : "caution"} size="sm">
-                  {suggestionState === "applied" ? "RPE 5.0" : "RPE 8.5"}
-                </Badge>
-              </div>
-
-              <div className="flex items-center gap-4 text-12 text-text-secondary pt-2 border-t border-border-hairline">
-                <span className="flex items-center gap-1">
-                  <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-                  {suggestionState === "applied" ? "60 perc" : "90 perc"}
-                </span>
-                <span>•</span>
-                <span className="flex items-center gap-1 font-mono text-brand">
-                  <Flame className="h-3.5 w-3.5" />
-                  {suggestionState === "applied" ? "300 AU terhelés" : "720 AU terhelés"}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 pt-2">
-            <Button
-              variant={workoutStarted ? "secondary" : "primary"}
-              fullWidth
-              leftIcon={
-                workoutStarted ? (
-                  <CheckCircle2 className="h-4 w-4 text-status-ready" />
-                ) : (
-                  <Play className="h-4 w-4" />
-                )
-              }
-              onClick={handleToggleWorkout}
-            >
-              {workoutStarted
-                ? (isHu ? "Edzés folyamatban (Kész)" : "Session running (Done)")
-                : t("training.startSession", "Edzés indítása")}
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => setIsLogModalOpen(true)}
-            >
-              {isHu ? "Kézi naplózás" : "Log session"}
-            </Button>
-          </div>
-        </Card>
-
-        {/* Nutrition & Fuel Card */}
-        <Card variant="surface" radius="20" className="p-6 flex flex-col justify-between space-y-4">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Droplets className="h-5 w-5 text-brand" aria-hidden="true" />
-                <h3 className="text-16 font-semibold tracking-tight text-text-primary">
-                  {t("nutrition.title", "Táplálkozási Célok")}
-                </h3>
-              </div>
-              <span className="text-14 font-bold text-text-primary tabular-nums">
-                2 150 / 3 450 kcal
-              </span>
-            </div>
-
-            {/* Session Fuelling Hint Pill */}
-            <div className="p-3 rounded-14 border border-brand/20 bg-brand/5 flex items-start gap-2.5">
-              <Info className="h-4 w-4 text-brand shrink-0 mt-0.5" />
-              <div className="text-12">
-                <span className="font-bold text-text-primary block">
-                  {isHu ? "Következő edzés előtti üzemanyag hint:" : "Next session fuelling hint:"}
-                </span>
-                <p className="text-text-secondary mt-0.5 leading-relaxed">
-                  {isHu
-                    ? "60-90 perccel a 10:00-s úszás előtt: 45g gyorsan felszívódó szénhidrát és 500ml víz javasolt a glikogénraktárak telítéséhez."
-                    : "60-90m before 10:00 swim: 45g rapid carbohydrates and 500ml hydration advised."}
-                </p>
-              </div>
-            </div>
-
-            {/* Macronutrient Progress Bars */}
-            <div className="space-y-3 pt-1">
-              <div>
-                <div className="flex justify-between text-12 text-text-secondary mb-1">
-                  <span>{t("nutrition.protein", "Fehérje")} (2.0 g/kg)</span>
-                  <span className="tabular-nums font-medium text-text-primary">155g / 185g (84%)</span>
-                </div>
-                <div className="w-full bg-border-hairline rounded-full h-1.5 overflow-hidden">
-                  <div className="bg-brand h-1.5 rounded-full" style={{ width: "84%" }} />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between text-12 text-text-secondary mb-1">
-                  <span>{t("nutrition.carbs", "Szénhidrát")} (5.5 g/kg - Kemény nap)</span>
-                  <span className="tabular-nums font-medium text-text-primary">340g / 450g (75%)</span>
-                </div>
-                <div className="w-full bg-border-hairline rounded-full h-1.5 overflow-hidden">
-                  <div className="bg-status-caution h-1.5 rounded-full" style={{ width: "75%" }} />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between text-12 text-text-secondary mb-1">
-                  <span>{t("nutrition.fats", "Zsír")}</span>
-                  <span className="tabular-nums font-medium text-text-primary">58g / 75g (77%)</span>
-                </div>
-                <div className="w-full bg-border-hairline rounded-full h-1.5 overflow-hidden">
-                  <div className="bg-status-ready h-1.5 rounded-full" style={{ width: "77%" }} />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between pt-3 border-t border-border-hairline">
-            <span className="text-12 text-text-secondary">
-              {isHu ? "Dietetikus által validálva: Molnár Eszter" : "Dietitian approved: Eszter Molnár"}
-            </span>
             <Button
               variant="tertiary"
               size="sm"
-              leftIcon={<Plus className="h-3.5 w-3.5" />}
-              onClick={() => navigate("/nutrition")}
+              onClick={() => navigate("/insights?tab=recovery")}
+              className="text-11 self-end"
             >
-              {isHu ? "Étkezés rögzítése" : "Log meal"}
+              {isHu ? "Regeneráció napló &rarr;" : "Recovery log &rarr;"}
             </Button>
-          </div>
-        </Card>
-      </div>
+          </Card>
 
-      {/* Beverage-Engine Driven Hydration Section */}
-      <HydrationTrackerCard
-        userId={athleteId}
-        date={todayStr}
-        targetLiters={3.5}
-      />
+          {/* Beverage-Engine Driven Hydration Section */}
+          <HydrationTrackerCard
+            userId={athleteId}
+            date={todayStr}
+            targetLiters={3.5}
+          />
+        </div>
+      </div>
 
       {/* Manual Session Quick Modal */}
       <ManualSessionModal

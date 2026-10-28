@@ -1161,3 +1161,9 @@ All nutrition constants and formulas are documented in `src/shared/lib/nutrition
 - **ESLint Strictness:** Configured `react-hooks/rules-of-hooks` and `react-hooks/exhaustive-deps` as errors; resolved all hook dependency warnings codebase-wide.
 - **Source Maps:** Added `build.sourcemap: "hidden"` to `vite.config.ts` for clean production debugging.
 - **Automated Verification:** Added `AppLayout.reproduce.test.tsx` and `slidingLensStability.test.tsx` covering all viewport, role, and resize permutations.
+
+### C. Screen-by-Screen UI/UX Refactor & Responsive Harness
+- **12 Refactored Surfaces:** Auth & Onboarding, Today Dashboard, Training Calendar & Day Detail, Session Detail & Biometric Charts, Workout Builder & Feedback (progressive disclosure, exercise picker), Nutrition & Meal Pools, Recovery & Insights, Profile & Settings (inset grouped lists, privacy controls), Devices & File Upload (FIT/TCX/GPX), Coach Workspace, Session Share Sheet (canvas preview), and System UI (Toasts, ErrorBoundary, Sync Badges).
+- **Public Styleguide Route:** Direct access to `/design` (`DesignSystemPage`) for isolated component and token auditing.
+- **Automated Responsive Matrix:** 25 Playwright tests passing across 11 viewports (320px to 1920px) in both dark and light modes, verifying zero horizontal scroll, >=44px mobile touch targets, safe area compliance, and visual snapshots (`docs/DESIGN_QA.md`).
+

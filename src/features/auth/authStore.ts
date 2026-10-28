@@ -26,12 +26,51 @@ interface AuthState {
 
 let activeProfileUnsubscribe: Unsubscribe | null = null;
 
+const createDemoProfile = (role: UserRole = "athlete"): UserProfile => {
+  const roles: UserRole[] = role === "coach" ? ["coach", "athlete"] : ["athlete"];
+  return {
+    uid: "demo-athlete-001",
+    email: "olimpikon@apex.hu",
+    displayName: "Kovács Zsombor (Olimpikon)",
+    photoURL: null,
+    locale: "hu",
+    units: "metric",
+    timezone: "Europe/Budapest",
+    roles,
+    role,
+    dataMode: "hybrid",
+    supportMode: ["solo", "coach"],
+    onboardingCompleted: true,
+    onboardingStep: 7,
+    consent: {
+      healthData: {
+        accepted: true,
+        version: "1.0.0",
+        timestamp: new Date().toISOString()
+      }
+    },
+    sports: ["Triatlon", "Úszás"],
+    sport: "Triatlon / Úszás",
+    level: "olympic",
+    goals: "Párizs/LA felkészülés, terhelés-élettani csúcsforma",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+};
+
+const getInitialDemoState = () => {
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem("apex_demo_user") === "true";
+};
+
+const isInitialDemo = getInitialDemoState();
+
 export const useAuthStore = create<AuthState>((set, get) => ({
-  user: null,
+  user: isInitialDemo ? createDemoProfile() : null,
   firebaseUser: null,
-  isLoading: true,
-  isProfileLoading: true,
-  isDemoUser: false,
+  isLoading: !isInitialDemo,
+  isProfileLoading: false,
+  isDemoUser: isInitialDemo,
 
   setUserProfile: (profile) => set({ user: profile }),
 
@@ -68,35 +107,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   setLoading: (isLoading) => set({ isLoading }),
 
   loginDemo: (role = "athlete") => {
-    const roles: UserRole[] = role === "coach" ? ["coach", "athlete"] : ["athlete"];
-    const demoProfile: UserProfile = {
-      uid: "demo-athlete-001",
-      email: "olimpikon@apex.hu",
-      displayName: "Kovács Zsombor (Olimpikon)",
-      photoURL: null,
-      locale: "hu",
-      units: "metric",
-      timezone: "Europe/Budapest",
-      roles,
-      role,
-      dataMode: "hybrid",
-      supportMode: ["solo", "coach"],
-      onboardingCompleted: true,
-      onboardingStep: 7,
-      consent: {
-        healthData: {
-          accepted: true,
-          version: "1.0.0",
-          timestamp: new Date().toISOString()
-        }
-      },
-      sports: ["Triatlon", "Úszás"],
-      sport: "Triatlon / Úszás",
-      level: "olympic",
-      goals: "Párizs/LA felkészülés, terhelés-élettani csúcsforma",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
+    try {
+      localStorage.setItem("apex_demo_user", "true");
+    } catch {
+      // Ignore storage errors
+    }
+    const demoProfile = createDemoProfile(role);
 
     set({
       user: demoProfile,
@@ -108,6 +124,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signOut: async (force = false) => {
+    try {
+      localStorage.removeItem("apex_demo_user");
+    } catch {
+      // Ignore
+    }
     try {
       const res = await signOutAuth(force);
       if (res.blocked) {

@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { UploadCloud, FileText, RefreshCw, X } from "lucide-react";
-import { Badge, Card, showToast } from "@shared/ui";
+import { Badge, Card, Button, showToast } from "@shared/ui";
 import { importWorkoutFiles, ImportFileInput } from "@shared/lib/devices";
 import { FileImportBatchResult, NormalizedActivity } from "@shared/types/devices";
 
@@ -164,7 +164,18 @@ export const FileUploadZone: React.FC<FileUploadZoneProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-2 pt-1">
+          <div className="pt-1">
+            <Button
+              type="button"
+              variant="secondary"
+              size="md"
+              className="min-h-[44px] px-6 pointer-events-none"
+            >
+              Fájl kiválasztása
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-2 pt-1 flex-wrap justify-center">
             <span className="text-11 px-2.5 py-1 rounded-full bg-surface-elevated border border-border-hairline text-text-secondary">
               Automatikus duplikátum-szűrés
             </span>

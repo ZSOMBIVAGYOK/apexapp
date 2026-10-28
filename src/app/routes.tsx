@@ -61,6 +61,14 @@ export const router = createBrowserRouter([
     )
   },
   {
+    path: "/design",
+    element: (
+      <Suspense fallback={<SuspenseFallback />}>
+        <DesignSystemPage />
+      </Suspense>
+    )
+  },
+  {
     path: "/onboarding",
     element: (
       <ProtectedRoute allowIncompleteOnboarding>

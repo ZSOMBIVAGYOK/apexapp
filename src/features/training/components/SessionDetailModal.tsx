@@ -121,22 +121,22 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
 
         {/* Primary Metrics Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-          <div className="p-3 rounded-xl bg-bg-surface border border-border-hairline">
-            <div className="text-[11px] text-text-secondary flex items-center gap-1 mb-1">
-              <Clock className="w-3.5 h-3.5 text-brand-primary" />
-              Időtartam
+          <div className="p-4 rounded-20 bg-surface-elevated/70 border border-border-hairline">
+            <div className="text-11 text-text-secondary flex items-center gap-1.5 mb-1.5">
+              <Clock className="w-3.5 h-3.5 text-brand" />
+              <span>Időtartam</span>
             </div>
-            <div className="text-16 font-bold text-text-primary">
-              {session.durationMinutes} <span className="text-xs font-normal text-text-secondary">perc</span>
+            <div className="text-24 sm:text-28 font-bold font-mono tracking-tight text-text-primary">
+              {session.durationMinutes} <span className="text-xs font-normal text-text-secondary">p</span>
             </div>
           </div>
 
-          <div className="p-3 rounded-xl bg-bg-surface border border-border-hairline">
-            <div className="text-[11px] text-text-secondary flex items-center gap-1 mb-1">
+          <div className="p-4 rounded-20 bg-surface-elevated/70 border border-border-hairline">
+            <div className="text-11 text-text-secondary flex items-center gap-1.5 mb-1.5">
               <TrendingUp className="w-3.5 h-3.5 text-blue-400" />
-              Távolság
+              <span>Távolság</span>
             </div>
-            <div className="text-16 font-bold text-text-primary">
+            <div className="text-24 sm:text-28 font-bold font-mono tracking-tight text-text-primary">
               {session.metrics?.distanceMeters
                 ? (session.metrics.distanceMeters / 1000).toFixed(2)
                 : "--"}{" "}
@@ -144,23 +144,25 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
             </div>
           </div>
 
-          <div className="p-3 rounded-xl bg-bg-surface border border-border-hairline">
-            <div className="text-[11px] text-text-secondary flex items-center gap-1 mb-1">
+          <div className="p-4 rounded-20 bg-surface-elevated/70 border border-border-hairline">
+            <div className="text-11 text-text-secondary flex items-center gap-1.5 mb-1.5">
               <Activity className="w-3.5 h-3.5 text-amber-400" />
-              Megerőltetés (RPE)
+              <span>RPE</span>
             </div>
-            <div className="text-16 font-bold text-text-primary">
-              {session.rpe ? `${session.rpe} / 10` : "--"}
+            <div className="text-24 sm:text-28 font-bold font-mono tracking-tight text-text-primary">
+              {session.rpe ? `${session.rpe}` : "--"}
+              {session.rpe && <span className="text-xs font-normal text-text-secondary">/10</span>}
             </div>
           </div>
 
-          <div className="p-3 rounded-xl bg-bg-surface border border-border-hairline">
-            <div className="text-[11px] text-text-secondary flex items-center gap-1 mb-1">
+          <div className="p-4 rounded-20 bg-surface-elevated/70 border border-border-hairline">
+            <div className="text-11 text-text-secondary flex items-center gap-1.5 mb-1.5">
               <Zap className="w-3.5 h-3.5 text-purple-400" />
-              Terhelés (TSS)
+              <span>Terhelés</span>
             </div>
-            <div className="text-16 font-bold text-text-primary">
+            <div className="text-24 sm:text-28 font-bold font-mono tracking-tight text-text-primary">
               {session.trainingLoad || "--"}
+              {session.trainingLoad && <span className="text-xs font-normal text-text-secondary"> TSS</span>}
             </div>
           </div>
         </div>

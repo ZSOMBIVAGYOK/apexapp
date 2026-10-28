@@ -11,7 +11,7 @@ import {
   triggerEmailVerification,
   getAuthErrorMessageKey
 } from "@features/auth/authService";
-import { Card, Button, Input, SegmentedControl, showToast } from "@shared/ui";
+import { GlassCard, Button, Input, SegmentedControl, showToast } from "@shared/ui";
 import { Flame, Sparkles, LogIn, UserPlus, AlertCircle, KeyRound, MailCheck, ShieldCheck } from "lucide-react";
 
 const authSchema = z.object({
@@ -172,17 +172,23 @@ export const AuthPage: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-[85vh] items-center justify-center px-4 py-8">
-      <Card variant="surface" radius="28" className="w-full max-w-md p-6 sm:p-8 space-y-6">
+    <div className="relative flex min-h-[90vh] items-center justify-center px-4 py-8">
+      <GlassCard variant="regular" className="w-full max-w-md p-6 sm:p-9 space-y-6 shadow-glass-lg border border-border/60">
         {/* Brand header */}
-        <div className="text-center space-y-2">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-20 bg-brand text-white shadow-sm">
-            <Flame className="h-6 w-6" aria-hidden="true" />
+        <div className="text-center space-y-3">
+          <div className="inline-flex items-center justify-center gap-2">
+            <div className="flex h-11 w-11 items-center justify-center rounded-20 bg-brand text-white shadow-glass-sm">
+              <Flame className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <span className="text-18 font-black tracking-[0.22em] text-text-primary uppercase font-mono">
+              APEX
+            </span>
           </div>
+          <div className="w-12 h-0.5 bg-brand/60 mx-auto rounded-full" />
           <h1 className="text-24 font-bold tracking-tight text-text-primary">
             {t("auth.title")}
           </h1>
-          <p className="text-12 text-text-secondary sm:text-14">
+          <p className="text-13 text-text-secondary">
             {t("auth.subtitle")}
           </p>
         </div>
@@ -198,7 +204,7 @@ export const AuthPage: React.FC = () => {
               <button
                 type="button"
                 onClick={handleResendVerification}
-                className="text-left font-medium underline hover:text-text-primary"
+                className="touch-target text-left font-medium underline hover:text-text-primary py-2"
               >
                 {t("auth.resendVerification")}
               </button>
@@ -263,7 +269,7 @@ export const AuthPage: React.FC = () => {
                 setIsForgotPassword(false);
                 setResetEmailSent(false);
               }}
-              className="w-full text-center text-12 font-medium text-brand hover:underline"
+              className="touch-target w-full text-center text-12 font-medium text-brand hover:underline py-2.5"
             >
               {t("auth.backToLogin")}
             </button>
@@ -330,7 +336,7 @@ export const AuthPage: React.FC = () => {
                       setIsForgotPassword(true);
                       setErrorMsg(null);
                     }}
-                    className="text-12 text-brand hover:underline"
+                    className="touch-target inline-flex items-center text-12 text-brand hover:underline py-2.5"
                   >
                     {t("auth.forgotPassword")}
                   </button>
@@ -404,7 +410,7 @@ export const AuthPage: React.FC = () => {
           <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
           <span>GDPR Art. 9 Védett Élsportolói Adatkezelés</span>
         </div>
-      </Card>
+      </GlassCard>
     </div>
   );
 };

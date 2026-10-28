@@ -263,27 +263,26 @@ export const OnboardingPage: React.FC = () => {
 
   return (
     <div className="mx-auto max-w-2xl py-6 px-4 space-y-6">
-      {/* Progress header */}
-      <div className="space-y-3">
+      {/* Progress capsule */}
+      <div className="glass-thin rounded-full px-5 py-3 border border-border/60 shadow-glass-sm flex flex-col gap-2">
         <div className="flex items-center justify-between text-12 text-text-secondary">
-          <span className="font-semibold uppercase tracking-wider text-brand">
+          <span className="font-bold tracking-widest text-brand uppercase text-11">
             {t("onboarding.title")}
           </span>
-          <span className="tabular-nums font-mono font-medium">
+          <span className="tabular-nums font-mono font-semibold text-text-primary text-12">
             {t("onboarding.stepCounter", { current: currentStep, total: TOTAL_STEPS })}
           </span>
         </div>
-        {/* Progress bar */}
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-border-hairline">
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-border/40">
           <div
-            className="h-full bg-brand transition-all duration-300 ease-out"
+            className="h-full bg-brand rounded-full transition-all duration-300 ease-out shadow-[0_0_8px_rgba(61,123,255,0.4)]"
             style={{ width: `${(currentStep / TOTAL_STEPS) * 100}%` }}
           />
         </div>
       </div>
 
       {/* Main card */}
-      <Card variant="surface" radius="28" className="p-6 sm:p-8 space-y-6">
+      <Card variant="surface" radius="28" className="p-6 sm:p-9 space-y-6 shadow-glass-sm border border-border/60">
         {/* STEP 1: Roles */}
         {currentStep === 1 && (
           <div className="space-y-6">
