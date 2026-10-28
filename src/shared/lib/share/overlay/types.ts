@@ -115,9 +115,9 @@ export interface RenderOptions {
    */
   tightCrop?: boolean;
   /**
-   * Whether to display brand wordmark
+   * Whether to display brand wordmark (APEX lockup is now always rendered above the data block)
    */
-  showBranding: boolean;
+  showBranding?: boolean;
   /**
    * Privacy: whether to hide the first and last 200m of the route
    */

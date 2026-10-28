@@ -1,4 +1,5 @@
 import { drawTitleBlock } from "../widgets/titleBlock";
+import { drawBrandingLockup } from "../../branding";
 import { drawRouteOutline } from "../widgets/routeOutline";
 import { drawStatsRow } from "../widgets/statBlock";
 import { drawRecordBadge } from "../widgets/recordBadge";
@@ -38,7 +39,17 @@ export function renderRouteLayout(
 
   let curY = baseStartY + paddingY;
 
-  // 1. Title Block
+  // 1. APEX Brand Lockup (Always present above route data block, centered)
+  const lockup = drawBrandingLockup(ctx, {
+    containerX: startX + paddingX,
+    containerWidth: innerWidth,
+    startY: curY,
+    layout: "route",
+    colorScheme: resolvedTextColor
+  });
+  curY = lockup.bottomY;
+
+  // 2. Title Block
   const showSport = activeSet.has("sportTitle");
   const showDate = activeSet.has("date");
   if (showSport || showDate) {

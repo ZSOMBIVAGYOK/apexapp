@@ -98,3 +98,44 @@ Világos, havas vagy égboltot ábrázoló felvételeknél a HUD olvashatóság�
 - **Hardveres Korlátok**:
   - Maximális videó fájlméret: 500 MB.
   - Maximális exportálási kliphossz: 120 másodperc (az eszközök memóriájának védelméért).
+
+---
+
+## 7. Branding Lockup: APEX Név az Adatblokk Felett (Mindig Jelen van)
+
+### Alapelv: Nem kikapcsolható márkaelem
+Az alkalmazás neve („APEX”) az edzésmegosztási képek és videók szerves, prémium része. A korábbi ki-bekapcsoló gomb minden felületről (matrica, fotó, videó) el lett távolítva, és a kód nem tartalmaz olyan ágat, amely elrejthetné.
+
+### Vizuális Specifikáció és Hierarchia
+A márkanév nem különálló vízjelként úszik a képernyő alján, hanem közvetlenül az adatblokk **FELETT**, azzal egyetlen zárt vizuális csoportot (lockup) alkotva:
+- **Tipográfia**: `800` (extra bold), széles betűköz (`letterSpacing: 6px`, ~0.25em) a prémium, letisztult hatásért.
+- **Arányok**: Kisméretű az adatblokkhoz képest (a blokk szélességének ~25-30%-a, 22px méret 1080px bázison).
+- **Akcentuscsík**: Közvetlenül a szóvédjegy alatt egy rövid, vékony színes vonal helyezkedik el:
+  - Szélesség: `28px`
+  - Magasság: `2px`
+  - Távolság a szövegtől: `7px`
+  - Távolság a lejjebb lévő adatblokktól: `16px`
+  - Szín: Élénk sportos cián (`#06B6D4`) vagy a téma szerinti kiemelő szín.
+- **Kontraszt és Árnyék**: Finom árnyék (`shadowBlur: 8px`, `shadowOffsetY: 2px`) és a háttér alapján automatikus világos/sötét variáns biztosítja az olvashatóságot átlátszó matricán, sötét és világos fotókon egyaránt.
+
+### Igazítás Elrendezésenként
+| Elrendezés | Lockup Igazítása | Pozíció |
+|---|---|---|
+| **Kompakt** | Középre (`center`) | Közvetlenül a sport címblokk felett |
+| **Minimál** | Középre (`center`) | A hero óriásszám felett |
+| **Útvonal** | Középre (`center`) | A GPS útvonal és a címblokk felett |
+| **Statisztika** | Balra (`left`) | A 2 oszlopos statisztikarács felett |
+| **Videó: Alsó sáv** | Balra (`left`) | Közvetlenül a horizontális sáv felett a safe zone-ban |
+| **Videó: Sarok** | Balra (`left`) | Közvetlenül a sarokblokk felett |
+| **Videó: Minimál** | Középre (`center`) | A nagy élő telemetriai szám felett |
+| **Videó: Verseny** | Balra (`left`) | A telemetriás műszerfal kártya felett |
+| **Videó: Felvezető (Intro)** | Középre (`center`) | A címkártya felső részén |
+| **Videó: Záró (Outro)** | Középre (`center`) | Az összegző kártya felső részén |
+
+### Együtt Mozgás és Szűk Kivágás (Tight Crop)
+- Mivel a lockup a layout renderelési fáján belül a tartalom legfelső eleme, a felhasználó által végzett eltoláskor (`offsetY`), nagyításkor vagy mozgatáskor az adatblokkal együtt, tökéletes szinkronban mozog.
+- Szűkre vágott matrica (`tightCrop`) exportálásakor a kalkulált határoló doboz (bounding box) a lockuptól indul, így a levágott átlátszó PNG automatikusan tartalmazza az APEX nevet és akcentuscsíkot is.
+
+### Központi Konfiguráció: `branding.ts`
+Minden paraméter egyetlen fájlban konfigurálható (`src/shared/lib/share/branding.ts`): a szöveg, betűméret, letter-spacing, akcentuscsík tulajdonságai, layout-igazítások, valamint a jövőbeli logó helye (`logoUrl`, `logoWidth`, `logoHeight`). Ha egyedi grafikus logó érkezik, kizárólag ennek a fájlnak a módosításával azonnal megjelenik minden sablonon.
+

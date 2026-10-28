@@ -98,7 +98,7 @@ export interface VideoExportOptions {
   introCard: boolean; // 1.5s intro card
   outroCard: boolean; // 2.0s summary card
   dimming: number; // 0.0 to 0.8
-  showBranding: boolean;
+  showBranding?: boolean;
   showSafeZones?: boolean;
 }
 

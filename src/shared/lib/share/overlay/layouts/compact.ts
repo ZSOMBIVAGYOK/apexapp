@@ -1,4 +1,5 @@
 import { drawTitleBlock } from "../widgets/titleBlock";
+import { drawBrandingLockup } from "../../branding";
 import { drawStatsRow } from "../widgets/statBlock";
 import { drawHeartRateChip } from "../widgets/heartRateChip";
 import { drawRecordBadge } from "../widgets/recordBadge";
@@ -42,7 +43,17 @@ export function renderCompactLayout(
 
   let curY = baseStartY + paddingY;
 
-  // 1. Title Block (Sport + Title + Date)
+  // 1. APEX Brand Lockup (Always present above data block, centered)
+  const lockup = drawBrandingLockup(ctx, {
+    containerX: startX + paddingX,
+    containerWidth: innerWidth,
+    startY: curY,
+    layout: "compact",
+    colorScheme: resolvedTextColor
+  });
+  curY = lockup.bottomY;
+
+  // 2. Title Block (Sport + Title + Date)
   const showSport = activeSet.has("sportTitle");
   const showDate = activeSet.has("date");
   if (showSport || showDate) {

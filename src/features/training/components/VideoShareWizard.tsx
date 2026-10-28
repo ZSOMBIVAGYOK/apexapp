@@ -100,7 +100,6 @@ export const VideoShareWizard: React.FC<VideoShareWizardProps> = ({
   const [introCard, setIntroCard] = useState(true);
   const [outroCard, setOutroCard] = useState(true);
   const [dimming, setDimming] = useState(0.3);
-  const [showBranding, setShowBranding] = useState(true);
 
   // Live Metrics selection
   // Heart rate is strictly FALSE by default for health data privacy
@@ -326,7 +325,7 @@ export const VideoShareWizard: React.FC<VideoShareWizardProps> = ({
       introCard,
       outroCard,
       dimming,
-      showBranding,
+      showBranding: true,
       showSafeZones: currentStep === 3 && showSafeZones
     });
   }, [
@@ -341,7 +340,6 @@ export const VideoShareWizard: React.FC<VideoShareWizardProps> = ({
     introCard,
     outroCard,
     dimming,
-    showBranding,
     currentStep,
     showSafeZones
   ]);
@@ -426,7 +424,7 @@ export const VideoShareWizard: React.FC<VideoShareWizardProps> = ({
         introCard,
         outroCard,
         dimming,
-        showBranding
+        showBranding: true
       };
 
       const result = await exportTelemetryVideo(
@@ -1120,11 +1118,6 @@ export const VideoShareWizard: React.FC<VideoShareWizardProps> = ({
                 label="Záró összegző kártya (utolsó 2 mp)"
                 checked={outroCard}
                 onChange={(val) => setOutroCard(val)}
-              />
-              <Toggle
-                label="APEX logó felirat"
-                checked={showBranding}
-                onChange={(val) => setShowBranding(val)}
               />
             </div>
 

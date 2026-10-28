@@ -1,4 +1,3 @@
-import { drawWordmark } from "./widgets/wordmark";
 import { renderCompactLayout } from "./layouts/compact";
 import { renderStatsLayout } from "./layouts/stats";
 import { renderRouteLayout } from "./layouts/route";
@@ -142,12 +141,7 @@ export function drawOverlay(
       break;
   }
 
-  // 6. Draw Brand Wordmark
-  if (options.showBranding) {
-    drawWordmark(ctx, dimensions, resolvedColor);
-  }
-
-  // 7. Draw Safe-Zone Guides while actively dragging
+  // 6. Draw Safe-Zone Guides while actively dragging
   if (isDragging) {
     drawSafeZoneGuides(ctx, dimensions);
   }

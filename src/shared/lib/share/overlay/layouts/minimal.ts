@@ -1,4 +1,5 @@
 import { BoundingBox, OverlayData, RenderOptions } from "../types";
+import { drawBrandingLockup } from "../../branding";
 import { FONT_STACK, THEME_COLORS } from "../theme";
 
 /**
@@ -37,6 +38,16 @@ export function renderMinimalLayout(
     data.metrics[0];
 
   let curY = baseStartY + paddingY;
+
+  // 1. APEX Brand Lockup (Always present above hero metric, centered)
+  const lockup = drawBrandingLockup(ctx, {
+    containerX: startX,
+    containerWidth: contentWidth,
+    startY: curY,
+    layout: "minimal",
+    colorScheme: resolvedTextColor
+  });
+  curY = lockup.bottomY;
 
   ctx.save();
   ctx.shadowColor = colors.shadowColor;

@@ -19,10 +19,12 @@ import {
   drawOverlay,
   exportSessionImage,
   shareOrDownloadImage,
+  copyImageToClipboard,
   loadAndDownscaleImage
 } from "@shared/lib/share";
 import {
   Share2,
+  Copy,
   Download,
   Image as ImageIcon,
   Layers,
@@ -115,10 +117,10 @@ export const SessionShareModal: React.FC<SessionShareModalProps> = ({
   // Scrim dimming slider (0 to 0.8)
   const [dimming, setDimming] = useState(0.35);
 
-  // Toggles
-  const [showBranding, setShowBranding] = useState(true);
+  // Toggles & Format
   const [hideStartEndGps, setHideStartEndGps] = useState(true);
   const [imageFormat, setImageFormat] = useState<ShareImageFormat>("image/png");
+  const [largePngWarning, setLargePngWarning] = useState<number | null>(null);
 
   // Photo state
   const [photoImage, setPhotoImage] = useState<HTMLImageElement | null>(null);
@@ -145,13 +147,12 @@ export const SessionShareModal: React.FC<SessionShareModalProps> = ({
     }
   }, [overlayData, availableMetricKeys]);
 
-  // Sync format with mode: sticker defaults to PNG, photo defaults to JPEG
+  // Both sticker and photo default to PNG now; photo mode auto text color
   useEffect(() => {
+    setImageFormat("image/png");
     if (backgroundMode === "photo") {
-      setImageFormat("image/jpeg");
       setTextColor("auto");
     } else {
-      setImageFormat("image/png");
       setTextColor("light");
     }
   }, [backgroundMode]);
@@ -182,7 +183,7 @@ export const SessionShareModal: React.FC<SessionShareModalProps> = ({
       resolvedTextColor: resolvedColor,
       cardBackground: backgroundMode === "sticker" ? cardBg : "none",
       tightCrop: false, // In live preview show full canvas frame
-      showBranding,
+      showBranding: true,
       hideStartEndGps,
       dimming: backgroundMode === "photo" ? dimming : 0,
       position: { offsetX: overlayOffset.x, offsetY: overlayOffset.y, scale: 1.0 },
@@ -199,7 +200,6 @@ export const SessionShareModal: React.FC<SessionShareModalProps> = ({
     activeMetrics,
     textColor,
     cardBg,
-    showBranding,
     hideStartEndGps,
     dimming,
     overlayOffset,
@@ -314,7 +314,7 @@ export const SessionShareModal: React.FC<SessionShareModalProps> = ({
           resolvedTextColor: resolvedColor,
           cardBackground: backgroundMode === "sticker" ? cardBg : "none",
           tightCrop: backgroundMode === "sticker" && tightCrop,
-          showBranding,
+          showBranding: true,
           hideStartEndGps,
           dimming: backgroundMode === "photo" ? dimming : 0,
           position: { offsetX: overlayOffset.x, offsetY: overlayOffset.y, scale: 1.0 },
@@ -325,6 +325,12 @@ export const SessionShareModal: React.FC<SessionShareModalProps> = ({
         imageFormat,
         0.92
       );
+
+      if (imageFormat === "image/png" && exportResult.blob.size > 2.5 * 1024 * 1024) {
+        setLargePngWarning(+(exportResult.blob.size / (1024 * 1024)).toFixed(1));
+      } else {
+        setLargePngWarning(null);
+      }
 
       if (isDirectDownload) {
         const { downloadBlob } = await import("@shared/lib/share/imageExporter");
@@ -355,6 +361,72 @@ export const SessionShareModal: React.FC<SessionShareModalProps> = ({
       showToast({
         title: t("common.error", "Hiba történt"),
         message: "Nem sikerült legenerálni a képet.",
+        variant: "error"
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // Handle Copy PNG to Clipboard
+  const handleCopy = async () => {
+    setIsExporting(true);
+    try {
+      const dimensions = CANVAS_DIMENSIONS[aspectRatio];
+      const resolvedColor: "light" | "dark" | "accent" =
+        textColor === "auto" ? "light" : textColor;
+
+      // Promise-based generation for Safari ClipboardItem compatibility
+      const blobPromise = exportSessionImage(
+        overlayData,
+        {
+          dimensions,
+          layout,
+          activeMetrics: Array.from(activeMetrics),
+          resolvedTextColor: resolvedColor,
+          cardBackground: backgroundMode === "sticker" ? cardBg : "none",
+          tightCrop: backgroundMode === "sticker" && tightCrop,
+          showBranding: true,
+          hideStartEndGps,
+          dimming: backgroundMode === "photo" ? dimming : 0,
+          position: { offsetX: overlayOffset.x, offsetY: overlayOffset.y, scale: 1.0 },
+          photoImage: backgroundMode === "photo" ? photoImage : null,
+          photoPan,
+          photoZoom
+        },
+        "image/png",
+        1.0
+      ).then((res) => {
+        if (res.blob.size > 2.5 * 1024 * 1024) {
+          setLargePngWarning(+(res.blob.size / (1024 * 1024)).toFixed(1));
+        } else {
+          setLargePngWarning(null);
+        }
+        return res.blob;
+      });
+
+      const res = await copyImageToClipboard(blobPromise);
+      if (res.copied) {
+        showToast({
+          title: t("share.copySuccess", "Kép a vágólapon"),
+          variant: "success"
+        });
+      } else {
+        showToast({
+          title: t("common.info", "Másolási értesítés"),
+          message:
+            res.message ||
+            t(
+              "share.copyFallbackNotice",
+              "A böngésző nem engedélyezte a másolást. Használd a Letöltés gombot!"
+            ),
+          variant: "warning"
+        });
+      }
+    } catch {
+      showToast({
+        title: t("common.error", "Hiba történt"),
+        message: "Nem sikerült a képet a vágólapra másolni.",
         variant: "error"
       });
     } finally {
@@ -719,7 +791,7 @@ export const SessionShareModal: React.FC<SessionShareModalProps> = ({
           </div>
         </div>
 
-        {/* 5. PRIVACY & BRANDING TOGGLES */}
+        {/* 5. PRIVACY & EXPORT FORMAT */}
         <div className="p-3 rounded-xl bg-bg-surface/50 border border-border-hairline space-y-2.5">
           {overlayData.hasGps && (
             <Toggle
@@ -733,21 +805,65 @@ export const SessionShareModal: React.FC<SessionShareModalProps> = ({
             />
           )}
 
-          <Toggle
-            checked={showBranding}
-            onChange={(c) => setShowBranding(c)}
-            label={t("share.brandingWordmark", "APEX vízjel")}
-          />
+          {backgroundMode === "photo" && (
+            <div className="flex items-center justify-between text-xs pt-1 border-t border-border-hairline/60">
+              <span className="text-text-secondary font-medium">Export formátum:</span>
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setImageFormat("image/png")}
+                  className={`px-2.5 py-1 rounded text-xs font-semibold transition-colors ${
+                    imageFormat === "image/png"
+                      ? "bg-accent/20 text-accent border border-accent/40"
+                      : "bg-neutral-800 text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  PNG (alapértelmezett)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setImageFormat("image/jpeg")}
+                  className={`px-2.5 py-1 rounded text-xs font-semibold transition-colors ${
+                    imageFormat === "image/jpeg"
+                      ? "bg-accent/20 text-accent border border-accent/40"
+                      : "bg-neutral-800 text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  JPEG (kisebb méret)
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* 6. ACTION BUTTONS */}
-        <div className="flex flex-col sm:flex-row gap-2.5 pt-2 border-t border-border-hairline">
+        {/* Large PNG Warning (Photo mode) */}
+        {backgroundMode === "photo" && largePngWarning && (
+          <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-center justify-between gap-2">
+            <span>
+              {t(
+                "share.pngLargeWarning",
+                "A PNG fájl mérete viszonylag nagy ({{size}} MB). Kisebb fájlmérethez választhatsz JPEG formátumot a beállításokban.",
+                { size: largePngWarning }
+              )}
+            </span>
+            <button
+              type="button"
+              onClick={() => setImageFormat("image/jpeg")}
+              className="underline font-semibold shrink-0 hover:text-amber-200"
+            >
+              Váltás JPEG-re
+            </button>
+          </div>
+        )}
+
+        {/* 6. ACTION BUTTONS: Megosztás, Másolás, Letöltés */}
+        <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-border-hairline">
           <Button
             type="button"
             variant="primary"
-            size="lg"
+            size="md"
             className="flex-1"
-            leftIcon={<Share2 className="w-5 h-5" />}
+            leftIcon={<Share2 className="w-4 h-4" />}
             isLoading={isExporting}
             onClick={() => handleExport(false)}
           >
@@ -757,9 +873,21 @@ export const SessionShareModal: React.FC<SessionShareModalProps> = ({
           <Button
             type="button"
             variant="secondary"
-            size="lg"
+            size="md"
             className="flex-1"
-            leftIcon={<Download className="w-5 h-5" />}
+            leftIcon={<Copy className="w-4 h-4" />}
+            isLoading={isExporting}
+            onClick={handleCopy}
+          >
+            {t("share.copyBtn", "Másolás")}
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="md"
+            className="flex-1"
+            leftIcon={<Download className="w-4 h-4" />}
             isLoading={isExporting}
             onClick={() => handleExport(true)}
           >

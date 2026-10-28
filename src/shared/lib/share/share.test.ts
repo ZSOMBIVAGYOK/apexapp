@@ -18,7 +18,7 @@ import {
   getInitialActiveMetrics
 } from "./overlay/defaults";
 import { drawOverlay } from "./overlay/renderer";
-import { exportSessionImage } from "./imageExporter";
+import { exportSessionImage, copyImageToClipboard } from "./imageExporter";
 import { CompletedSessionDocument } from "@shared/types/dataModel";
 import { OverlayGpsPoint, RenderOptions, ShareMetricKey } from "./overlay/types";
 
@@ -38,6 +38,7 @@ function createMockContext2D(canvas: HTMLCanvasElement): CanvasRenderingContext2
     arc: vi.fn(),
     roundRect: vi.fn(),
     fillText: vi.fn(),
+    fillRect: vi.fn(),
     save: vi.fn(),
     restore: vi.fn(),
     setLineDash: vi.fn(),
@@ -388,6 +389,107 @@ describe("Share Overlay Subsystem", () => {
       expect(result.blob).toBeDefined();
       expect(result.width).toBeGreaterThan(0);
       expect(result.height).toBeGreaterThan(0);
+    });
+  });
+
+  describe("copyImageToClipboard", () => {
+    const originalClipboard = navigator.clipboard;
+    const originalClipboardItem = globalThis.ClipboardItem;
+
+    beforeEach(() => {
+      // Clean mock state
+    });
+
+    it("successfully copies image to clipboard using promise-based ClipboardItem", async () => {
+      let writtenItems: unknown[] = [];
+      const writeMock = vi.fn().mockImplementation(async (items) => {
+        writtenItems = items;
+      });
+
+      // Mock ClipboardItem constructor
+      class MockClipboardItem {
+        types: string[];
+        items: Record<string, unknown>;
+        constructor(items: Record<string, unknown>) {
+          this.items = items;
+          this.types = Object.keys(items);
+        }
+      }
+      globalThis.ClipboardItem = MockClipboardItem as unknown as typeof ClipboardItem;
+
+      Object.defineProperty(navigator, "clipboard", {
+        value: { write: writeMock },
+        writable: true,
+        configurable: true
+      });
+
+      const testBlob = new Blob(["png-data"], { type: "image/png" });
+      const result = await copyImageToClipboard(Promise.resolve(testBlob));
+
+      expect(result.copied).toBe(true);
+      expect(writeMock).toHaveBeenCalled();
+      expect(writtenItems.length).toBe(1);
+
+      // Restore
+      Object.defineProperty(navigator, "clipboard", {
+        value: originalClipboard,
+        writable: true,
+        configurable: true
+      });
+      globalThis.ClipboardItem = originalClipboardItem;
+    });
+
+    it("returns helpful fallback message when Clipboard API is unsupported", async () => {
+      Object.defineProperty(navigator, "clipboard", {
+        value: undefined,
+        writable: true,
+        configurable: true
+      });
+
+      const testBlob = new Blob(["png-data"], { type: "image/png" });
+      const result = await copyImageToClipboard(testBlob);
+
+      expect(result.copied).toBe(false);
+      expect(result.message).toContain("nem támogatja");
+
+      // Restore
+      Object.defineProperty(navigator, "clipboard", {
+        value: originalClipboard,
+        writable: true,
+        configurable: true
+      });
+    });
+
+    it("handles touch device context with appropriate advice", async () => {
+      Object.defineProperty(navigator, "clipboard", {
+        value: undefined,
+        writable: true,
+        configurable: true
+      });
+      Object.defineProperty(navigator, "maxTouchPoints", {
+        value: 5,
+        writable: true,
+        configurable: true
+      });
+
+      const testBlob = new Blob(["png-data"], { type: "image/png" });
+      const result = await copyImageToClipboard(testBlob);
+
+      expect(result.copied).toBe(false);
+      expect(result.isTouch).toBe(true);
+      expect(result.message).toContain("Érintőkijelzőn tartsd nyomva");
+
+      // Restore
+      Object.defineProperty(navigator, "clipboard", {
+        value: originalClipboard,
+        writable: true,
+        configurable: true
+      });
+      Object.defineProperty(navigator, "maxTouchPoints", {
+        value: 0,
+        writable: true,
+        configurable: true
+      });
     });
   });
 });

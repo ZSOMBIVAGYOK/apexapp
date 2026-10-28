@@ -211,3 +211,61 @@ export function downloadBlob(blob: Blob, filename: string): void {
     URL.revokeObjectURL(url);
   }, 250);
 }
+
+export interface CopyImageResult {
+  copied: boolean;
+  message?: string;
+  isTouch?: boolean;
+}
+
+/**
+ * Copy generated image to clipboard as PNG using the Promise-based ClipboardItem API.
+ * Uses the promise-based form so Safari keeps the user gesture active.
+ *
+ * @param blobPromise Promise resolving to a PNG Blob or a direct PNG Blob
+ */
+export async function copyImageToClipboard(
+  blobPromise: Promise<Blob> | Blob
+): Promise<CopyImageResult> {
+  const isTouch =
+    typeof window !== "undefined" &&
+    ("ontouchstart" in window || navigator.maxTouchPoints > 0);
+
+  if (
+    typeof navigator === "undefined" ||
+    !navigator.clipboard ||
+    typeof navigator.clipboard.write !== "function" ||
+    typeof ClipboardItem === "undefined"
+  ) {
+    return {
+      copied: false,
+      isTouch,
+      message: isTouch
+        ? "A böngésző nem engedélyezi a közvetlen vágólapra másolást. Érintőkijelzőn tartsd nyomva a képet a mentéshez, vagy használd a Letöltés gombot!"
+        : "A böngésző nem támogatja a kép vágólapra másolását. Használd a Letöltés gombot!"
+    };
+  }
+
+  try {
+    const resolvedPromise =
+      blobPromise instanceof Promise ? blobPromise : Promise.resolve(blobPromise);
+
+    // Safari 13.1+ requires a Promise that resolves to Blob passed to ClipboardItem
+    const item = new ClipboardItem({
+      "image/png": resolvedPromise
+    });
+
+    await navigator.clipboard.write([item]);
+    return { copied: true, isTouch };
+  } catch (err: unknown) {
+    console.warn("ClipboardItem write failed:", err);
+    return {
+      copied: false,
+      isTouch,
+      message: isTouch
+        ? "A böngésző letiltotta a vágólapra másolást. Érintőkijelzőn tartsd nyomva a képet a mentéshez, vagy használd a Letöltés gombot!"
+        : "A böngésző letiltotta a vágólapra másolást. Használd a Letöltés gombot!"
+    };
+  }
+}
+

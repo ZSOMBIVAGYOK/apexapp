@@ -905,23 +905,26 @@ All nutrition constants and formulas are documented in `src/shared/lib/nutrition
 - **Render Engine (`renderer.ts`):** `drawOverlay(ctx, layout, data, options)` operates purely on standard HTML5 or `OffscreenCanvas` 2D rendering contexts without framework dependencies.
 - **Frame-by-Frame Data Contract (`types.ts`):** `data` is a normalized, plain object of formatted values (`OverlayData`), architected specifically to be reused without modification for future video overlay generation frame-by-frame.
 - **Single Source of Truth for Branding (`branding.ts`):**
-  - Configures the default "APEX" wordmark with letter-spacing, placement, and subtitle rules.
-  - Encapsulates future custom logo image integration (`logoUrl`, `logoWidth`, `logoHeight`, `placement`) in a single configuration file without altering rendering logic.
+  - **APEX Branding Lockup Above Data Block:** The brand name sits directly ABOVE the data block as a unified group with wide tracking (`letterSpacing: 6px`, ~0.25em), bold weight (`800`), refined compact size (~25-30% of data block width), and a short thin cyan accent line (`#06B6D4`, 28x2px).
+  - **Non-Optional:** Cannot be hidden or disabled; wordmark toggle removed everywhere.
+  - **Per-Layout Alignment:** Centered for Kompakt & Minimál; left-aligned for Statisztika & Verseny; centered above route for Útvonal; positioned above live telemetry blocks on video HUDs (Alsó sáv, Sarok, Minimál, Verseny) and intro/outro cards.
+  - **Crop & Drag Sync:** Moves and scales seamlessly with the overlay during touch drags/pinches and is included inside tightly cropped stickers.
+  - **Custom Logo Asset Slot:** `logoUrl`, `logoWidth`, `logoHeight` can be set in `branding.ts` to replace or accompany the text across all templates without altering layouts.
 - **Theme Tokens & Safe Zones (`theme.ts`):**
   - Presets for 9:16 (1080x1920 story), 4:5 (1080x1350 feed), and 1:1 (1080x1080 square).
   - Strict safe-zone constraints (top 250px and bottom 340px for 9:16 stories to avoid Instagram/TikTok UI overlaps).
   - Magnetic snapping to center guidelines and safe-zone boundaries (`snapToSafeZones`) with subtle dashed visual guides displayed during drag gestures.
 
 ### B. Four Curated Layouts
-1. **Kompakt (`compact.ts`):** Sport chip, title, date, and 2–3 big hero metrics (e.g. Distance + Time + Pace/HR) with secondary metric badges.
-2. **Statisztika (`stats.ts`):** Structured 2-column grid of all chosen biometric metrics with tabular numerals and clean label hierarchy.
-3. **Útvonal (`route.ts`):** Route polyline rendered as the hero widget in the center, flanked by sport title above and key stats below (enabled when GPS trackpoints exist).
-4. **Minimál (`minimal.ts`):** One massive hero metric (110px font) with an understated caption line (Sport · Date · Secondary stat).
+1. **Kompakt (`compact.ts`):** Centered APEX lockup + accent line, sport chip, title, date, and 2–3 big hero metrics with secondary metric badges.
+2. **Statisztika (`stats.ts`):** Left-aligned APEX lockup + accent line, title block, and structured 2-column grid of all chosen biometric metrics with tabular numerals.
+3. **Útvonal (`route.ts`):** Centered APEX lockup + accent line, route polyline rendered as the hero widget in the center, flanked by sport title above and key stats below.
+4. **Minimál (`minimal.ts`):** Centered APEX lockup + accent line, one massive hero metric (110px font) with an understated caption line.
 
 ### C. Background Modes & Interaction
 - **Transparent Sticker Mode:**
   - 1080x1920 transparent PNG with centered overlay.
-  - "Szűkre vágott" (Tight crop) toggle: crops the canvas precisely to the bounding box plus padding for seamless use as an Instagram Story sticker.
+  - "Szűkre vágott" (Tight crop) toggle: crops the canvas precisely to the bounding box (including the APEX lockup) plus padding for seamless use as an Instagram Story sticker.
   - Card background variants: Nincs (Átlátszó), Sötét kártya (`rgba(14, 16, 22, 0.82)`), Világos kártya (`rgba(255, 255, 255, 0.92)`).
 - **Photo Story Mode:**
   - Gallery upload and mobile camera capture (`<input type="file" accept="image/*" capture="environment">`).
@@ -931,15 +934,19 @@ All nutrition constants and formulas are documented in `src/shared/lib/nutrition
   - Soft gradient scrim slider ("Sötétítés", 0–80%) and text drop shadow for maximum legibility on high-contrast photos.
   - Automatic luminance detection (`calculateAreaLuminance`) sampling underlying photo pixels to pick light or dark text.
   - Re-encoding strips all EXIF and GPS metadata from the photo with a reassuring localized notice (*"A fotó helyadatai nem kerülnek át"*).
+  - Default format is PNG; optional smaller JPEG format available under details with a brief warning banner when the PNG is very large (> 2.5 MB).
 
 ### D. Route Privacy & Zero Map Tiles
 - **Privacy Trimming (`trimRoutePrivacy`):** Automatically hides the first and last 200 meters of the route (using Haversine calculations) to safeguard home/residence privacy.
 - **Zero External Map Tiles:** Vector projected SVG/Canvas polyline rendered entirely client-side without map tiles or external tile servers.
 
-### E. Export Pipeline & Buttons (`imageExporter.ts`, `SessionShareModal.tsx`)
-- **Single-Tap Sharing:**
-  - "Megosztás" button triggers the native Web Share API (`navigator.share({ files: [file] })`) on mobile/supported platforms.
-  - Fallback triggers instant client-side download with non-intrusive notification toast.
+### E. Export Pipeline & Action Buttons (`imageExporter.ts`, `SessionShareModal.tsx`)
+- **Action Suite (Sticker & Photo Modes):**
+  - **Megosztás:** Triggers the native Web Share API (`navigator.share({ files: [file] })`) on mobile/supported platforms with automatic fallback to download.
+  - **Másolás:** Copies generated image to clipboard as PNG (`ClipboardItem` with `image/png`) using the Safari-compatible Promise form; falls back with clear guidance to download button and touch long-press note. Shows toast *"Kép a vágólapon"*.
+  - **Letöltés:** Direct instant client-side download of PNG/JPEG file.
+- **Video Mode:**
+  - Retains "Megosztás" and "Letöltés" only (clipboard does not support video files).
 - **Unit & Smoke Tests:**
   - `src/shared/lib/share/share.test.ts`: 18 comprehensive unit tests verifying duration, distance, and pace formatting by sport, Haversine route trimming, safe-zone snapping, sport archetypes, luminance calculations, canvas rendering, and PNG/JPEG blob generation.
   - `e2e/smoke.spec.ts`: Flow 6 verifying share modal opening, canvas rendering, and non-empty image blob generation.

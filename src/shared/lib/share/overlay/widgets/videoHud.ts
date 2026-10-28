@@ -1,7 +1,7 @@
 import { OverlayData, RenderDimensions } from "../types";
 import { FONT_STACK, SAFE_ZONE_INSETS } from "../theme";
 import { LiveWorkoutData, VideoExportOptions, VideoLayoutPreset } from "../../video/types";
-import { drawWordmark } from "./wordmark";
+import { drawBrandingLockup } from "../../branding";
 
 export interface VideoHudRenderOptions {
   dimensions: RenderDimensions;
@@ -14,7 +14,7 @@ export interface VideoHudRenderOptions {
   introCard: boolean;
   outroCard: boolean;
   dimming: number;
-  showBranding: boolean;
+  showBranding?: boolean;
   showSafeZones?: boolean;
 }
 
@@ -100,6 +100,16 @@ function renderBottomBarLayout(
   const bannerH = 140;
   const bannerX = insets.left;
   const bannerY = height - insets.bottom - bannerH - 12;
+
+  // APEX Brand Lockup above lower third banner (left-aligned)
+  drawBrandingLockup(ctx, {
+    containerX: bannerX + 4,
+    containerWidth: bannerW,
+    startY: bannerY - 38,
+    layout: "bottom_bar",
+    colorScheme: "light",
+    scale: 0.95
+  });
 
   ctx.save();
 
@@ -239,6 +249,16 @@ function renderCornerLayout(
   const boxW = 380;
   const boxY = height - insets.bottom - 220;
 
+  // APEX Brand Lockup above corner cluster (left-aligned)
+  drawBrandingLockup(ctx, {
+    containerX: boxX + 4,
+    containerWidth: boxW,
+    startY: boxY - 36,
+    layout: "corner",
+    colorScheme: "light",
+    scale: 0.9
+  });
+
   ctx.save();
 
   // Glass card
@@ -322,6 +342,16 @@ function renderMinimalLayout(
 
   const anchorY = height - insets.bottom - 100;
 
+  // APEX Brand Lockup above minimal hero metric (centered)
+  drawBrandingLockup(ctx, {
+    containerX: width / 2 - 150,
+    containerWidth: 300,
+    startY: anchorY - 110,
+    layout: "video_minimal",
+    colorScheme: "light",
+    scale: 0.95
+  });
+
   ctx.save();
 
   // Big hero metric centered
@@ -387,6 +417,16 @@ function renderRaceLayout(
   const dashH = 170;
   const dashX = insets.left;
   const dashY = height - insets.bottom - dashH;
+
+  // APEX Brand Lockup above race dashboard (left-aligned)
+  drawBrandingLockup(ctx, {
+    containerX: dashX + 4,
+    containerWidth: dashW,
+    startY: dashY - 38,
+    layout: "race",
+    colorScheme: "light",
+    scale: 0.95
+  });
 
   // Background
   ctx.fillStyle = "rgba(8, 11, 16, 0.86)";
@@ -593,27 +633,31 @@ export function renderVideoIntroCard(
   ctx.fill();
   ctx.stroke();
 
+  // APEX Brand Lockup above intro content
+  drawBrandingLockup(ctx, {
+    containerX: cardX,
+    containerWidth: cardW,
+    startY: cardY + 24,
+    layout: "intro",
+    colorScheme: "light",
+    scale: 0.95
+  });
+
   // Sport Badge
   ctx.textAlign = "center";
   ctx.fillStyle = "#10B981";
   ctx.font = `700 20px ${FONT_STACK}`;
-  ctx.fillText(overlayData.sportName.toUpperCase(), width / 2, cardY + 70);
+  ctx.fillText(overlayData.sportName.toUpperCase(), width / 2, cardY + 95);
 
   // Session Title
   ctx.fillStyle = "#FFFFFF";
-  ctx.font = `800 38px ${FONT_STACK}`;
-  ctx.fillText(overlayData.title, width / 2, cardY + 125);
+  ctx.font = `800 36px ${FONT_STACK}`;
+  ctx.fillText(overlayData.title, width / 2, cardY + 148);
 
   // Date formatted
   ctx.fillStyle = "rgba(255, 255, 255, 0.65)";
   ctx.font = `500 20px ${FONT_STACK}`;
-  ctx.fillText(overlayData.dateFormatted, width / 2, cardY + 175);
-
-  // Apex Wordmark
-  ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
-  ctx.font = `800 16px ${FONT_STACK}`;
-  ctx.letterSpacing = "4px";
-  ctx.fillText("APEX", width / 2, cardY + 225);
+  ctx.fillText(overlayData.dateFormatted, width / 2, cardY + 196);
 
   ctx.restore();
 }
@@ -648,18 +692,28 @@ export function renderVideoOutroCard(
   ctx.fill();
   ctx.stroke();
 
+  // APEX Brand Lockup above outro summary (centered)
+  drawBrandingLockup(ctx, {
+    containerX: cardX,
+    containerWidth: cardW,
+    startY: cardY + 24,
+    layout: "outro",
+    colorScheme: "light",
+    scale: 0.95
+  });
+
   // Title
   ctx.textAlign = "center";
   ctx.fillStyle = "#10B981";
   ctx.font = `700 20px ${FONT_STACK}`;
-  ctx.fillText("EDZÉS ÖSSZEGZÉS", width / 2, cardY + 60);
+  ctx.fillText("EDZÉS ÖSSZEGZÉS", width / 2, cardY + 90);
 
   ctx.fillStyle = "#FFFFFF";
   ctx.font = `800 34px ${FONT_STACK}`;
-  ctx.fillText(overlayData.sportName, width / 2, cardY + 105);
+  ctx.fillText(overlayData.sportName, width / 2, cardY + 135);
 
   // Grid of total metrics
-  const rowY = cardY + 175;
+  const rowY = cardY + 195;
   const activeMetrics = overlayData.metrics.slice(0, 3);
   const colSpacing = cardW / (activeMetrics.length + 1);
 
@@ -680,12 +734,6 @@ export function renderVideoOutroCard(
       ctx.fillText(m.unit, x, rowY + 64);
     }
   });
-
-  // Apex brand mark
-  ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
-  ctx.font = `800 18px ${FONT_STACK}`;
-  ctx.letterSpacing = "6px";
-  ctx.fillText("APEX", width / 2, cardY + cardH - 30);
 
   ctx.restore();
 }
@@ -708,7 +756,6 @@ export function drawVideoOverlay(
     introCard,
     outroCard,
     dimming,
-    showBranding,
     showSafeZones
   } = options;
 
@@ -717,7 +764,7 @@ export function drawVideoOverlay(
   // 1. Draw Scrim
   drawVideoScrim(ctx, width, height, dimming);
 
-  // 2. Draw Selected HUD Layout
+  // 2. Draw Selected HUD Layout (APEX lockup rendered above each layout)
   switch (layout) {
     case "bottom_bar":
       renderBottomBarLayout(ctx, dimensions, liveData, metrics);
@@ -731,11 +778,6 @@ export function drawVideoOverlay(
     case "race":
       renderRaceLayout(ctx, dimensions, liveData, metrics, overlayData);
       break;
-  }
-
-  // 3. Draw Brand Wordmark
-  if (showBranding && layout !== "minimal") {
-    drawWordmark(ctx, dimensions, "light");
   }
 
   // 4. Intro Card (0 to 1.5s with fade)
