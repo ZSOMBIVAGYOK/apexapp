@@ -128,9 +128,10 @@ export const useAppearanceStore = create<AppearanceState>((set, get) => {
     textSize: initialTextSize,
 
     setTheme: (newTheme) => {
-      const resolved = newTheme === "auto" ? getSystemTheme() : newTheme;
-      persist({ theme: newTheme });
       const current = get();
+      const resolved = newTheme === "auto" ? getSystemTheme() : newTheme;
+      if (current.theme === newTheme && current.resolvedTheme === resolved) return;
+      persist({ theme: newTheme });
       applyToDOM({
         resolvedTheme: resolved,
         glass: current.glass,
@@ -141,8 +142,9 @@ export const useAppearanceStore = create<AppearanceState>((set, get) => {
     },
 
     setGlass: (newGlass) => {
-      persist({ glass: newGlass });
       const current = get();
+      if (current.glass === newGlass) return;
+      persist({ glass: newGlass });
       applyToDOM({
         resolvedTheme: current.resolvedTheme,
         glass: newGlass,
@@ -153,8 +155,9 @@ export const useAppearanceStore = create<AppearanceState>((set, get) => {
     },
 
     setReducedMotion: (enabled) => {
-      persist({ reducedMotion: enabled });
       const current = get();
+      if (current.reducedMotion === enabled) return;
+      persist({ reducedMotion: enabled });
       applyToDOM({
         resolvedTheme: current.resolvedTheme,
         glass: current.glass,
@@ -165,8 +168,9 @@ export const useAppearanceStore = create<AppearanceState>((set, get) => {
     },
 
     setTextSize: (newSize) => {
-      persist({ textSize: newSize });
       const current = get();
+      if (current.textSize === newSize) return;
+      persist({ textSize: newSize });
       applyToDOM({
         resolvedTheme: current.resolvedTheme,
         glass: current.glass,
@@ -185,6 +189,7 @@ if (typeof window !== "undefined") {
     const store = useAppearanceStore.getState();
     if (store.theme === "auto") {
       const resolved = e.matches ? "dark" : "light";
+      if (store.resolvedTheme === resolved) return;
       applyToDOM({
         resolvedTheme: resolved,
         glass: store.glass,
@@ -199,7 +204,10 @@ if (typeof window !== "undefined") {
   motionQuery.addEventListener("change", (e) => {
     const stored = loadStoredAppearance();
     if (stored.reducedMotion === undefined) {
-      useAppearanceStore.getState().setReducedMotion(e.matches);
+      const current = useAppearanceStore.getState();
+      if (current.reducedMotion !== e.matches) {
+        current.setReducedMotion(e.matches);
+      }
     }
   });
 }

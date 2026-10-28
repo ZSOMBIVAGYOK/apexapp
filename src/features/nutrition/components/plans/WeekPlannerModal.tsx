@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { BottomSheet, Button, showToast } from "@shared/ui";
 import {
   MealPlanDocument,
@@ -66,7 +66,7 @@ export const WeekPlannerModal: React.FC<WeekPlannerModalProps> = ({
   const [editingDate, setEditingDate] = useState<string | null>(null);
   const [showShoppingList, setShowShoppingList] = useState(false);
 
-  const loadWeekData = async () => {
+  const loadWeekData = useCallback(async () => {
     if (!athleteId) return;
     const startStr = format(currentWeekStart, "yyyy-MM-dd");
     const endStr = format(endOfWeek(currentWeekStart, { weekStartsOn: 1 }), "yyyy-MM-dd");
@@ -95,13 +95,13 @@ export const WeekPlannerModal: React.FC<WeekPlannerModalProps> = ({
     }
 
     setWeekDays(daysList);
-  };
+  }, [athleteId, currentWeekStart]);
 
   useEffect(() => {
     if (isOpen) {
-      loadWeekData();
+      void loadWeekData();
     }
-  }, [isOpen, athleteId, currentWeekStart]);
+  }, [isOpen, loadWeekData]);
 
   const toggleLock = async (index: number) => {
     const dayItem = weekDays[index]!;

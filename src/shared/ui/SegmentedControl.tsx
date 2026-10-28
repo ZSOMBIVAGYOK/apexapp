@@ -1,4 +1,5 @@
 import React, { useRef, useState, useLayoutEffect, useCallback } from "react";
+import { useRenderLoopDetector } from "../hooks/useRenderLoopDetector";
 
 export interface SegmentedControlOption<T extends string = string> {
   value: T;
@@ -26,6 +27,7 @@ export function SegmentedControl<T extends string = string>({
   className = "",
   "aria-label": ariaLabel = "Segmented options"
 }: SegmentedControlProps<T>) {
+  useRenderLoopDetector("SegmentedControl");
   const containerRef = useRef<HTMLDivElement>(null);
   const itemsRef = useRef<Map<T, HTMLButtonElement>>(new Map());
   const [lensStyle, setLensStyle] = useState<{ left: number; width: number } | null>(null);
@@ -33,18 +35,22 @@ export function SegmentedControl<T extends string = string>({
   const updateLens = useCallback(() => {
     const activeEl = itemsRef.current.get(value);
     if (activeEl && containerRef.current) {
-      setLensStyle({
-        left: activeEl.offsetLeft,
-        width: activeEl.offsetWidth
+      const nextLeft = activeEl.offsetLeft;
+      const nextWidth = activeEl.offsetWidth;
+      setLensStyle((prev) => {
+        if (prev && prev.left === nextLeft && prev.width === nextWidth) return prev;
+        return { left: nextLeft, width: nextWidth };
       });
     }
   }, [value]);
+
+  const optionsKey = options.map((o) => o.value).join(",");
 
   useLayoutEffect(() => {
     updateLens();
     window.addEventListener("resize", updateLens);
     return () => window.removeEventListener("resize", updateLens);
-  }, [updateLens, options]);
+  }, [updateLens, optionsKey]);
 
   const handleKeyDown = (e: React.KeyboardEvent, currentIndex: number) => {
     let nextIndex = currentIndex;

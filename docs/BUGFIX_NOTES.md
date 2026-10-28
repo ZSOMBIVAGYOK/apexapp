@@ -93,3 +93,45 @@ Ez a dokumentum részletesen, érthető nyelvezettel összefoglalja a bejelentet
 | **NutritionPage** | Étkezések listázása | `meal.time` hiba `meals["snack"] === undefined` miatt | `normalizeNutritionDay`, `meal?.time`, dinamikus étkezések |
 | **Hibakezelés** | App összeomlás | Nincs Error Boundary, fehér képernyő | Magyar nyelvű ErrorBoundary "Újratöltés" gombbal |
 | **Adattisztítás** | Valós Firebase projekt | Régi tesztadatok az adatbázisban | Törlési terv a felhasználó jóváhagyásával |
+
+---
+
+## 5. Hiba: React Error #185 (Maximum update depth exceeded) a kezdőoldalon ("/") a Liquid-Glass dizájn refaktor után
+
+### Pontos kiváltó ok és mechanizmus:
+1. **Unmemoized tömbreferencia a shell layoutban (`src/app/AppLayout.tsx`):**
+   A navigációs elemek listája (`navItems = getNavItemsForRole(...)`) minden rendereléskor lefutott, és egy vadonatúj tömböt (`ALL_NAV_ITEMS.filter(...)`) adott vissza.
+2. **Függőség-láncolat és újrafutó `useLayoutEffect`:**
+   A mobil lebegő tab sáv csúszó üveglencséjét pozicionáló függvény (`updateMobileLens = useCallback(..., [location.pathname, navItems])`) közvetlenül függött a `navItems` referenciájától. Mivel a `navItems` minden renderben új referencia lett, az `updateMobileLens` is új funkcióreferenciát kapott.
+3. **Feltétel nélküli `setState` objektum literállal:**
+   A `useLayoutEffect([updateMobileLens])` a DOM frissülése után azonnal lefutott és meghívta az `updateMobileLens()` függvényt. Ez meghívta a `setMobileLens({ left: activeEl.offsetLeft, width: activeEl.offsetWidth })` függvényt egy új objektummal anélkül, hogy ellenőrizte volna, változtak-e a koordináták.
+4. **Végtelen frissítési ciklus (Infinite Loop):**
+   A `setMobileLens` meghívása szinkron re-rendert váltott ki -> a renderben újra létrejött a `navItems` tömb -> az `updateMobileLens` új referencia lett -> a `useLayoutEffect` újra lefutott -> `setMobileLens` újra lefutott -> a folyamat másodpercenként több tucatszor megismétlődött, míg a React elérte a maximális mélységet és eldobta a **Minified React error #185** kivételt.
+5. **Hasonló sebezhetőségek a felületi komponensekben:**
+   A `src/shared/ui/SegmentedControl.tsx` és `src/shared/ui/Tabs.tsx` csúszó lencse indikátorai szintén egyenlőségvizsgálat nélkül hívták a `setLensStyle`-t, miközben az `options` és `tabs` tömbök a szülőkből inline literálként érkezhettek.
+6. **Kezdeti betöltési hiba (`i18n.language`):**
+   Az `i18n.language.startsWith("hu")` kifejezés hiányzó `?.` operátor miatt `TypeError`-t dobott, ha az i18n inicializáció előtt futott le.
+
+### Alkalmazott javítások:
+- **Stabilizált memoizáció (`AppLayout.tsx`):**
+  A `navItems` és az aktív elem (`activeNavItem`) `useMemo`-val lett rögzítve a felhasználói szerepkörök (`user?.roles`, `user?.role`) és az útvonal (`location.pathname`) alapján.
+- **Koordináta-egyenlőségi őr (Sliding Lens Guard):**
+  Mindhárom csúszó lencse komponensben (`AppLayout.tsx`, `SegmentedControl.tsx`, `Tabs.tsx`) funkcionális állapotfrissítő vizsgálja, hogy a koordináták ténylegesen megváltoztak-e:
+  ```ts
+  setLensStyle((prev) => {
+    if (prev && prev.left === nextLeft && prev.width === nextWidth) return prev;
+    return { left: nextLeft, width: nextWidth };
+  });
+  ```
+  Ha az értékek azonosak, az előző referencia tér vissza, és a React nem indít felesleges újrarenderelést.
+- **Idempotens állapotkezelés (`appearanceStore.ts`, `themeStore.ts`):**
+  A téma-, üveghatás- és méretbeállítások ellenőrzik, hogy az új érték megegyezik-e a jelenlegivel, megelőzve a felesleges DOM attribútum módosításokat és feliratkozói eseményeket.
+- **Fejlesztői ciklus-detektor (`useRenderLoopDetector.ts`):**
+  Fejlesztői környezetben automatikusan figyeli a komponensek másodpercenkénti renderszámát, és konzolfigyelmeztetést ad, ha egy komponens rövid időn belül túllépi az 50 renderelést.
+- **ESLint szigorítás (`.eslintrc.cjs`):**
+  A `react-hooks/rules-of-hooks` és `react-hooks/exhaustive-deps` szabályok `error` szintre lettek állítva, a hibák a teljes kódbázisban javításra kerültek (0 hiba a teljes projekten).
+- **Fejlett hibajelentés (`ErrorBoundary.tsx`):**
+  A hibamásolás immár tartalmazza a pontos útvonalat, az alkalmazás verzióját és build azonosítóját, valamint a PII-mentesített komponens hívási láncot.
+- **Rejtett forrástérképek (`vite.config.ts`):**
+  `build.sourcemap: "hidden"` konfigurációval a lokális diagnosztika támogatott a publikus kód leleplezése nélkül.
+

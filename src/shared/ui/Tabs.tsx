@@ -1,4 +1,5 @@
 import React, { useRef, useState, useLayoutEffect, useCallback } from "react";
+import { useRenderLoopDetector } from "../hooks/useRenderLoopDetector";
 
 export interface TabItem {
   id: string;
@@ -25,6 +26,7 @@ export const Tabs: React.FC<TabsProps> = ({
   className = "",
   children
 }) => {
+  useRenderLoopDetector("Tabs");
   const tablistRef = useRef<HTMLDivElement>(null);
   const itemsRef = useRef<Map<string, HTMLButtonElement>>(new Map());
   const [lensStyle, setLensStyle] = useState<{ left: number; width: number } | null>(null);
@@ -32,18 +34,22 @@ export const Tabs: React.FC<TabsProps> = ({
   const updateLens = useCallback(() => {
     const activeEl = itemsRef.current.get(activeId);
     if (activeEl && tablistRef.current) {
-      setLensStyle({
-        left: activeEl.offsetLeft,
-        width: activeEl.offsetWidth
+      const nextLeft = activeEl.offsetLeft;
+      const nextWidth = activeEl.offsetWidth;
+      setLensStyle((prev) => {
+        if (prev && prev.left === nextLeft && prev.width === nextWidth) return prev;
+        return { left: nextLeft, width: nextWidth };
       });
     }
   }, [activeId]);
+
+  const tabsKey = tabs.map((t) => t.id).join(",");
 
   useLayoutEffect(() => {
     updateLens();
     window.addEventListener("resize", updateLens);
     return () => window.removeEventListener("resize", updateLens);
-  }, [updateLens, tabs]);
+  }, [updateLens, tabsKey]);
 
   const handleKeyDown = (e: React.KeyboardEvent, index: number) => {
     let nextIndex = index;

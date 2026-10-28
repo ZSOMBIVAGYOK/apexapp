@@ -87,6 +87,7 @@ export const OptionEditModal: React.FC<OptionEditModalProps> = ({
 
   // Available foods from curated staples + custom foods
   const allLibraryFoods = React.useMemo(() => {
+    if (!isOpen) return [];
     return [...CURATED_SPORTS_FOODS, ...FoodService.getCustomFoods()];
   }, [isOpen]);
 

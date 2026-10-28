@@ -1145,5 +1145,19 @@ All nutrition constants and formulas are documented in `src/shared/lib/nutrition
 - **Medical Disclaimer:**
   - Clearly identifies diet plans as sports nutrition guidance and includes mandatory disclaimer that plans do not constitute clinical medical nutrition therapy.
 
+---
 
+## 15. Liquid-Glass Design System & Stability Hardening
 
+### A. Liquid-Glass Foundations
+- **Design Principles:** Content-first, calm dark/light surfaces with elevated functional glass layers (floating tab bar, header, sheets, segmented controls).
+- **Glass Tokens & Fallbacks:** High-precision CSS tokens (`--glass-surface`, `--glass-blur`, `--shadow-glass`) with automatic reduced-transparency fallback for accessibility and low-power hardware.
+
+### B. React Error #185 Resolution & Loop Prevention
+- **Root Cause:** Sliding glass lens effect in `src/app/AppLayout.tsx` combined unmemoized `navItems` array references with an unguarded `setMobileLens` update inside `useLayoutEffect`, causing synchronous re-render loops on route `"/"`.
+- **Sliding Lens Stabilizations:** Applied coordinate equality checks `prev.left === nextLeft && prev.width === nextWidth` to `AppLayout.tsx`, `SegmentedControl.tsx`, and `Tabs.tsx`, ensuring zero re-renders when positions remain unchanged.
+- **Store & Hook Hardening:** Primitive selectors adopted across shell layout; `appearanceStore` and `themeStore` setters made strictly idempotent.
+- **Development Render-Loop Detector:** Added `useRenderLoopDetector` hook warning when a component exceeds 50 renders in 1000ms.
+- **ESLint Strictness:** Configured `react-hooks/rules-of-hooks` and `react-hooks/exhaustive-deps` as errors; resolved all hook dependency warnings codebase-wide.
+- **Source Maps:** Added `build.sourcemap: "hidden"` to `vite.config.ts` for clean production debugging.
+- **Automated Verification:** Added `AppLayout.reproduce.test.tsx` and `slidingLensStability.test.tsx` covering all viewport, role, and resize permutations.

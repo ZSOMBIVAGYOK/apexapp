@@ -101,7 +101,12 @@ export default defineConfig({
       "@shared": path.resolve(__dirname, "./src/shared")
     }
   },
+  define: {
+    __APP_VERSION__: JSON.stringify(process.env.npm_package_version || "0.1.0"),
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString())
+  },
   build: {
+    sourcemap: "hidden",
     rollupOptions: {
       output: {
         manualChunks: {

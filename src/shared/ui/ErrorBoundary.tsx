@@ -16,6 +16,9 @@ interface State {
   copied: boolean;
 }
 
+declare const __APP_VERSION__: string | undefined;
+declare const __BUILD_TIME__: string | undefined;
+
 export class ErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false,
@@ -60,12 +63,35 @@ export class ErrorBoundary extends Component<Props, State> {
   };
 
   private handleCopyError = async () => {
-    const errorDetails = [
+    const isDev = Boolean(import.meta.env?.DEV);
+    const version = typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "0.1.0";
+    const buildTime = typeof __BUILD_TIME__ !== "undefined" ? __BUILD_TIME__ : "unknown";
+    const currentUrl = typeof window !== "undefined" ? window.location.href : "unknown";
+    const route = typeof window !== "undefined" ? window.location.pathname + window.location.search : "unknown";
+
+    const reportLines = [
+      `=== APEX HIBAJELENTÉS ===`,
       `Időpont: ${new Date().toISOString()}`,
-      `URL: ${typeof window !== "undefined" ? window.location.pathname : ""}`,
+      `Verzió: ${version} (build: ${buildTime})`,
+      `Útvonal: ${route}`,
+      `Teljes URL: ${currentUrl}`,
+      `Környezet: ${isDev ? "Fejlesztői (DEV)" : "Éles (PROD)"}`,
+      `Böngésző: ${typeof navigator !== "undefined" ? navigator.userAgent : "N/A"}`,
+      ``,
+      `Hiba típusa: ${this.state.error?.name || "Error"}`,
       `Hibaüzenet: ${this.state.error?.message || "Ismeretlen hiba"}`,
-      `Komponens: ${this.state.errorInfo?.componentStack?.slice(0, 500) || "N/A"}`
-    ]
+      ``,
+      `Komponens stack:`,
+      isDev
+        ? (this.state.errorInfo?.componentStack || "N/A")
+        : (this.state.errorInfo?.componentStack?.slice(0, 800) || "N/A")
+    ];
+
+    if (isDev && this.state.error?.stack) {
+      reportLines.push(``, `Error stack:`, this.state.error.stack);
+    }
+
+    const errorDetails = reportLines
       .join("\n")
       // Privacy-safe sanitization: strip emails and tokens
       .replace(/[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+/g, "[EMAIL]")

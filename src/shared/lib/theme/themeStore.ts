@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useAppearanceStore, ThemeOption } from "../appearance/appearanceStore";
 
 export type ThemeMode = "system" | "dark" | "light";
@@ -9,10 +10,13 @@ export const useThemeStore = () => {
 
   const normalizedTheme: ThemeMode = theme === "auto" ? "system" : theme;
 
-  const setTheme = (mode: ThemeMode) => {
-    const next: ThemeOption = mode === "system" ? "auto" : mode;
-    setThemeRaw(next);
-  };
+  const setTheme = useCallback(
+    (mode: ThemeMode) => {
+      const next: ThemeOption = mode === "system" ? "auto" : mode;
+      setThemeRaw(next);
+    },
+    [setThemeRaw]
+  );
 
   return {
     theme: normalizedTheme,

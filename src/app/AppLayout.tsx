@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from "react";
+import React, { useState, useEffect, useRef, useLayoutEffect, useCallback, useMemo } from "react";
 import { Outlet, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -33,11 +33,15 @@ import { ErrorBoundary } from "@shared/ui/ErrorBoundary";
 import { useNotificationStore } from "@shared/lib/notifications/notificationStore";
 import { flushOfflineQueue } from "@shared/lib/offline/offlineStorage";
 import { runEmergencyDataRecovery } from "@shared/lib/storage/recoveryRoutine";
+import { useRenderLoopDetector } from "@shared/hooks/useRenderLoopDetector";
 
 export const AppLayout: React.FC = () => {
+  useRenderLoopDetector("AppLayout");
   const { i18n } = useTranslation();
   const { user, signOut, setUserProfile } = useAuthStore();
-  const { theme, resolvedTheme, setTheme } = useAppearanceStore();
+  const theme = useAppearanceStore((s) => s.theme);
+  const resolvedTheme = useAppearanceStore((s) => s.resolvedTheme);
+  const setTheme = useAppearanceStore((s) => s.setTheme);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -83,7 +87,10 @@ export const AppLayout: React.FC = () => {
   // Scroll listener for collapsing top header
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
+      setIsScrolled((prev) => {
+        const next = window.scrollY > 20;
+        return prev === next ? prev : next;
+      });
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
@@ -182,10 +189,15 @@ export const AppLayout: React.FC = () => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [navigate]);
 
-  const navItems = getNavItemsForRole(user?.roles || (user?.role ? [user.role] : ["athlete"]), true);
+  const userRoles = user?.roles;
+  const userRole = user?.role;
+  const navItems = useMemo(
+    () => getNavItemsForRole(userRoles || (userRole ? [userRole] : ["athlete"]), true),
+    [userRoles, userRole]
+  );
 
   const toggleLanguage = () => {
-    const nextLang = i18n.language.startsWith("hu") ? "en" : "hu";
+    const nextLang = i18n.language?.startsWith("hu") ? "en" : "hu";
     i18n.changeLanguage(nextLang);
   };
 
@@ -241,11 +253,16 @@ export const AppLayout: React.FC = () => {
     });
   };
 
-  // Find active navigation item title for mobile header
-  const currentNav =
-    navItems.find((item) =>
-      item.exact ? location.pathname === item.to : location.pathname.startsWith(item.to) && item.to !== "/"
-    ) || navItems[0] || { defaultLabel: "Apex" };
+  // Active navigation item for mobile header & sliding lens
+  const activeNavItem = useMemo(() => {
+    return (
+      navItems.find((item) =>
+        item.exact ? location.pathname === item.to : location.pathname.startsWith(item.to) && item.to !== "/"
+      ) || navItems[0]
+    );
+  }, [location.pathname, navItems]);
+
+  const currentNav = activeNavItem || { defaultLabel: "Apex" };
 
   // Mobile Floating Tab Bar Sliding Lens State
   const tabContainerRef = useRef<HTMLDivElement>(null);
@@ -253,19 +270,17 @@ export const AppLayout: React.FC = () => {
   const [mobileLens, setMobileLens] = useState<{ left: number; width: number } | null>(null);
 
   const updateMobileLens = useCallback(() => {
-    const activeItem = navItems.find((item) =>
-      item.exact ? location.pathname === item.to : location.pathname.startsWith(item.to) && item.to !== "/"
-    ) || navItems[0];
-
-    if (!activeItem) return;
-    const activeEl = tabButtonsRef.current.get(activeItem.id);
+    if (!activeNavItem) return;
+    const activeEl = tabButtonsRef.current.get(activeNavItem.id);
     if (activeEl && tabContainerRef.current) {
-      setMobileLens({
-        left: activeEl.offsetLeft,
-        width: activeEl.offsetWidth
+      const nextLeft = activeEl.offsetLeft;
+      const nextWidth = activeEl.offsetWidth;
+      setMobileLens((prev) => {
+        if (prev && prev.left === nextLeft && prev.width === nextWidth) return prev;
+        return { left: nextLeft, width: nextWidth };
       });
     }
-  }, [location.pathname, navItems]);
+  }, [activeNavItem]);
 
   useLayoutEffect(() => {
     updateMobileLens();
@@ -373,7 +388,7 @@ export const AppLayout: React.FC = () => {
               className="touch-target h-9 px-3 rounded-full border border-border/60 bg-bg-surface-solid dark:bg-white/[0.05] hover:bg-bg-elevated text-text-secondary hover:text-text-primary flex items-center gap-1.5 text-12 font-medium transition-colors"
             >
               <Globe className="h-3.5 w-3.5 text-brand" aria-hidden="true" />
-              <span className="uppercase">{i18n.language.startsWith("hu") ? "HU" : "EN"}</span>
+              <span className="uppercase">{i18n.language?.startsWith("hu") ? "HU" : "EN"}</span>
             </button>
 
             {/* Theme Toggle */}

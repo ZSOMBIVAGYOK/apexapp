@@ -30,11 +30,13 @@ export const MyFoodsTab: React.FC<MyFoodsTabProps> = ({ hideCalories = false }) 
   const [newProtein, setNewProtein] = useState(15);
   const [newCarbs, setNewCarbs] = useState(30);
   const [newFat, setNewFat] = useState(5);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  const customFoods = FoodService.getCustomFoods();
   const allFoods = React.useMemo(() => {
+    if (refreshTrigger < 0) return [];
+    const customFoods = FoodService.getCustomFoods();
     return [...customFoods, ...CURATED_SPORTS_FOODS];
-  }, [customFoods.length, showCreateModal]);
+  }, [refreshTrigger]);
 
   const categories = ["all", "Fehérjeforrás", "Szénhidrátforrás", "Gabona", "Gyümölcs", "Tejtermék", "Kedvencek"];
 
@@ -59,6 +61,7 @@ export const MyFoodsTab: React.FC<MyFoodsTabProps> = ({ hideCalories = false }) 
   const handleToggleFav = (foodId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     FoodService.toggleFavorite(foodId);
+    setRefreshTrigger((v) => v + 1);
     showToast({ title: "Kedvencek", message: "Kedvencek frissítve!", variant: "info" });
   };
 
@@ -84,6 +87,7 @@ export const MyFoodsTab: React.FC<MyFoodsTabProps> = ({ hideCalories = false }) 
     });
 
     showToast({ title: "Sikeres mentés", message: "Saját étel elmentve az Ételeim könyvtárba!", variant: "success" });
+    setRefreshTrigger((v) => v + 1);
     setShowCreateModal(false);
     setNewName("");
     setNewBrand("");

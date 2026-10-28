@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Button,
   showToast
@@ -66,7 +66,7 @@ export const MealPlanEditor: React.FC<MealPlanEditorProps> = ({
   const [showWeekPlanner, setShowWeekPlanner] = useState(false);
   const [showShoppingList, setShowShoppingList] = useState(false);
 
-  const loadPlans = async () => {
+  const loadPlans = useCallback(async () => {
     setIsLoading(true);
     try {
       const all = await getMealPlans(athleteId);
@@ -78,11 +78,13 @@ export const MealPlanEditor: React.FC<MealPlanEditorProps> = ({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [athleteId]);
 
   useEffect(() => {
-    if (athleteId) loadPlans();
-  }, [athleteId]);
+    if (athleteId) {
+      void loadPlans();
+    }
+  }, [athleteId, loadPlans]);
 
   const handleCreateStarterPlan = async () => {
     const starter = generateStarterMealPlan(
