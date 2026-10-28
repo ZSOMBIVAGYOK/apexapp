@@ -16,13 +16,7 @@
         { "fieldPath": "status", "order": "ASCENDING" }
       ]
     },
-    {
-      "collectionGroup": "nutrition",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "date", "order": "DESCENDING" }
-      ]
-    },
+
     {
       "collectionGroup": "sessions",
       "queryScope": "COLLECTION",
