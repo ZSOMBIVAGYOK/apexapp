@@ -86,6 +86,7 @@
       "networkError": "Network error. Please check your internet connection.",
       "tooManyRequests": "Too many failed attempts. Please try again later.",
       "operationNotAllowed": "This sign-in provider is currently disabled.",
+      "accountExistsWithDifferentCredential": "An account already exists with this email using a different sign-in method. Please sign in using that method to access your data.",
       "generic": "Authentication error occurred. Please try again."
     }
   },

@@ -7,8 +7,8 @@ import { callDeleteUserData } from "@features/auth/authService";
 import { DataMode, SupportMode, UnitSystem } from "@shared/types";
 import { useNotificationStore } from "@shared/lib/notifications/notificationStore";
 import { flushOfflineQueue } from "@shared/lib/offline/offlineStorage";
-import { useSyncState } from "@shared/hooks/useSyncState";
 import { LogoutConfirmationModal } from "@features/auth/components/LogoutConfirmationModal";
+import { DiagnosticsSyncCard } from "../components/DiagnosticsSyncCard";
 import {
   getTrashItems,
   restoreTrashItem,
@@ -52,8 +52,7 @@ import {
   ChevronRight,
   RotateCcw,
   RefreshCw,
-  CheckCircle,
-  Cloud
+  CheckCircle
 } from "lucide-react";
 
 export const SettingsPage: React.FC = () => {
@@ -61,14 +60,12 @@ export const SettingsPage: React.FC = () => {
   const { user, signOut, updateProfile, isDemoUser } = useAuthStore();
   const { theme, setTheme } = useThemeStore();
   const navigate = useNavigate();
-  const { status: syncStatus, pendingCount: outboxCount } = useSyncState();
 
   const athleteId = user?.uid || "demo-athlete-001";
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const [isSyncingManual, setIsSyncingManual] = useState(false);
 
   // Trash state
   const [trashItems, setTrashItems] = useState<TrashItem[]>([]);
@@ -191,27 +188,6 @@ export const SettingsPage: React.FC = () => {
         message: "Nem sikerült véglegesen törölni az elemet.",
         type: "error"
       });
-    }
-  };
-
-  // Manual Trigger Sync
-  const handleManualSync = async () => {
-    setIsSyncingManual(true);
-    try {
-      const res = await flushOfflineQueue();
-      showToast({
-        title: "Szinkronizálás befejezve",
-        message: res.failed === 0 ? "Minden adat a felhőbe mentve." : `${res.failed} elem mentése sikertelen volt.`,
-        type: res.failed === 0 ? "success" : "warning"
-      });
-    } catch {
-      showToast({
-        title: "Szinkronizálási hiba",
-        message: "Nem sikerült szinkronizálni a felhővel.",
-        type: "error"
-      });
-    } finally {
-      setIsSyncingManual(false);
     }
   };
 
@@ -757,63 +733,8 @@ export const SettingsPage: React.FC = () => {
         </div>
       </Card>
 
-      {/* Cloud Sync & Storage Outbox Status */}
-      <Card variant="surface" radius="20" className="p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-text-primary">
-            <Cloud className="h-4 w-4 text-brand" aria-hidden="true" />
-            <h4 className="text-14 font-bold">Szinkronizálás és Felhő Állapot</h4>
-          </div>
-          <Badge
-            variant={syncStatus === "synced" ? "ready" : syncStatus === "offline" ? "neutral" : "caution"}
-            size="sm"
-          >
-            {syncStatus === "synced" ? "Mentve ✓" : syncStatus === "offline" ? "Offline" : syncStatus === "syncing" ? "Szinkronizálás..." : "Függőben"}
-          </Badge>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-12">
-          <div className="p-3 rounded-12 bg-surface-elevated border border-border-hairline space-y-1">
-            <span className="text-text-tertiary block">Kapcsolat:</span>
-            <span className="font-semibold text-text-primary flex items-center gap-1.5">
-              {typeof navigator !== "undefined" && navigator.onLine ? (
-                <>
-                  <span className="w-2 h-2 rounded-full bg-status-ready inline-block" />
-                  Online (Csatlakozva a Firestore szerverhez)
-                </>
-              ) : (
-                <>
-                  <span className="w-2 h-2 rounded-full bg-status-caution inline-block" />
-                  Offline (Helyi gyorsítótár)
-                </>
-              )}
-            </span>
-          </div>
-
-          <div className="p-3 rounded-12 bg-surface-elevated border border-border-hairline space-y-1">
-            <span className="text-text-tertiary block">Függőben lévő írások:</span>
-            <span className="font-semibold text-text-primary">
-              {outboxCount > 0 ? `${outboxCount} elem szinkronra vár` : "Nincs függőben lévő adat (Minden mentve)"}
-            </span>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between pt-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            isLoading={isSyncingManual}
-            disabled={outboxCount === 0 && syncStatus === "synced"}
-            leftIcon={<RefreshCw className={`h-3.5 w-3.5 ${isSyncingManual ? "animate-spin" : ""}`} />}
-            onClick={handleManualSync}
-          >
-            Szinkronizálás most
-          </Button>
-          <span className="text-11 text-text-tertiary">
-            Automatikus háttérszinkron minden módosításkor aktív
-          </span>
-        </div>
-      </Card>
+      {/* Cloud Sync & Storage Diagnostics */}
+      <DiagnosticsSyncCard />
 
       {/* Backup & Data Portability with 30-day reminder */}
       <Card variant="surface" radius="20" className="p-6 space-y-4">
@@ -1018,7 +939,7 @@ export const SettingsPage: React.FC = () => {
       <div className="text-center text-11 text-text-tertiary space-y-1">
         <div className="flex items-center justify-center gap-1">
           <Flame className="h-3.5 w-3.5 text-brand" />
-          <span>Apex Pro Cockpit Platform v0.3.0</span>
+          <span>Apex Pro Cockpit Platform v1.2.1 (build 20261028-sync)</span>
         </div>
         <p>GDPR Art. 9 & 17 Compliant • Encrypted Biometric Store</p>
       </div>

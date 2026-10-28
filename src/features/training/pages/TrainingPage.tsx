@@ -54,14 +54,16 @@ import { EquipmentView } from "@features/equipment/components/EquipmentView";
 import { getEquipmentList, hasDueMaintenance } from "@shared/lib/equipment";
 import { getLocalSessions } from "@shared/lib/offline/offlineStorage";
 import { CompletedSessionDocument } from "@shared/types";
-import { getSessions } from "@shared/lib/repositories/sessionRepository";
 import {
+  getSessions,
+  subscribeSessions,
   getPlannedWorkouts,
-  savePlannedWorkout
-} from "@shared/lib/repositories/plannedWorkoutRepository";
-import {
-  getCompetitions
-} from "@shared/lib/repositories/competitionRepository";
+  subscribePlannedWorkouts,
+  savePlannedWorkout,
+  getCompetitions,
+  subscribeCompetitions
+} from "@shared/lib/repositories";
+import { ServerSyncBanner } from "@shared/ui";
 import { RefreshCw, AlertCircle } from "lucide-react";
 
 export const TrainingPage: React.FC = () => {
@@ -458,8 +460,78 @@ export const TrainingPage: React.FC = () => {
   }, [athleteId]);
 
   useEffect(() => {
+    if (!athleteId) return;
+
     loadTrainingData();
-  }, [loadTrainingData]);
+
+    // Subscribe to real-time session updates so laptop & phone sync live
+    const unsubSessions = subscribeSessions(
+      athleteId,
+      (serverSessions) => {
+        setWorkouts((prevWorkouts) => {
+          const merged = [...prevWorkouts];
+          serverSessions.forEach((s) => {
+            const idx = merged.findIndex((w) => w.id === s.sessionId);
+            if (idx >= 0) {
+              const current = merged[idx];
+              if (current) {
+                merged[idx] = {
+                  ...current,
+                  id: current.id,
+                  status: "completed",
+                  actualDurationMinutes: s.durationMinutes,
+                  actualRpe: s.rpe,
+                  plannedLoad: s.trainingLoad || current.plannedLoad,
+                  strengthExercises: s.strengthExercises || current.strengthExercises
+                };
+              }
+            } else {
+              merged.push({
+                id: s.sessionId,
+                athleteId,
+                author: { id: athleteId, name: "Sportoló", role: "athlete" },
+                title: s.title,
+                sport: s.sport as SportType,
+                date: s.date,
+                plannedDurationMinutes: s.durationMinutes,
+                actualDurationMinutes: s.durationMinutes,
+                actualRpe: s.rpe,
+                plannedLoad: s.trainingLoad || 50,
+                status: "completed",
+                blocks: [],
+                strengthExercises: s.strengthExercises
+              });
+            }
+          });
+          return merged;
+        });
+      }
+    );
+
+    const unsubWorkouts = subscribePlannedWorkouts(athleteId, (serverWorkouts) => {
+      if (serverWorkouts.length > 0) {
+        setWorkouts((prev) => {
+          const sessionsOnly = prev.filter((w) => w.id.startsWith("sess-") || w.status === "completed");
+          const map = new Map<string, PlannedWorkout>();
+          serverWorkouts.forEach((w) => map.set(w.id, w));
+          sessionsOnly.forEach((s) => map.set(s.id, s));
+          return Array.from(map.values());
+        });
+      }
+    });
+
+    const unsubCompetitions = subscribeCompetitions(athleteId, (comps) => {
+      if (comps.length > 0) {
+        setCompetitions(comps as Competition[]);
+      }
+    });
+
+    return () => {
+      unsubSessions();
+      unsubWorkouts();
+      unsubCompetitions();
+    };
+  }, [athleteId, loadTrainingData]);
 
   // Save workouts & competitions to localStorage on change
   useEffect(() => {
@@ -829,13 +901,17 @@ export const TrainingPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Error state with retry button */}
-      {loadError && (
-        <div className="p-4 rounded-xl bg-status-caution/15 border border-status-caution/30 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 text-status-caution">
+      {/* Server Sync Status & Cache Fallback Warning */}
+      <ServerSyncBanner onRetry={loadTrainingData} isRetrying={isLoadingData} />
+
+      {/* Error state with retry button when no data loaded */}
+      {loadError && workouts.length === 0 && (
+        <div className="p-6 rounded-20 bg-status-rest/10 border border-status-rest/30 text-center space-y-3">
+          <div className="flex items-center justify-center text-status-rest gap-2">
             <AlertCircle className="w-5 h-5 shrink-0" />
-            <p className="text-sm font-medium">{loadError}</p>
+            <p className="text-sm font-semibold">{loadError}</p>
           </div>
+          <p className="text-12 text-text-secondary">Nem sikerült elérni a felhő szervert az edzések letöltéséhez.</p>
           <Button
             size="sm"
             variant="secondary"
@@ -843,7 +919,7 @@ export const TrainingPage: React.FC = () => {
             disabled={isLoadingData}
             leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${isLoadingData ? "animate-spin" : ""}`} />}
           >
-            {isHu ? "Újrapróbálás" : "Retry"}
+            {isHu ? "Próbáld újra" : "Retry"}
           </Button>
         </div>
       )}

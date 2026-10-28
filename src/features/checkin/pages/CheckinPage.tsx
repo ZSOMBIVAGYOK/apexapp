@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuthStore } from "@features/auth/authStore";
@@ -17,6 +17,7 @@ import {
   BottomSheet,
   Toggle,
   DaySwitcher,
+  ServerSyncBanner,
   showToast
 } from "@shared/ui";
 import {
@@ -30,7 +31,7 @@ import {
   getAllLocalDailies,
   getLocalSessions
 } from "@shared/lib/offline/offlineStorage";
-import { getDayCheckin } from "@shared/lib/repositories/checkinRepository";
+import { getDayCheckin, subscribeDayCheckin } from "@shared/lib/repositories";
 import {
   recomputeLoadsFromDate
 } from "@shared/lib/load/loadRecomputation";
@@ -99,57 +100,58 @@ export const CheckinPage: React.FC = () => {
   const [showOptionalFields, setShowOptionalFields] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Apply loaded daily document to local state
+  const applyDoc = useCallback((existing: DailyAggregateDocument) => {
+    setExistingDoc(existing);
+    setSleepDurationMinutes(existing.sleep.durationMinutes);
+    setSleepQuality(existing.sleep.qualityScore);
+    if (existing.sleep.bedTime) setBedTime(existing.sleep.bedTime);
+    if (existing.sleep.wakeTime) setWakeTime(existing.sleep.wakeTime);
+    setFatigue(existing.subjective.fatigue || 2);
+    setSoreness(existing.subjective.soreness);
+    setStress(existing.subjective.stress);
+    setMood(existing.subjective.mood || 4);
+    setMotivation(existing.subjective.motivation || 4);
+    setAppetite(existing.subjective.appetite || 4);
+    setIllness(Boolean(existing.subjective.illness));
+    setSoreAreas(existing.subjective.soreAreas || []);
+    setRestingHr(existing.restingHeartRate);
+    setHrvRmssd(existing.hrv?.rmssd);
+    setWeightKg(existing.weightKg);
+    if (existing.notes) setNotes(existing.notes);
+
+    // Re-run readiness engine on the stored data
+    const historicalDays = getAllLocalDailies(athleteId).length;
+    const res = calculateReadiness({
+      date: existing.date,
+      sleep: {
+        durationMinutes: existing.sleep.durationMinutes,
+        qualityScore: existing.sleep.qualityScore
+      },
+      wellness: {
+        fatigue: existing.subjective.fatigue || 2,
+        soreness: existing.subjective.soreness,
+        stress: existing.subjective.stress,
+        mood: existing.subjective.mood || 4,
+        motivation: existing.subjective.motivation || 4,
+        appetite: existing.subjective.appetite,
+        illness: existing.subjective.illness,
+        soreAreas: existing.subjective.soreAreas
+      },
+      biometrics: {
+        hrvRmssd: existing.hrv?.rmssd,
+        restingHr: existing.restingHeartRate,
+        baselineHrvMean: 76,
+        baselineHrvSd: 8,
+        baselineRhrMean: 50
+      },
+      historicalDaysCount: historicalDays
+    });
+    setReadinessResult(res);
+  }, [athleteId]);
+
   // Load daily checkin data for selected date
-  const loadDateData = React.useCallback((targetDate: string) => {
-    const applyDoc = (existing: DailyAggregateDocument) => {
-      setExistingDoc(existing);
-      setSleepDurationMinutes(existing.sleep.durationMinutes);
-      setSleepQuality(existing.sleep.qualityScore);
-      if (existing.sleep.bedTime) setBedTime(existing.sleep.bedTime);
-      if (existing.sleep.wakeTime) setWakeTime(existing.sleep.wakeTime);
-      setFatigue(existing.subjective.fatigue || 2);
-      setSoreness(existing.subjective.soreness);
-      setStress(existing.subjective.stress);
-      setMood(existing.subjective.mood || 4);
-      setMotivation(existing.subjective.motivation || 4);
-      setAppetite(existing.subjective.appetite || 4);
-      setIllness(Boolean(existing.subjective.illness));
-      setSoreAreas(existing.subjective.soreAreas || []);
-      setRestingHr(existing.restingHeartRate);
-      setHrvRmssd(existing.hrv?.rmssd);
-      setWeightKg(existing.weightKg);
-      if (existing.notes) setNotes(existing.notes);
-
-      // Re-run readiness engine on the stored data
-      const historicalDays = getAllLocalDailies(athleteId).length;
-      const res = calculateReadiness({
-        date: existing.date,
-        sleep: {
-          durationMinutes: existing.sleep.durationMinutes,
-          qualityScore: existing.sleep.qualityScore
-        },
-        wellness: {
-          fatigue: existing.subjective.fatigue || 2,
-          soreness: existing.subjective.soreness,
-          stress: existing.subjective.stress,
-          mood: existing.subjective.mood || 4,
-          motivation: existing.subjective.motivation || 4,
-          appetite: existing.subjective.appetite,
-          illness: existing.subjective.illness,
-          soreAreas: existing.subjective.soreAreas
-        },
-        biometrics: {
-          hrvRmssd: existing.hrv?.rmssd,
-          restingHr: existing.restingHeartRate,
-          baselineHrvMean: 76,
-          baselineHrvSd: 8,
-          baselineRhrMean: 50
-        },
-        historicalDaysCount: historicalDays
-      });
-      setReadinessResult(res);
-    };
-
+  const loadDateData = useCallback((targetDate: string) => {
     const existing = getLocalDaily(athleteId, targetDate);
     if (existing) {
       applyDoc(existing);
@@ -165,11 +167,20 @@ export const CheckinPage: React.FC = () => {
         applyDoc(serverDoc);
       }
     });
-  }, [athleteId]);
+  }, [athleteId, applyDoc]);
 
   useEffect(() => {
     loadDateData(selectedDate);
-  }, [selectedDate, loadDateData]);
+
+    // Subscribe to live changes so multi-device edits sync instantly
+    const unsub = subscribeDayCheckin(athleteId, selectedDate, (serverDoc) => {
+      if (serverDoc) {
+        applyDoc(serverDoc);
+      }
+    });
+
+    return () => unsub();
+  }, [selectedDate, loadDateData, athleteId, applyDoc]);
 
   // Bed & Wake time duration calculation
   const handleTimeChange = (bed: string, wake: string) => {
@@ -342,6 +353,9 @@ export const CheckinPage: React.FC = () => {
           allowFuture={false}
         />
       </div>
+
+      {/* Server Sync Status & Cache Notice */}
+      <ServerSyncBanner onRetry={() => loadDateData(selectedDate)} />
 
       {/* If Completed / Computed: Readiness Result Cockpit Card */}
       {readinessResult && (

@@ -315,6 +315,8 @@ export const getAuthErrorMessageKey = (errorCode: string): string => {
       return "auth.errors.tooManyRequests";
     case "auth/operation-not-allowed":
       return "auth.errors.operationNotAllowed";
+    case "auth/account-exists-with-different-credential":
+      return "auth.errors.accountExistsWithDifferentCredential";
     default:
       return "auth.errors.generic";
   }

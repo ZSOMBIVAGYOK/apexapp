@@ -15,7 +15,10 @@ import {
   setDoc,
   deleteDoc,
   query,
-  orderBy
+  orderBy,
+  onSnapshot,
+  getDocsFromServer,
+  Unsubscribe
 } from "firebase/firestore";
 import { CompletedSessionDocument } from "@shared/types/dataModel";
 import { sanitizeForFirestore } from "@shared/lib/firebase/sanitize";
@@ -35,26 +38,28 @@ export interface SessionRevision {
 }
 
 /**
- * Fetch all sessions for an athlete, with local offline cache fallback.
- * By default filters out soft-deleted records.
+ * Real-time listener for athlete sessions.
+ * Immediately invokes callback with updates and indicates whether data came from server or cache.
  */
-export async function getSessions(
+export function subscribeSessions(
   athleteId: string,
-  options: { includeDeleted?: boolean } = {}
-): Promise<CompletedSessionDocument[]> {
-  const localList = getLocalSessions(athleteId);
-
-  if (typeof navigator !== "undefined" && !navigator.onLine) {
-    if (options.includeDeleted) return localList;
-    return localList.filter((s) => !s.deletedAt);
+  onData: (sessions: CompletedSessionDocument[], meta: { fromCache: boolean }) => void,
+  onError?: (err: Error) => void
+): Unsubscribe {
+  if (!athleteId || athleteId === "demo-athlete-001") {
+    const localList = getLocalSessions(athleteId);
+    onData(localList.filter((s) => !s.deletedAt), { fromCache: true });
+    return () => {};
   }
 
-  try {
-    const colRef = collection(db, "athletes", athleteId, "sessions");
-    const q = query(colRef, orderBy("date", "desc"));
-    const snapshot = await getDocs(q);
+  const colRef = collection(db, "athletes", athleteId, "sessions");
+  const q = query(colRef, orderBy("date", "desc"));
 
-    if (!snapshot.empty) {
+  return onSnapshot(
+    q,
+    { includeMetadataChanges: true },
+    (snapshot) => {
+      const fromCache = snapshot.metadata.fromCache;
       const serverSessions: CompletedSessionDocument[] = [];
       snapshot.forEach((d) => {
         const data = d.data() as CompletedSessionDocument;
@@ -64,24 +69,79 @@ export async function getSessions(
         });
       });
 
-      // Update local storage cache
       try {
         localStorage.setItem(`apex_sessions_${athleteId}`, JSON.stringify(serverSessions));
       } catch {
-        // Local storage full
+        // storage fallback
       }
 
-      if (options.includeDeleted) {
-        return serverSessions;
+      if (!fromCache) {
+        useSyncStatusStore.getState().recordServerRead();
       }
-      return serverSessions.filter((s) => !s.deletedAt);
+
+      onData(serverSessions.filter((s) => !s.deletedAt), { fromCache });
+    },
+    (err) => {
+      console.warn("Real-time sessions subscription notice:", err);
+      useSyncStatusStore.getState().setCacheFallback(true, "Nem sikerült elérni a szervert.");
+      onError?.(err);
     }
-  } catch (err) {
-    console.warn("Failed fetching sessions from Firestore, falling back to local cache:", err);
+  );
+}
+
+/**
+ * Fetch all sessions for an athlete, with local offline cache fallback.
+ * By default filters out soft-deleted records.
+ */
+export async function getSessions(
+  athleteId: string,
+  options: { includeDeleted?: boolean; forceServer?: boolean } = {}
+): Promise<CompletedSessionDocument[]> {
+  const localList = getLocalSessions(athleteId);
+
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    useSyncStatusStore.getState().setCacheFallback(true);
+    if (options.includeDeleted) return localList;
+    return localList.filter((s) => !s.deletedAt);
   }
 
-  if (options.includeDeleted) return localList;
-  return localList.filter((s) => !s.deletedAt);
+  try {
+    const colRef = collection(db, "athletes", athleteId, "sessions");
+    const q = query(colRef, orderBy("date", "desc"));
+    const snapshot = options.forceServer ? await getDocsFromServer(q) : await getDocs(q);
+
+    const serverSessions: CompletedSessionDocument[] = [];
+    snapshot.forEach((d) => {
+      const data = d.data() as CompletedSessionDocument;
+      serverSessions.push({
+        ...data,
+        sessionId: data.sessionId || d.id
+      });
+    });
+
+    // Update local storage cache
+    try {
+      localStorage.setItem(`apex_sessions_${athleteId}`, JSON.stringify(serverSessions));
+    } catch {
+      // Local storage full
+    }
+
+    if (!snapshot.metadata.fromCache) {
+      useSyncStatusStore.getState().recordServerRead();
+    } else {
+      useSyncStatusStore.getState().setCacheFallback(true);
+    }
+
+    if (options.includeDeleted) {
+      return serverSessions;
+    }
+    return serverSessions.filter((s) => !s.deletedAt);
+  } catch (err: any) {
+    console.warn("Failed fetching sessions from Firestore, falling back to local cache:", err);
+    useSyncStatusStore.getState().setCacheFallback(true, err?.message || "Nem sikerült elérni a szervert.");
+    if (options.includeDeleted) return localList;
+    return localList.filter((s) => !s.deletedAt);
+  }
 }
 
 /**
@@ -136,6 +196,7 @@ export async function saveSession(session: CompletedSessionDocument): Promise<Co
     const cleanDoc = sanitizeForFirestore(normalized);
     await setDoc(sessionRef, cleanDoc, { merge: true });
 
+    useSyncStatusStore.getState().recordServerWrite();
     useSyncStatusStore.getState().setSaved();
     return normalized;
   } catch (err: any) {

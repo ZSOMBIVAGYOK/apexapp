@@ -1,6 +1,10 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, connectAuthEmulator } from "firebase/auth";
-import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
+import {
+  getFirestore,
+  initializeFirestore,
+  connectFirestoreEmulator
+} from "firebase/firestore";
 import { getStorage, connectStorageEmulator } from "firebase/storage";
 import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
 import { getMessaging, isSupported } from "firebase/messaging";
@@ -19,7 +23,19 @@ const firebaseConfig = {
 export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
 export const auth = getAuth(app);
-export const firestore = getFirestore(app);
+
+// Use initializeFirestore with experimentalAutoDetectLongPolling for reliable iOS/Safari and mobile network sync
+function getOrInitFirestore() {
+  try {
+    return initializeFirestore(app, {
+      experimentalAutoDetectLongPolling: true
+    });
+  } catch {
+    return getFirestore(app);
+  }
+}
+
+export const firestore = getOrInitFirestore();
 export const db = firestore;
 export const storage = getStorage(app);
 export const functions = getFunctions(app);
@@ -49,20 +65,41 @@ export const getCloudMessaging = async () => {
   return null;
 };
 
+// App Check status tracking
+export let appCheckStatus: {
+  configured: boolean;
+  active: boolean;
+  error: string | null;
+} = {
+  configured: Boolean(import.meta.env.VITE_RECAPTCHA_ENTERPRISE_KEY),
+  active: false,
+  error: null
+};
+
 // App Check initialization (reCAPTCHA Enterprise / Debug Token)
 export const initAppCheck = () => {
   if (typeof window === "undefined") return null;
   const siteKey = import.meta.env.VITE_RECAPTCHA_ENTERPRISE_KEY;
-  if (!siteKey) return null;
+  if (!siteKey) {
+    appCheckStatus = { configured: false, active: false, error: null };
+    return null;
+  }
   try {
-    // Dynamic import to keep main bundle lean
     import("firebase/app-check").then(({ initializeAppCheck, ReCaptchaEnterpriseProvider }) => {
-      initializeAppCheck(app, {
-        provider: new ReCaptchaEnterpriseProvider(siteKey),
-        isTokenAutoRefreshEnabled: true
-      });
+      try {
+        initializeAppCheck(app, {
+          provider: new ReCaptchaEnterpriseProvider(siteKey),
+          isTokenAutoRefreshEnabled: true
+        });
+        appCheckStatus = { configured: true, active: true, error: null };
+      } catch (innerErr: any) {
+        appCheckStatus = { configured: true, active: false, error: innerErr?.message || "Inicializálási hiba" };
+      }
+    }).catch((err) => {
+      appCheckStatus = { configured: true, active: false, error: err?.message || "Modul betöltési hiba" };
     });
-  } catch (err) {
+  } catch (err: any) {
+    appCheckStatus = { configured: true, active: false, error: err?.message || "App Check hiba" };
     // eslint-disable-next-line no-console
     console.warn("App Check initialization error:", err);
   }

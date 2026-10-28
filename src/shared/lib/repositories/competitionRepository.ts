@@ -13,7 +13,10 @@ import {
   setDoc,
   deleteDoc,
   query,
-  orderBy
+  orderBy,
+  onSnapshot,
+  getDocsFromServer,
+  Unsubscribe
 } from "firebase/firestore";
 import { sanitizeForFirestore } from "@shared/lib/firebase/sanitize";
 import { useSyncStatusStore } from "@shared/lib/sync/syncStatusStore";
@@ -52,13 +55,53 @@ function setLocalCompetitions(athleteId: string, items: CompetitionItem[]) {
   }
 }
 
+/**
+ * Real-time listener for athlete competitions.
+ */
+export function subscribeCompetitions(
+  athleteId: string,
+  onData: (items: CompetitionItem[], meta: { fromCache: boolean }) => void,
+  onError?: (err: Error) => void
+): Unsubscribe {
+  if (!athleteId || athleteId === "demo-athlete-001") {
+    const local = getLocalCompetitions(athleteId);
+    onData(local.filter((c) => !c.deletedAt), { fromCache: true });
+    return () => {};
+  }
+
+  const colRef = collection(db, "athletes", athleteId, "competitions");
+  const q = query(colRef, orderBy("date", "asc"));
+
+  return onSnapshot(
+    q,
+    { includeMetadataChanges: true },
+    (snap) => {
+      const fromCache = snap.metadata.fromCache;
+      const list: CompetitionItem[] = [];
+      snap.forEach((d) => {
+        const item = d.data() as CompetitionItem;
+        list.push({ ...item, id: item.id || d.id });
+      });
+      setLocalCompetitions(athleteId, list);
+      if (!fromCache) useSyncStatusStore.getState().recordServerRead();
+      onData(list.filter((c) => !c.deletedAt), { fromCache });
+    },
+    (err) => {
+      console.warn("Real-time competitions notice:", err);
+      useSyncStatusStore.getState().setCacheFallback(true);
+      onError?.(err);
+    }
+  );
+}
+
 export async function getCompetitions(
   athleteId: string,
-  options: { includeDeleted?: boolean } = {}
+  options: { includeDeleted?: boolean; forceServer?: boolean } = {}
 ): Promise<CompetitionItem[]> {
   const localList = getLocalCompetitions(athleteId);
 
   if (typeof navigator !== "undefined" && !navigator.onLine) {
+    useSyncStatusStore.getState().setCacheFallback(true);
     if (options.includeDeleted) return localList;
     return localList.filter((c) => !c.deletedAt);
   }
@@ -66,27 +109,30 @@ export async function getCompetitions(
   try {
     const colRef = collection(db, "athletes", athleteId, "competitions");
     const q = query(colRef, orderBy("date", "asc"));
-    const snap = await getDocs(q);
+    const snap = options.forceServer ? await getDocsFromServer(q) : await getDocs(q);
 
-    if (!snap.empty) {
-      const serverList: CompetitionItem[] = [];
-      snap.forEach((d) => {
-        const data = d.data() as CompetitionItem;
-        serverList.push({
-          ...data,
-          id: data.id || d.id
-        });
+    const serverList: CompetitionItem[] = [];
+    snap.forEach((d) => {
+      const data = d.data() as CompetitionItem;
+      serverList.push({
+        ...data,
+        id: data.id || d.id
       });
-      setLocalCompetitions(athleteId, serverList);
-      if (options.includeDeleted) return serverList;
-      return serverList.filter((c) => !c.deletedAt);
+    });
+    setLocalCompetitions(athleteId, serverList);
+    if (!snap.metadata.fromCache) {
+      useSyncStatusStore.getState().recordServerRead();
+    } else {
+      useSyncStatusStore.getState().setCacheFallback(true);
     }
-  } catch (err) {
+    if (options.includeDeleted) return serverList;
+    return serverList.filter((c) => !c.deletedAt);
+  } catch (err: any) {
     console.warn("Failed fetching competitions from Firestore, using local:", err);
+    useSyncStatusStore.getState().setCacheFallback(true, err?.message);
+    if (options.includeDeleted) return localList;
+    return localList.filter((c) => !c.deletedAt);
   }
-
-  if (options.includeDeleted) return localList;
-  return localList.filter((c) => !c.deletedAt);
 }
 
 export async function saveCompetition(
@@ -120,6 +166,7 @@ export async function saveCompetition(
   try {
     const docRef = doc(db, "athletes", athleteId, "competitions", normalized.id);
     await setDoc(docRef, sanitizeForFirestore(normalized), { merge: true });
+    useSyncStatusStore.getState().recordServerWrite();
     useSyncStatusStore.getState().setSaved();
   } catch (err: any) {
     console.warn("Failed saving competition to Firestore:", err);

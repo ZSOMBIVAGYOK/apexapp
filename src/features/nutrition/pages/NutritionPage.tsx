@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Card,
@@ -7,7 +7,8 @@ import {
   Toggle,
   Tabs,
   DaySwitcher,
-  showToast
+  showToast,
+  ServerSyncBanner
 } from "@shared/ui";
 import {
   Plus,
@@ -43,7 +44,7 @@ import { BodyMetricsTab } from "../components/BodyMetricsTab";
 import { DietitianPlanModal } from "../components/DietitianPlanModal";
 import { HydrationTrackerCard } from "../components/HydrationTrackerCard";
 import { useAuthStore } from "@features/auth/authStore";
-import { getNutritionDay, saveNutritionDay } from "@shared/lib/repositories/nutritionRepository";
+import { getNutritionDay, saveNutritionDay, subscribeNutritionDay } from "@shared/lib/repositories/nutritionRepository";
 import {
   normalizeNutritionMeals,
   CANONICAL_MEAL_TYPES,
@@ -402,19 +403,35 @@ export const NutritionPage: React.FC = () => {
   const [showFuellingModal, setShowFuellingModal] = useState(false);
   const [showDietitianPlanModal, setShowDietitianPlanModal] = useState(false);
 
-  // Load daily meals from nutrition repository on user/date change
+  const isRemoteUpdate = useRef(false);
+
+  // Subscribe to daily meals in real time on user/date change
   useEffect(() => {
-    if (user?.uid) {
-      getNutritionDay(user.uid, selectedDate).then((serverData) => {
+    if (!user?.uid) return;
+    const unsub = subscribeNutritionDay(
+      user.uid,
+      selectedDate,
+      (serverData) => {
         if (serverData?.meals) {
+          isRemoteUpdate.current = true;
           setMeals(normalizeNutritionMeals(serverData.meals));
+        } else if (!serverData) {
+          if (import.meta.env.PROD || user?.uid !== "demo-athlete-001") {
+            isRemoteUpdate.current = true;
+            setMeals(normalizeNutritionMeals(null));
+          }
         }
-      });
-    }
+      }
+    );
+    return () => unsub();
   }, [user?.uid, selectedDate]);
 
   // Persist meals to local storage and Firestore
   useEffect(() => {
+    if (isRemoteUpdate.current) {
+      isRemoteUpdate.current = false;
+      return;
+    }
     try {
       const storageKey = getUserStorageKey("daily_nutrition_data", user?.uid);
       localStorage.setItem(storageKey, JSON.stringify(meals));
@@ -613,6 +630,17 @@ export const NutritionPage: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      {/* Server Sync Status Banner */}
+      <ServerSyncBanner
+        onRetry={() => {
+          if (user?.uid) {
+            getNutritionDay(user.uid, selectedDate, { forceServer: true }).then((data) => {
+              if (data?.meals) setMeals(normalizeNutritionMeals(data.meals));
+            });
+          }
+        }}
+      />
 
       {/* Target Provenance & Sensitive-use Safeguard Bar */}
       <div className="rounded-16 bg-bg-surface p-4 border border-border-hairline flex flex-col md:flex-row md:items-center justify-between gap-4">

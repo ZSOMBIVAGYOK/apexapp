@@ -86,6 +86,7 @@
       "networkError": "Hálózati hiba. Ellenőrizd az internetkapcsolatot.",
       "tooManyRequests": "Túl sok sikertelen próbálkozás. Próbáld újra kicsit később.",
       "operationNotAllowed": "Ez a bejelentkezési mód jelenleg nem engedélyezett.",
+      "accountExistsWithDifferentCredential": "Ezzel az e-mail címmel már létezik fiók egy másik bejelentkezési móddal (pl. jelszó vagy Google). Kérjük, használd az eredeti bejelentkezési módot a meglévő adataid eléréséhez!",
       "generic": "Hitelesítési hiba lépett fel. Kérjük, próbáld újra."
     }
   },

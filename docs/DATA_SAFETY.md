@@ -105,3 +105,71 @@ A rendszerbe beépítettünk egy automatikus helyreállító modult (`recoveryRo
 1. Átvizsgálja a `localStorage` területet korábbi árva kulcsok után (`apex_sessions_*`, `apex_planned_workouts_*`, `apex_offline_mutation_queue`).
 2. Ha talál olyan mentett edzést vagy check-in-t, amely még nem került fel a Firestore szerverre, automatikusan megtisztítja az `undefined` értékektől, hozzáadja a `schemaVersion: 1` fejlécet, és szinkronizálja a felhőbe.
 3. Ez garantálja, hogy a korábbi verzióban a helyi böngészőben rekedt adatok sem vesznek el!
+
+---
+
+## 5. Többeszközös szinkronizáció és éles diagnosztika (Cross-Device Synchronization & Production Diagnosis)
+
+A felhasználó által jelzett hiba: **a laptopon felvitt edzés nem jelent meg a telefonon**, az adatok csak az adott készüléken maradtak meg.
+Az éles környezetben (`zsombor-etrend.web.app`) lefolytatott részletes vizsgálat a gyanúsított tényezőkre (a-tól h-ig) az alábbi eredményt hozta:
+
+### Éles vizsgálati eredmények (Production Diagnosis: a-h)
+
+#### (a) App Check kikényszerítés (App Check Enforcement)
+- **Eredmény:** *Kizárva mint blokkoló tényező, de felügyelt.*
+- Az éles Firestore és Storage hívások közvetlen teszteléssel (`test_firestore_connection.ts`) szerveroldali választ adtak. A felületen mostantól a **Beállítások -> Rendszer & Szinkronizáció** kártya közvetlenül kiírja az App Check állapotát (`Aktív / Elérhető`), így ha a reCAPTCHA vagy domain beállítás elromlana, az azonnal láthatóvá válik hibaüzenet formájában, nem pedig csendes hibaként.
+
+#### (b) Végtelenül függőben lévő írások (Writes Pending Forever)
+- **Eredmény:** *Valós másodlagos kockázat volt.*
+- Amikor egy Firestore írás megszakadt vagy lassú hálózaton beragadt, a helyi cache azonnal visszajelezte a sikert a felületnek, miközben a háttérben az írás sosem ért célba.
+- **Javítás:** A rendszer mostantól szerveroldali visszaigazolást (`recordServerWrite`, `waitForPendingWrites`) vár, és a felső szinkronsávban (`ServerSyncBanner`) azonnal jelzi: *"✓ Szerverről szinkronizálva"* vagy *"Nem sikerült elérni a szervert (helyi gyorsítótárból olvasva)"*. A Beállítások menüben látható a függőben lévő írások száma (`Függőben lévő írások: 0`).
+
+#### (c) Kizárólag gyorsítótárból (cache) olvasott adatok
+- **Eredmény:** *FŐ GYÖKÉROK (Major Root Cause).*
+- A korábbi architektúrában a telefonon megnyitott oldal egy egyszeri `getDocs()` hívást végzett. Ha az új eszközön a gyorsítótár üres volt és a hálózati kapcsolat lassan vagy hibával épült fel, a kód elnyelte a hibát és üres tömböt adott vissza. Ráadásul nem volt valós idejű kapcsolat: ha a laptopon rögzítettek egy edzést, a telefon sosem frissült automatikusan.
+- **Javítás:** Minden modul valós idejű `onSnapshot` feliratkozást (`subscribeSessions`, `subscribePlannedWorkouts`, `subscribeDayCheckin`, `subscribeNutritionDay`, `subscribeCompetitions`) kapott `includeMetadataChanges: true` beállítással. Amint a laptopon létrejön egy edzés a felhőben, a telefon másodperceken belül, oldalújratöltés nélkül megkapja! Továbbá a Beállítások menüben megjelent a **"Teljes frissítés a szerverről"** gomb, amely törli a helyi memóriagyorsítótárat és kényszerített szerveroldali lekérést végez (`getDocsFromServer`).
+
+#### (d) Eltérő felhasználói identitások és kettős fiókok (UID Split)
+- **Eredmény:** *Valós emberi/technikai tényező.*
+- Gyakori eset, hogy a sportoló a laptopon Google-fiókkal (pl. `nev@gmail.com`) lép be, míg a telefonon e-mail + jelszóval regisztrál, vagy fordítva. Mivel a Firebase Authentication alapértelmezetten más-más `UID`-t generálhat különböző fiókokhoz, a két eszköz két teljesen különálló sportolói dokumentumhoz (`athletes/{uid1}` vs `athletes/{uid2}`) fért hozzá!
+- **Javítás:**
+  1. A Beállítások -> Szinkronizáció felületen jól láthatóan megjelenik a bejelentkezett **E-mail cím**, a **Bejelentkezési mód** (Google vagy Jelszó) és a **Felhasználói azonosító (UID)** rövidített formája. Így a sportoló egyetlen pillantással ellenőrizheti, hogy ugyanabba a fiókba van-e belépve mindkét eszközön.
+  2. A bejelentkezési rétegben felkészültünk az `auth/account-exists-with-different-credential` esetre: a rendszer világosan tájékoztatja a felhasználót, ha már létezik fiókja a másik módszerrel, megakadályozva a fiókok szétválását.
+
+#### (e) Útvonal- és UID eltérés a mentés és olvasás között (Path Mismatch)
+- **Eredmény:** *Auditálva, minden modul egységesítve.*
+- Minden adat az `athletes/{auth.currentUser.uid}/{subcollection}/{docId}` útvonalra kerül (edzések: `sessions`, tervezett edzések: `plannedWorkouts`, check-in: `days`, étrend: `nutritionDays`, célversenyek: `competitions`). Nincs hardkódolt azonosító, nincs elgépelt kollekciónév.
+
+#### (f) Safari / iOS WebChannel és HTTP/2 kapcsolatbontás
+- **Eredmény:** *Valós mobilplatform-specifikus hiba.*
+- Mobilon (különösen Safari és iOS WebKit alatt) az energiatakarékossági mechanizmusok és a mobilhálózatok gyakran bontják az állandó WebChannel adatfolyamokat, amikor az alkalmazás háttérbe kerül vagy képernyőzár aktiválódik. Újranyitáskor a stream sokszor "fagyott" állapotban maradt, megakadályozva a friss adatok érkezését.
+- **Javítás:** A Firestore inicializálást kiegészítettük az `experimentalAutoDetectLongPolling: true` konfigurációval:
+  ```ts
+  initializeFirestore(app, {
+    experimentalAutoDetectLongPolling: true
+  });
+  ```
+  Ez automatikusan átvált megbízható HTTP long-pollingra, ha a streaming megszakad.
+
+#### (g) PWA / Service Worker elavult gyorsítótár
+- **Eredmény:** *Kezelve.*
+- A PWA Service Worker korábban régi kliens kódot tarthatott meg. A verziószámot és a build azonosítót rögzítettük (`v1.2.1 (build 20261028-sync)`), és a felület automatikusan jelzi, ha új verzió érhető el.
+
+#### (h) Csak helyi tárhelyen maradó adatok
+- **Eredmény:** *Megszüntetve.*
+- Minden adatmodell (edzések, étrend, check-in, versenyek) átkerült a centralizált Firestore repository rétegbe, ahol minden mentési művelet elsődleges célpontja a felhő, a helyi tárhely csupán offline védelmi rétegként szolgál.
+
+---
+
+## 6. Beépített diagnosztikai eszközök (Settings -> Rendszer & Szinkronizáció)
+
+A Beállítások menüben kialakítottunk egy dedikált diagnosztikai panelt:
+1. **Projekt azonosító:** `zsombor-etrend` (megerősíti, hogy a megfelelő adatbázishoz csatlakozik a kliens).
+2. **Alkalmazás verzió:** `v1.2.1 (build 20261028-sync)`.
+3. **Bejelentkezett fiók:** E-mail cím és szolgáltató (Google / Jelszó) + UID.
+4. **Hálózati állapot:** Kapcsolódva a szerverhez / Helyi gyorsítótár.
+5. **Legutóbbi szerver műveletek:** Utolsó szerveroldali olvasás és írás pontos időbélyege.
+6. **Szerver teszt (Ping):** Egyetlen gombnyomással teszteli az élő Firestore írást, azonnali szerveroldali visszaolvasást és törlést. Zöld pipa jelzi a sikert, hiba esetén a pontos hálózati ok jelenik meg.
+7. **Teljes frissítés a szerverről:** Törli a helyi gyorsítótárat és kényszeríti a Firestore adatok újratöltését.
+8. **Hibajelentés másolása:** Egyetlen kattintással a vágólapra másolja az összes diagnosztikai állapotot, megkönnyítve a hibakeresést.
+

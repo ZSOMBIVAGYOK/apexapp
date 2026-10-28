@@ -13,7 +13,10 @@ import {
   setDoc,
   deleteDoc,
   query,
-  orderBy
+  orderBy,
+  onSnapshot,
+  getDocsFromServer,
+  Unsubscribe
 } from "firebase/firestore";
 import { PlannedWorkout } from "@shared/types/training";
 import { sanitizeForFirestore } from "@shared/lib/firebase/sanitize";
@@ -39,25 +42,27 @@ function setLocalWorkouts(athleteId: string, workouts: PlannedWorkout[]) {
 }
 
 /**
- * Fetch all planned workouts for an athlete.
+ * Real-time listener for athlete planned workouts.
  */
-export async function getPlannedWorkouts(
+export function subscribePlannedWorkouts(
   athleteId: string,
-  options: { includeDeleted?: boolean } = {}
-): Promise<PlannedWorkout[]> {
-  const localList = getLocalWorkouts(athleteId);
-
-  if (typeof navigator !== "undefined" && !navigator.onLine) {
-    if (options.includeDeleted) return localList;
-    return localList.filter((w) => !w.deletedAt);
+  onData: (workouts: PlannedWorkout[], meta: { fromCache: boolean }) => void,
+  onError?: (err: Error) => void
+): Unsubscribe {
+  if (!athleteId || athleteId === "demo-athlete-001") {
+    const local = getLocalWorkouts(athleteId);
+    onData(local.filter((w) => !w.deletedAt), { fromCache: true });
+    return () => {};
   }
 
-  try {
-    const colRef = collection(db, "athletes", athleteId, "plannedWorkouts");
-    const q = query(colRef, orderBy("date", "desc"));
-    const snapshot = await getDocs(q);
+  const colRef = collection(db, "athletes", athleteId, "plannedWorkouts");
+  const q = query(colRef, orderBy("date", "desc"));
 
-    if (!snapshot.empty) {
+  return onSnapshot(
+    q,
+    { includeMetadataChanges: true },
+    (snapshot) => {
+      const fromCache = snapshot.metadata.fromCache;
       const serverWorkouts: PlannedWorkout[] = [];
       snapshot.forEach((d) => {
         const data = d.data() as PlannedWorkout;
@@ -69,17 +74,67 @@ export async function getPlannedWorkouts(
 
       setLocalWorkouts(athleteId, serverWorkouts);
 
-      if (options.includeDeleted) {
-        return serverWorkouts;
+      if (!fromCache) {
+        useSyncStatusStore.getState().recordServerRead();
       }
-      return serverWorkouts.filter((w) => !w.deletedAt);
+
+      onData(serverWorkouts.filter((w) => !w.deletedAt), { fromCache });
+    },
+    (err) => {
+      console.warn("Real-time workouts subscription notice:", err);
+      useSyncStatusStore.getState().setCacheFallback(true, "Nem sikerült elérni a szervert.");
+      onError?.(err);
     }
-  } catch (err) {
-    console.warn("Failed fetching planned workouts from Firestore, using local cache:", err);
+  );
+}
+
+/**
+ * Fetch all planned workouts for an athlete.
+ */
+export async function getPlannedWorkouts(
+  athleteId: string,
+  options: { includeDeleted?: boolean; forceServer?: boolean } = {}
+): Promise<PlannedWorkout[]> {
+  const localList = getLocalWorkouts(athleteId);
+
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    useSyncStatusStore.getState().setCacheFallback(true);
+    if (options.includeDeleted) return localList;
+    return localList.filter((w) => !w.deletedAt);
   }
 
-  if (options.includeDeleted) return localList;
-  return localList.filter((w) => !w.deletedAt);
+  try {
+    const colRef = collection(db, "athletes", athleteId, "plannedWorkouts");
+    const q = query(colRef, orderBy("date", "desc"));
+    const snapshot = options.forceServer ? await getDocsFromServer(q) : await getDocs(q);
+
+    const serverWorkouts: PlannedWorkout[] = [];
+    snapshot.forEach((d) => {
+      const data = d.data() as PlannedWorkout;
+      serverWorkouts.push({
+        ...data,
+        id: data.id || d.id
+      });
+    });
+
+    setLocalWorkouts(athleteId, serverWorkouts);
+
+    if (!snapshot.metadata.fromCache) {
+      useSyncStatusStore.getState().recordServerRead();
+    } else {
+      useSyncStatusStore.getState().setCacheFallback(true);
+    }
+
+    if (options.includeDeleted) {
+      return serverWorkouts;
+    }
+    return serverWorkouts.filter((w) => !w.deletedAt);
+  } catch (err: any) {
+    console.warn("Failed fetching planned workouts from Firestore, using local cache:", err);
+    useSyncStatusStore.getState().setCacheFallback(true, err?.message || "Nem sikerült elérni a szervert.");
+    if (options.includeDeleted) return localList;
+    return localList.filter((w) => !w.deletedAt);
+  }
 }
 
 /**
@@ -114,6 +169,7 @@ export async function savePlannedWorkout(workout: PlannedWorkout): Promise<Plann
     const workoutRef = doc(db, "athletes", normalized.athleteId, "plannedWorkouts", normalized.id);
     const cleanDoc = sanitizeForFirestore(normalized);
     await setDoc(workoutRef, cleanDoc, { merge: true });
+    useSyncStatusStore.getState().recordServerWrite();
     useSyncStatusStore.getState().setSaved();
     return normalized;
   } catch (err: any) {

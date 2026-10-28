@@ -171,6 +171,11 @@ service cloud.firestore {
         allow read: if canReadModule(athleteId, 'training');
         allow write: if canWriteModule(athleteId, 'training');
       }
+
+      // Subcollection: _diagnostics (Self-test & health check)
+      match /_diagnostics/{docId} {
+        allow read, write, delete: if isUser(athleteId);
+      }
     }
 
     // 3. Relationships collection (relationships/{relId})
