@@ -34,7 +34,7 @@ export const WeekStrip: React.FC<WeekStripProps> = ({
     <div
       role="region"
       aria-label="Heti edzésnaptár"
-      className={`rounded-20 border border-border-hairline bg-bg-surface p-4 shadow-sm ${className}`}
+      className={`rounded-card border border-border/60 bg-bg-surface-solid dark:bg-bg-surface p-4 shadow-sm ${className}`}
     >
       {(title || onPrevWeek || onNextWeek) && (
         <div className="flex items-center justify-between mb-3 text-12">
@@ -80,9 +80,9 @@ export const WeekStrip: React.FC<WeekStripProps> = ({
               role="tab"
               aria-selected={isSelected}
               onClick={() => onSelectDate(day.date)}
-              className={`flex flex-col items-center justify-center py-2.5 px-1 rounded-12 transition-all duration-200 ease-apex-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
+              className={`touch-target flex flex-col items-center justify-center py-2.5 px-1 rounded-14 transition-all duration-120 ease-spring active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
                 isSelected
-                  ? "bg-brand text-white shadow-sm"
+                  ? "bg-brand text-white shadow-sm dark:shadow-[0_2px_8px_rgba(61,123,255,0.35)]"
                   : day.isToday
                   ? "bg-bg-elevated border border-border-subtle text-text-primary font-semibold"
                   : "hover:bg-bg-elevated text-text-secondary hover:text-text-primary"

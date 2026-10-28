@@ -14,7 +14,7 @@ export type SportType =
   | "stand_up_paddling"
   | "mobility"
   | "other"
-  | (string & {});
+  | (string & Record<never, never>);
 
 export type TargetMetricType = "rpe" | "hr_zone" | "power" | "pace" | "custom";
 
@@ -67,7 +67,7 @@ export type TrainingBlockType =
   | "interval"
   | "strength"
   | "recovery"
-  | (string & {});
+  | (string & Record<never, never>);
 
 export type WorkoutBlockType = TrainingBlockType;
 

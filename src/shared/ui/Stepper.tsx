@@ -40,13 +40,13 @@ export const Stepper: React.FC<StepperProps> = ({
                   type="button"
                   disabled={!isClickable}
                   onClick={() => isClickable && onStepClick(idx)}
-                  className={`h-8 w-8 rounded-full flex items-center justify-center text-12 font-semibold transition-all duration-200 ${
+                  className={`touch-target h-8 w-8 rounded-full flex items-center justify-center text-12 font-semibold transition-all duration-160 ease-spring ${
                     isCompleted
                       ? "bg-brand text-white shadow-sm"
                       : isActive
-                      ? "bg-bg-elevated border-2 border-brand text-brand shadow-sm"
-                      : "bg-bg-surface border border-border-hairline text-text-tertiary"
-                  } ${isClickable ? "cursor-pointer hover:scale-105" : "cursor-default"}`}
+                      ? "bg-bg-elevated border-2 border-brand text-brand shadow-glass-sm"
+                      : "bg-bg-surface-solid dark:bg-white/[0.05] border border-border/60 text-text-tertiary"
+                  } ${isClickable ? "cursor-pointer hover:scale-105 active:scale-95" : "cursor-default"}`}
                 >
                   {isCompleted ? (
                     <Check className="h-4 w-4" aria-hidden="true" />
@@ -56,7 +56,7 @@ export const Stepper: React.FC<StepperProps> = ({
                 </button>
 
                 <span
-                  className={`mt-2 text-12 font-medium truncate max-w-[80px] text-center ${
+                  className={`mt-2 text-12 font-medium truncate max-w-[80px] text-center select-none ${
                     isActive
                       ? "text-text-primary font-semibold"
                       : isCompleted
@@ -71,8 +71,8 @@ export const Stepper: React.FC<StepperProps> = ({
               {/* Connecting Line */}
               {idx !== steps.length - 1 && (
                 <div
-                  className={`h-0.5 flex-1 mx-2 -mt-5 transition-colors duration-200 ${
-                    idx < currentStep ? "bg-brand" : "bg-border-hairline"
+                  className={`flex-1 h-0.5 mx-2 rounded-full transition-colors duration-200 ${
+                    idx < currentStep ? "bg-brand" : "bg-border/60"
                   }`}
                   aria-hidden="true"
                 />

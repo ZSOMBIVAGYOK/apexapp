@@ -81,12 +81,12 @@ export function Select<T extends string = string>({
         disabled={disabled}
         onClick={() => !disabled && setIsOpen(!isOpen)}
         onKeyDown={handleKeyDown}
-        className={`w-full h-10 px-3.5 rounded-12 border bg-bg-surface text-14 text-left flex items-center justify-between transition-all duration-200 ease-apex-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-40 disabled:cursor-not-allowed ${
+        className={`w-full h-11 px-3.5 rounded-control border bg-bg-surface-solid dark:bg-white/[0.05] text-16 sm:text-14 text-left flex items-center justify-between transition-all duration-160 ease-spring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30 focus-visible:border-brand disabled:opacity-40 disabled:cursor-not-allowed shadow-inner ${
           error
-            ? "border-status-rest"
+            ? "border-status-rest ring-1 ring-status-rest/30"
             : isOpen
             ? "border-brand ring-2 ring-brand/20"
-            : "border-border-hairline hover:border-border-subtle"
+            : "border-border/60 hover:border-border"
         }`}
       >
         <span className="flex items-center gap-2 truncate text-text-primary">
@@ -107,7 +107,7 @@ export function Select<T extends string = string>({
           role="listbox"
           tabIndex={-1}
           aria-labelledby={`${id}-label`}
-          className="absolute z-50 mt-1 w-full rounded-12 border border-border-hairline bg-bg-elevated p-1 shadow-elevated max-h-60 overflow-y-auto focus:outline-none"
+          className="absolute z-50 mt-1 w-full rounded-control border border-border/60 glass-thick p-1.5 shadow-glass-lg max-h-60 overflow-y-auto focus:outline-none"
         >
           {options.map((opt) => {
             const isSelected = opt.value === value;
@@ -120,17 +120,17 @@ export function Select<T extends string = string>({
                   onChange(opt.value);
                   setIsOpen(false);
                 }}
-                className={`flex items-center justify-between px-3 py-2 text-14 rounded-12 cursor-pointer transition-colors ${
+                className={`flex items-center justify-between px-3 py-2 text-14 rounded-10 cursor-pointer transition-colors ${
                   isSelected
-                    ? "bg-brand/10 text-brand font-semibold"
-                    : "text-text-primary hover:bg-bg-surface"
+                    ? "bg-brand/15 text-brand font-semibold"
+                    : "text-text-primary hover:bg-bg-elevated dark:hover:bg-white/[0.08]"
                 }`}
               >
                 <div className="flex items-center gap-2 truncate">
                   {opt.icon && <span>{opt.icon}</span>}
                   <span>{opt.label}</span>
                 </div>
-                {isSelected && <Check className="h-4 w-4 shrink-0" aria-hidden="true" />}
+                {isSelected && <Check className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />}
               </li>
             );
           })}

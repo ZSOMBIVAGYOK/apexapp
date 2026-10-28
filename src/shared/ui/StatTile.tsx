@@ -55,9 +55,9 @@ export const StatTile: React.FC<StatTileProps> = ({
           onClick?.(e as unknown as React.MouseEvent<HTMLDivElement>);
         }
       }}
-      className={`rounded-20 border border-border-hairline bg-bg-surface p-4 sm:p-5 transition-all duration-200 ease-apex-out shadow-sm flex flex-col justify-between ${
+      className={`rounded-card border border-border/60 bg-bg-surface-solid dark:bg-bg-surface p-4 sm:p-5 transition-all duration-160 ease-spring shadow-sm flex flex-col justify-between ${
         isClickable
-          ? "cursor-pointer hover:bg-bg-elevated hover:border-border-subtle active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          ? "cursor-pointer hover:bg-bg-elevated hover:border-border active:scale-[0.985] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
           : ""
       } ${className}`}
       {...props}

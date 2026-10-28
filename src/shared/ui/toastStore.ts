@@ -10,6 +10,10 @@ export interface ToastItem {
   type?: ToastType;
   variant?: ToastType;
   durationMs?: number;
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
 }
 
 interface ToastState {

@@ -54,7 +54,7 @@ export type StandardSport =
   | "yoga"
   | "pilates"
   | "other"
-  | (string & {});
+  | (string & Record<never, never>);
 
 export interface NormalizedLap {
   index: number;

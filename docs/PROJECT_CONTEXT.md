@@ -39,25 +39,32 @@
 
 ---
 
-## 2. Design Tokens & Design System
+## 2. Liquid Glass Design System & Design Tokens
 
-### A. Color Tokens
-Defined via CSS variables in [src/app/index.css](file:///Users/zsombi/Downloads/oly/src/app/index.css) and wired into [tailwind.config.js](file:///Users/zsombi/Downloads/oly/tailwind.config.js):
+Detailed reference documented in [docs/DESIGN_SYSTEM.md](file:///Users/zsombi/Downloads/oly/docs/DESIGN_SYSTEM.md) and [src/shared/ui/tokens/](file:///Users/zsombi/Downloads/oly/src/shared/ui/tokens/index.ts).
+
+### A. Color & Material Tokens
 - **Dark Theme (Default):**
-  - Background: `#0B0C0F` (`bg-primary`)
-  - Surface: `#14161B` (`bg-surface`)
+  - Base Background: `#07080B` (`bg-primary`)
+  - Content Surface: `rgba(255, 255, 255, 0.05)` with solid fallback `#14161B` (`bg-surface`)
   - Elevated: `#1C1F26` (`bg-elevated`)
-  - Hairline Border: `rgba(255, 255, 255, 0.08)` (`border-hairline`)
-  - Text Primary: `#F5F6F8` (`text-primary`)
-  - Text Secondary: `#9AA1AD` (`text-secondary`)
-  - Text Tertiary: `#606877` (`text-tertiary`)
-- **Light Theme (Manual or System Override):**
-  - Background: `#F5F6F8` (`bg-primary`)
-  - Surface: `#FFFFFF` (`bg-surface`)
-  - Elevated: `#FFFFFF` with soft layered shadow (`bg-elevated`)
-  - Hairline Border: `rgba(0, 0, 0, 0.08)` (`border-hairline`)
-  - Text Primary: `#0B0C0F` (`text-primary`)
-  - Text Secondary: `#5B6270` (`text-secondary`)
+  - Hairline Border: `rgba(255, 255, 255, 0.08)`
+  - Text Primary: `#F5F6F8`, Secondary: `#A3AAB6`, Tertiary: `#6F7785`
+  - Accent: `#3D7BFF` (Apex blue)
+  - Status: `#34D399` (ready), `#FBBF24` (caution), `#F87171` (rest)
+- **Light Theme:**
+  - Base Background: `#F2F4F8`
+  - Content Surface: `#FFFFFF`
+  - Elevated: `#FFFFFF` with soft shadow
+  - Hairline Border: `rgba(11, 12, 15, 0.08)`
+  - Text Primary: `#0B0C0F`, Secondary: `#4F5663`, Tertiary: `#7C8493`
+- **Liquid Glass Materials:**
+  - `glass-thin` (20px blur, 180% sat) for floating tab bar and top bar
+  - `glass-regular` (28px blur, 180% sat) for sheets and toasts
+  - `glass-thick` (40px blur, 180% sat) for modals
+  - `glass-lens` for sliding segmented lens indicators
+  - Performance modes: `full` (real-time blur), `reduced` (8px blur), `none` (solid opaque)
+  - Static ambient background gradient mesh at `-z-10` with zero layout thrash.
   - Text Tertiary: `#8B93A0` (`text-tertiary`)
 - **Accent (Brand):**
   - Brand: `#3D7BFF`

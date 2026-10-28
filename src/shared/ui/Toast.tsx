@@ -12,7 +12,7 @@ export const ToastContainer: React.FC = () => {
       role="region"
       aria-label="Értesítések"
       aria-live="polite"
-      className="fixed bottom-20 left-4 right-4 z-50 flex flex-col gap-2 pointer-events-none md:bottom-6 md:right-6 md:left-auto md:w-96"
+      className="fixed bottom-24 left-4 right-4 z-50 flex flex-col items-center gap-2 pointer-events-none md:bottom-8 md:right-8 md:left-auto md:items-end md:w-auto"
     >
       {toasts.map((toast) => (
         <ToastCard key={toast.id} toast={toast} onDismiss={() => dismissToast(toast.id)} />
@@ -34,38 +34,44 @@ const ToastCard: React.FC<ToastCardProps> = ({ toast, onDismiss }) => {
     error: <AlertCircle className="h-4 w-4 text-status-rest shrink-0" aria-hidden="true" />
   };
 
-  const borderColors = {
-    info: "border-brand/30",
-    success: "border-status-ready/30",
-    warning: "border-status-caution/30",
-    error: "border-status-rest/30"
-  };
-
   return (
     <div
       role="status"
-      className={`pointer-events-auto rounded-16 border bg-bg-surface/95 backdrop-blur-md p-4 shadow-elevated flex items-start gap-3 transition-all duration-200 ease-apex-out ${
-        borderColors[toast.type || "info"]
-      }`}
+      className="pointer-events-auto rounded-full glass-regular border border-border/80 px-4 py-2.5 shadow-glass-md flex items-center gap-3 transition-all duration-280 ease-spring max-w-md select-none"
     >
-      <div className="mt-0.5">{icons[toast.type || "info"]}</div>
-      <div className="flex-1 min-w-0">
-        <h4 className="text-14 font-semibold text-text-primary leading-tight">
+      <div className="shrink-0">{icons[toast.type || "info"]}</div>
+
+      <div className="min-w-0 flex-1">
+        <span className="text-14 font-medium text-text-primary">
           {toast.title}
-        </h4>
+        </span>
         {(toast.description || toast.message) && (
-          <p className="text-12 text-text-secondary mt-1 leading-normal">
-            {toast.description || toast.message}
-          </p>
+          <span className="text-12 text-text-secondary ml-1.5 hidden sm:inline">
+            · {toast.description || toast.message}
+          </span>
         )}
       </div>
+
+      {toast.action && (
+        <button
+          type="button"
+          onClick={() => {
+            toast.action?.onClick();
+            onDismiss();
+          }}
+          className="text-12 font-semibold text-brand hover:underline px-1 shrink-0"
+        >
+          {toast.action.label}
+        </button>
+      )}
+
       <button
         type="button"
         onClick={onDismiss}
         aria-label="Értesítés bezárása"
-        className="text-text-secondary hover:text-text-primary p-1 rounded-8 -mr-1 -mt-1 transition-colors"
+        className="touch-target text-text-secondary hover:text-text-primary p-0.5 rounded-full transition-colors shrink-0"
       >
-        <X className="h-4 w-4" aria-hidden="true" />
+        <X className="h-3.5 w-3.5" aria-hidden="true" />
       </button>
     </div>
   );

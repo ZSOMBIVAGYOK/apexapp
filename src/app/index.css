@@ -1,30 +1,34 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  /* Light Theme (Manual or system mode) */
-  --bg-primary: #F5F6F8;
-  --bg-surface: #FFFFFF;
-  --bg-elevated: #FFFFFF;
-  --border-hairline: rgba(0, 0, 0, 0.08);
-  --border-subtle: rgba(0, 0, 0, 0.14);
-  --text-primary: #0B0C0F;
-  --text-secondary: #5B6270;
-  --text-tertiary: #8B93A0;
+/* ==========================================================================
+   Apex Liquid Glass Design System - CSS Custom Properties
+   ========================================================================== */
 
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
-  --shadow-elevated: 0 4px 20px -2px rgba(11, 12, 15, 0.06), 0 2px 6px -1px rgba(11, 12, 15, 0.03);
-  --shadow-sheet: 0 -10px 40px rgba(0, 0, 0, 0.12);
+:root {
+  /* Light Theme */
+  --bg-primary: #F2F4F8;
+  --bg-surface: #FFFFFF;
+  --bg-surface-solid: #FFFFFF;
+  --bg-elevated: #FFFFFF;
+  --separator: rgba(11, 12, 15, 0.08);
+  --border-hairline: rgba(11, 12, 15, 0.08);
+  --border-subtle: rgba(11, 12, 15, 0.14);
+
+  --text-primary: #0B0C0F;
+  --text-secondary: #4F5663;
+  --text-tertiary: #7C8493;
 
   /* Brand Accent */
   --accent-brand: #3D7BFF;
   --accent-brand-hover: #2B69EC;
+  --accent-brand-pressed: #1E56D0;
   --accent-brand-subtle: rgba(61, 123, 255, 0.08);
 
-  /* Semantic Status Colors (Used ONLY for readiness, alerts, load status) */
+  /* Status Colors */
   --status-ready: #34D399;
   --status-ready-subtle: rgba(52, 211, 153, 0.14);
   --status-caution: #FBBF24;
@@ -32,46 +36,113 @@
   --status-rest: #F87171;
   --status-rest-subtle: rgba(248, 113, 113, 0.14);
 
-  /* Frosted Glass */
-  --glass-bg: rgba(255, 255, 255, 0.85);
-  --glass-border: rgba(0, 0, 0, 0.06);
+  /* Liquid Glass - Light */
+  --glass-thin-bg: rgba(255, 255, 255, 0.55);
+  --glass-thin-solid: #FFFFFF;
+  --glass-thin-blur: 20px;
+
+  --glass-regular-bg: rgba(255, 255, 255, 0.66);
+  --glass-regular-solid: #FFFFFF;
+  --glass-regular-blur: 28px;
+
+  --glass-thick-bg: rgba(255, 255, 255, 0.80);
+  --glass-thick-solid: #FFFFFF;
+  --glass-thick-blur: 40px;
+
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  --glass-shade: inset 0 -1px 0 rgba(0, 0, 0, 0.04);
+  --glass-thin-shadow: 0 8px 28px rgba(20, 30, 60, 0.12);
+  --glass-regular-shadow: 0 12px 32px -4px rgba(20, 30, 60, 0.14);
+  --glass-thick-shadow: 0 20px 40px -8px rgba(20, 30, 60, 0.18);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --shadow-elevated: 0 8px 24px -2px rgba(20, 30, 60, 0.08), 0 2px 6px -1px rgba(20, 30, 60, 0.04);
+  --shadow-sheet: 0 -12px 40px rgba(20, 30, 60, 0.14);
+
+  /* Ambient Mesh - Light */
+  --ambient-blob-1: rgba(61, 123, 255, 0.06);
+  --ambient-blob-2: rgba(124, 92, 255, 0.05);
+  --ambient-blob-3: rgba(20, 184, 166, 0.04);
 
   color-scheme: light;
 }
 
 .dark {
   /* Dark Theme (Default) */
-  --bg-primary: #0B0C0F;
-  --bg-surface: #14161B;
+  --bg-primary: #07080B;
+  --bg-surface: rgba(255, 255, 255, 0.05);
+  --bg-surface-solid: #14161B;
   --bg-elevated: #1C1F26;
+  --separator: rgba(255, 255, 255, 0.08);
   --border-hairline: rgba(255, 255, 255, 0.08);
   --border-subtle: rgba(255, 255, 255, 0.14);
-  --text-primary: #F5F6F8;
-  --text-secondary: #9AA1AD;
-  --text-tertiary: #606877;
 
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
-  --shadow-elevated: 0 12px 36px -4px rgba(0, 0, 0, 0.65), 0 4px 12px rgba(0, 0, 0, 0.4);
-  --shadow-sheet: 0 -12px 48px rgba(0, 0, 0, 0.7);
+  --text-primary: #F5F6F8;
+  --text-secondary: #A3AAB6;
+  --text-tertiary: #6F7785;
 
   /* Brand Accent */
   --accent-brand: #3D7BFF;
   --accent-brand-hover: #528BFF;
+  --accent-brand-pressed: #1E56D0;
   --accent-brand-subtle: rgba(61, 123, 255, 0.16);
 
-  /* Semantic Status Colors */
+  /* Status Colors */
   --status-ready: #34D399;
-  --status-ready-subtle: rgba(52, 211, 153, 0.12);
+  --status-ready-subtle: rgba(52, 211, 153, 0.14);
   --status-caution: #FBBF24;
-  --status-caution-subtle: rgba(251, 191, 36, 0.12);
+  --status-caution-subtle: rgba(251, 191, 36, 0.14);
   --status-rest: #F87171;
-  --status-rest-subtle: rgba(248, 113, 113, 0.12);
+  --status-rest-subtle: rgba(248, 113, 113, 0.14);
 
-  /* Frosted Glass */
-  --glass-bg: rgba(20, 22, 27, 0.82);
-  --glass-border: rgba(255, 255, 255, 0.08);
+  /* Liquid Glass - Dark */
+  --glass-thin-bg: rgba(28, 31, 38, 0.55);
+  --glass-thin-solid: #171A21;
+  --glass-thin-blur: 20px;
+
+  --glass-regular-bg: rgba(34, 38, 46, 0.62);
+  --glass-regular-solid: #1C1F26;
+  --glass-regular-blur: 28px;
+
+  --glass-thick-bg: rgba(40, 44, 54, 0.78);
+  --glass-thick-solid: #22262F;
+  --glass-thick-blur: 40px;
+
+  --glass-border: rgba(255, 255, 255, 0.14);
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  --glass-shade: inset 0 -1px 0 rgba(0, 0, 0, 0.16);
+  --glass-thin-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  --glass-regular-shadow: 0 12px 36px -4px rgba(0, 0, 0, 0.45);
+  --glass-thick-shadow: 0 20px 48px -8px rgba(0, 0, 0, 0.65);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.5);
+  --shadow-elevated: 0 12px 36px -4px rgba(0, 0, 0, 0.65), 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-sheet: 0 -12px 48px rgba(0, 0, 0, 0.75);
+
+  /* Ambient Mesh - Dark */
+  --ambient-blob-1: rgba(61, 123, 255, 0.09);
+  --ambient-blob-2: rgba(124, 92, 255, 0.08);
+  --ambient-blob-3: rgba(20, 184, 166, 0.07);
 
   color-scheme: dark;
+}
+
+/* ==========================================================================
+   Root & Typography Settings
+   ========================================================================== */
+
+/* Text Size Preferences */
+html[data-text-size="small"] {
+  font-size: 92%;
+}
+html[data-text-size="default"] {
+  font-size: 100%;
+}
+html[data-text-size="large"] {
+  font-size: 108%;
 }
 
 html, body {
@@ -79,10 +150,31 @@ html, body {
   padding: 0;
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", "Helvetica Neue", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100%;
+  min-height: 100dvh;
+  text-rendering: optimizeLegibility;
+}
+
+/* Hungarian & Long Words Hyphenation and Wrap Protection */
+html[lang="hu"], [lang="hu"] {
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+.text-pretty {
+  text-wrap: pretty;
+}
+
+.overflow-anywhere {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 /* Tabular numerals for high-precision cockpit metrics */
@@ -97,15 +189,217 @@ html, body {
   outline-offset: 2px;
 }
 
-/* Frosted glass utilities */
-.frosted-glass {
-  background-color: var(--glass-bg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-color: var(--glass-border);
+/* ==========================================================================
+   Liquid Glass Materials & Specular Sheen
+   ========================================================================== */
+
+/* Level 1: Thin Glass (Bars, floating controls) */
+.glass-thin {
+  background-color: var(--glass-thin-bg);
+  backdrop-filter: blur(var(--glass-thin-blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-thin-blur)) saturate(180%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-thin-shadow), var(--glass-highlight), var(--glass-shade);
 }
 
-/* Custom sleek scrollbar */
+/* Level 2: Regular Glass (Sheets, popovers, floating buttons, toasts) */
+.glass-regular {
+  background-color: var(--glass-regular-bg);
+  backdrop-filter: blur(var(--glass-regular-blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-regular-blur)) saturate(180%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-regular-shadow), var(--glass-highlight), var(--glass-shade);
+}
+
+/* Level 3: Thick Glass (Modals, menus needing max legibility) */
+.glass-thick {
+  background-color: var(--glass-thick-bg);
+  backdrop-filter: blur(var(--glass-thick-blur)) saturate(190%);
+  -webkit-backdrop-filter: blur(var(--glass-thick-blur)) saturate(190%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-thick-shadow), var(--glass-highlight), var(--glass-shade);
+}
+
+/* Faint Specular Sheen Gradient via Pseudo-element */
+.glass-sheen {
+  position: relative;
+  overflow: hidden;
+}
+
+.glass-sheen::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0) 60%);
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* Sliding Glass Lens for active Tab/Segment */
+.glass-lens {
+  background-color: rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transition: all 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.light .glass-lens {
+  background-color: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 10px rgba(20, 30, 60, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+/* Backward compatibility utility */
+.frosted-glass {
+  background-color: var(--glass-thin-bg);
+  backdrop-filter: blur(var(--glass-thin-blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-thin-blur)) saturate(180%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-thin-shadow), var(--glass-highlight);
+}
+
+/* ==========================================================================
+   Reduced Glass & Accessibility Fallbacks
+   ========================================================================== */
+
+/* Fallback when backdrop-filter is unsupported */
+@supports not (backdrop-filter: blur(1px)) {
+  .glass-thin,
+  .frosted-glass {
+    background-color: var(--glass-thin-solid);
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  .glass-regular {
+    background-color: var(--glass-regular-solid);
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  .glass-thick {
+    background-color: var(--glass-thick-solid);
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
+/* User preference: Reduced Glass Effect */
+html[data-glass="reduced"] .glass-thin,
+html[data-glass="reduced"] .glass-regular,
+html[data-glass="reduced"] .glass-thick,
+html[data-glass="reduced"] .frosted-glass {
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  background-color: var(--bg-elevated) !important;
+}
+
+/* User preference: No Glass / Solid fallback */
+html[data-glass="none"] .glass-thin,
+html[data-glass="none"] .glass-regular,
+html[data-glass="none"] .glass-thick,
+html[data-glass="none"] .frosted-glass {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background-color: var(--bg-elevated) !important;
+}
+
+/* System accessibility: prefers-reduced-transparency */
+@media (prefers-reduced-transparency: reduce) {
+  .glass-thin,
+  .glass-regular,
+  .glass-thick,
+  .frosted-glass {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background-color: var(--bg-elevated) !important;
+  }
+}
+
+/* System accessibility: prefers-contrast: more */
+@media (prefers-contrast: more) {
+  :root {
+    --border-hairline: rgba(0, 0, 0, 0.25);
+    --border-subtle: rgba(0, 0, 0, 0.40);
+    --text-secondary: #22262E;
+  }
+  .dark {
+    --border-hairline: rgba(255, 255, 255, 0.25);
+    --border-subtle: rgba(255, 255, 255, 0.40);
+    --text-secondary: #CBD5E1;
+  }
+}
+
+/* ==========================================================================
+   Static Ambient Gradient Mesh Background (Fixed layer, zero CPU thrash)
+   ========================================================================== */
+
+.ambient-gradient-mesh {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -10;
+  overflow: hidden;
+  background-color: var(--bg-primary);
+  background-image:
+    radial-gradient(circle at 15% 15%, var(--ambient-blob-1) 0%, transparent 45%),
+    radial-gradient(circle at 85% 20%, var(--ambient-blob-2) 0%, transparent 40%),
+    radial-gradient(circle at 50% 85%, var(--ambient-blob-3) 0%, transparent 50%);
+  background-attachment: fixed;
+}
+
+/* ==========================================================================
+   Mobile Safe Area & Touch Target Helpers
+   ========================================================================== */
+
+.safe-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.safe-left {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+
+.safe-right {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* Interactive touch target guarantee (min 44x44px on touch) */
+@media (pointer: coarse) {
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* ==========================================================================
+   Container Query & Auto-Fit Grid Utilities
+   ========================================================================== */
+
+.cq-root {
+  container-type: inline-size;
+}
+
+.auto-grid-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 1.25rem;
+}
+
+.auto-grid-charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 1.5rem;
+}
+
+/* ==========================================================================
+   Custom Sleek Scrollbar
+   ========================================================================== */
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -121,7 +415,20 @@ html, body {
   background: var(--text-tertiary);
 }
 
-/* Motion: Respect prefers-reduced-motion */
+/* ==========================================================================
+   Motion & Press Feedback
+   ========================================================================== */
+
+.press-feedback {
+  transition: transform 120ms cubic-bezier(0.22, 1, 0.36, 1), filter 120ms ease;
+}
+
+.press-feedback:active {
+  transform: scale(0.97);
+  filter: brightness(1.05);
+}
+
+/* Respect prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

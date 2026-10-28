@@ -73,11 +73,11 @@ export const DaySwitcher: React.FC<DaySwitcherProps> = ({
   return (
     <div className={`space-y-2 ${className}`}>
       {/* Date Navigator Bar */}
-      <div className="inline-flex items-center rounded-14 bg-bg-surface border border-border-hairline p-1 shadow-sm">
+      <div className="inline-flex items-center rounded-full bg-bg-surface-solid dark:bg-white/[0.05] border border-border/60 p-1 shadow-glass-sm backdrop-blur-md">
         <button
           type="button"
           onClick={handlePrevDay}
-          className="p-1.5 text-text-secondary hover:text-text-primary rounded-10 hover:bg-bg-elevated transition-colors"
+          className="touch-target p-2 text-text-secondary hover:text-text-primary rounded-full hover:bg-bg-elevated transition-colors"
           title="Előző nap"
           aria-label="Előző nap"
         >
@@ -111,7 +111,7 @@ export const DaySwitcher: React.FC<DaySwitcherProps> = ({
           type="button"
           onClick={handleNextDay}
           disabled={isNextDisabled}
-          className={`p-1.5 rounded-10 transition-colors ${
+          className={`touch-target p-2 rounded-full transition-colors ${
             isNextDisabled
               ? "opacity-30 cursor-not-allowed text-text-tertiary"
               : "text-text-secondary hover:text-text-primary hover:bg-bg-elevated"
@@ -129,10 +129,10 @@ export const DaySwitcher: React.FC<DaySwitcherProps> = ({
           <button
             type="button"
             onClick={() => onDateChange(todayStr)}
-            className={`px-2.5 py-1 rounded-8 font-medium border transition-colors ${
+            className={`touch-target px-3 py-1 rounded-full font-medium border transition-colors ${
               selectedDate === todayStr
-                ? "bg-brand text-white border-brand shadow-sm"
-                : "bg-bg-surface text-text-secondary border-border-hairline hover:text-text-primary"
+                ? "bg-brand text-white border-brand/50 shadow-sm"
+                : "bg-bg-surface-solid dark:bg-white/[0.05] text-text-secondary border-border/60 hover:text-text-primary"
             }`}
           >
             Ma
@@ -140,9 +140,9 @@ export const DaySwitcher: React.FC<DaySwitcherProps> = ({
           <button
             type="button"
             onClick={() => onDateChange(yesterdayStr)}
-            className={`px-2.5 py-1 rounded-8 font-medium border transition-colors ${
+            className={`touch-target px-3 py-1 rounded-full font-medium border transition-colors ${
               selectedDate === yesterdayStr
-                ? "bg-brand text-white border-brand shadow-sm"
+                ? "bg-brand text-white border-brand/50 shadow-sm"
                 : "bg-bg-surface text-text-secondary border-border-hairline hover:text-text-primary"
             }`}
           >

@@ -37,15 +37,19 @@ export const ListRow: React.FC<ListRowProps> = ({
           onClick?.();
         }
       }}
-      className={`group flex items-center justify-between gap-3 px-4 py-3.5 transition-all duration-200 ease-apex-out ${
+      className={`touch-target group relative flex items-center justify-between gap-3 px-4 py-3.5 transition-all duration-120 ease-spring select-none ${
         isClickable
-          ? "cursor-pointer hover:bg-bg-elevated active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded-12"
+          ? "cursor-pointer hover:bg-bg-elevated/80 dark:hover:bg-white/[0.06] active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded-14"
           : ""
-      } ${divider ? "border-b border-border-hairline last:border-b-0" : ""} ${className}`}
+      } ${
+        divider
+          ? "after:absolute after:bottom-0 after:left-4 after:right-0 after:h-px after:bg-border/60 last:after:hidden"
+          : ""
+      } ${className}`}
       {...props}
     >
       {/* Left Slot + Title */}
-      <div className="flex items-center gap-3 min-w-0">
+      <div className="flex items-center gap-3.5 min-w-0">
         {leading && <div className="shrink-0 text-text-secondary">{leading}</div>}
         <div className="min-w-0">
           <div className="text-14 font-medium text-text-primary truncate">

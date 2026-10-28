@@ -1,77 +1,39 @@
-import { create } from "zustand";
+import { useAppearanceStore, ThemeOption } from "../appearance/appearanceStore";
 
 export type ThemeMode = "system" | "dark" | "light";
 
-interface ThemeState {
-  theme: ThemeMode;
-  resolvedTheme: "dark" | "light";
-  setTheme: (theme: ThemeMode) => void;
-}
+export const useThemeStore = () => {
+  const theme = useAppearanceStore((s) => s.theme);
+  const resolvedTheme = useAppearanceStore((s) => s.resolvedTheme);
+  const setThemeRaw = useAppearanceStore((s) => s.setTheme);
 
-const STORAGE_KEY = "apex-theme-mode";
+  const normalizedTheme: ThemeMode = theme === "auto" ? "system" : theme;
 
-const getSystemTheme = (): "dark" | "light" => {
-  if (typeof window === "undefined") return "dark";
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-};
-
-const getInitialTheme = (): ThemeMode => {
-  if (typeof window === "undefined") return "dark";
-  const stored = localStorage.getItem(STORAGE_KEY) as ThemeMode | null;
-  if (stored === "dark" || stored === "light" || stored === "system") {
-    return stored;
-  }
-  return "dark"; // Dark theme default as requested
-};
-
-export const useThemeStore = create<ThemeState>((set) => ({
-  theme: getInitialTheme(),
-  resolvedTheme: getInitialTheme() === "system" ? getSystemTheme() : (getInitialTheme() as "dark" | "light"),
-
-  setTheme: (newTheme: ThemeMode) => {
-    localStorage.setItem(STORAGE_KEY, newTheme);
-    const resolved = newTheme === "system" ? getSystemTheme() : newTheme;
-    applyThemeToDOM(resolved);
-    set({ theme: newTheme, resolvedTheme: resolved });
-  }
-}));
-
-const applyThemeToDOM = (resolved: "dark" | "light") => {
-  const root = document.documentElement;
-  if (resolved === "dark") {
-    root.classList.add("dark");
-    root.classList.remove("light");
-    root.style.colorScheme = "dark";
-  } else {
-    root.classList.add("light");
-    root.classList.remove("dark");
-    root.style.colorScheme = "light";
-  }
-
-  // Update theme-color meta tag for PWA bar
-  const metaTheme = document.querySelector('meta[name="theme-color"]');
-  if (metaTheme) {
-    metaTheme.setAttribute("content", resolved === "dark" ? "#0B0C0F" : "#F5F6F8");
-  }
-};
-
-// Initialize system theme listener
-export const initThemeListener = () => {
-  if (typeof window === "undefined") return () => {};
-
-  const initial = useThemeStore.getState().theme;
-  const initialResolved = initial === "system" ? getSystemTheme() : initial;
-  applyThemeToDOM(initialResolved);
-
-  const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-  const handler = (e: MediaQueryListEvent) => {
-    if (useThemeStore.getState().theme === "system") {
-      const resolved = e.matches ? "dark" : "light";
-      applyThemeToDOM(resolved);
-      useThemeStore.setState({ resolvedTheme: resolved });
-    }
+  const setTheme = (mode: ThemeMode) => {
+    const next: ThemeOption = mode === "system" ? "auto" : mode;
+    setThemeRaw(next);
   };
 
-  mediaQuery.addEventListener("change", handler);
-  return () => mediaQuery.removeEventListener("change", handler);
+  return {
+    theme: normalizedTheme,
+    resolvedTheme,
+    setTheme
+  };
+};
+
+// Compatibility for direct getState() calls if any
+(useThemeStore as unknown as { getState: () => { theme: ThemeMode; resolvedTheme: "dark" | "light"; setTheme: (m: ThemeMode) => void } }).getState = () => {
+  const s = useAppearanceStore.getState();
+  return {
+    theme: s.theme === "auto" ? "system" : s.theme,
+    resolvedTheme: s.resolvedTheme,
+    setTheme: (mode: ThemeMode) => {
+      s.setTheme(mode === "system" ? "auto" : mode);
+    }
+  };
+};
+
+export const initThemeListener = () => {
+  // Handled inside appearanceStore
+  return () => {};
 };

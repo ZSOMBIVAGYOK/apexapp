@@ -121,7 +121,7 @@ export const WeekPlannerModal: React.FC<WeekPlannerModalProps> = ({
   };
 
   const handleAutoFillWeek = async () => {
-    let recentOptionIds: string[][] = [];
+    const recentOptionIds: string[][] = [];
 
     for (let i = 0; i < weekDays.length; i++) {
       const dayItem = weekDays[i]!;

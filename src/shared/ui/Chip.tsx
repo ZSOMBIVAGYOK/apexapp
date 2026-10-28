@@ -21,20 +21,20 @@ export const Chip: React.FC<ChipProps> = ({
   ...props
 }) => {
   const sizeStyles: Record<string, string> = {
-    sm: "h-7 px-2.5 text-12 rounded-12 gap-1.5",
-    md: "h-8 px-3 text-14 rounded-12 gap-2"
+    sm: "h-7 px-3 text-12 gap-1.5",
+    md: "h-8.5 px-3.5 text-14 gap-2"
   };
 
   return (
     <button
       type="button"
       disabled={disabled}
-      className={`inline-flex items-center justify-center font-medium select-none transition-all duration-200 ease-apex-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-40 ${
+      className={`touch-target inline-flex items-center justify-center font-medium rounded-full select-none transition-all duration-120 ease-spring active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-40 ${
         sizeStyles[size]
       } ${
         selected
-          ? "bg-brand text-white shadow-sm border border-brand"
-          : "bg-bg-surface text-text-secondary hover:text-text-primary hover:bg-bg-elevated border border-border-hairline"
+          ? "bg-brand text-white shadow-sm border border-brand/50 dark:shadow-[0_2px_8px_rgba(61,123,255,0.35)]"
+          : "bg-bg-surface-solid dark:bg-white/[0.06] text-text-secondary hover:text-text-primary hover:bg-bg-elevated border border-border/60 hover:border-border"
       } ${className}`}
       {...props}
     >

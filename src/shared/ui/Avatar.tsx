@@ -36,16 +36,16 @@ export const Avatar: React.FC<AvatarProps> = ({
   };
 
   const statusStyles: Record<AvatarStatus, string> = {
-    ready: "bg-status-ready",
-    caution: "bg-status-caution",
-    rest: "bg-status-rest",
-    online: "bg-status-ready",
-    offline: "bg-text-tertiary"
+    ready: "bg-status-ready ring-bg-primary",
+    caution: "bg-status-caution ring-bg-primary",
+    rest: "bg-status-rest ring-bg-primary",
+    online: "bg-status-ready ring-bg-primary",
+    offline: "bg-text-tertiary ring-bg-primary"
   };
 
   return (
     <div
-      className={`relative inline-flex shrink-0 items-center justify-center rounded-full bg-bg-elevated border border-border-hairline select-none ${sizeStyles[size].container} ${className}`}
+      className={`relative inline-flex shrink-0 items-center justify-center rounded-full bg-bg-surface-solid dark:bg-white/[0.08] border border-border/60 select-none shadow-sm ${sizeStyles[size].container} ${className}`}
       {...props}
     >
       {src && !imageError ? (
@@ -63,7 +63,7 @@ export const Avatar: React.FC<AvatarProps> = ({
 
       {status && (
         <span
-          className={`absolute bottom-0 right-0 rounded-full ring-bg-surface ${sizeStyles[size].dot} ${statusStyles[status]}`}
+          className={`absolute bottom-0 right-0 rounded-full ${sizeStyles[size].dot} ${statusStyles[status]}`}
           aria-hidden="true"
         />
       )}

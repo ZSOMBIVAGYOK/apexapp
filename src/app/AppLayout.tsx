@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from "react";
 import { Outlet, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -11,39 +11,60 @@ import {
   Flame,
   Globe,
   LogOut,
+  ChevronLeft,
   ChevronRight,
+  Plus,
+  HelpCircle,
   X
 } from "lucide-react";
 import { useAuthStore } from "@features/auth/authStore";
-import { useThemeStore, ThemeMode } from "@shared/lib/theme/themeStore";
+import { useAppearanceStore } from "@shared/lib/appearance/appearanceStore";
 import { getNavItemsForRole } from "./navigation";
 import { UserRole } from "@shared/types";
 import { Avatar } from "@shared/ui/Avatar";
 import { Badge } from "@shared/ui/Badge";
 import { ToastContainer } from "@shared/ui/Toast";
 import { showToast } from "@shared/ui/toastStore";
-import { PwaUpdateToast } from "@shared/ui/PwaUpdateToast";
 import { PwaInstallBanner } from "@shared/ui/PwaInstallBanner";
 import { OfflineIndicator } from "@shared/ui/OfflineIndicator";
 import { NotificationCenter } from "@shared/ui/NotificationCenter";
 import { SyncStatusBadge } from "@shared/ui/SyncStatusBadge";
 import { ErrorBoundary } from "@shared/ui/ErrorBoundary";
 import { useNotificationStore } from "@shared/lib/notifications/notificationStore";
-import { LogoutConfirmationModal } from "@features/auth/components/LogoutConfirmationModal";
 import { flushOfflineQueue } from "@shared/lib/offline/offlineStorage";
 import { runEmergencyDataRecovery } from "@shared/lib/storage/recoveryRoutine";
 
 export const AppLayout: React.FC = () => {
   const { i18n } = useTranslation();
   const { user, signOut, setUserProfile } = useAuthStore();
-  const { theme, resolvedTheme, setTheme } = useThemeStore();
+  const { theme, resolvedTheme, setTheme } = useAppearanceStore();
   const location = useLocation();
   const navigate = useNavigate();
 
   const [isScrolled, setIsScrolled] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [showQuickActionSheet, setShowQuickActionSheet] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const unreadCount = useNotificationStore((s) => s.unreadCount);
+
+  // Persistent sidebar collapse state for laptops (>=1024px)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("apex_sidebar_collapsed") === "true";
+  });
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("apex_sidebar_collapsed", next ? "true" : "false");
+      } catch {
+        // storage quota
+      }
+      return next;
+    });
+  };
 
   const [showBetaBanner, setShowBetaBanner] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
@@ -59,26 +80,107 @@ export const AppLayout: React.FC = () => {
     }
   };
 
-  // Scroll listener for collapsing large title header
+  // Scroll listener for collapsing top header
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 24);
+      setIsScrolled(window.scrollY > 20);
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // ⌘K shortcut for search
+  // Keyboard shortcuts: ⌘K, ?, N, G sequences
   useEffect(() => {
+    let lastKey = "";
+    let lastKeyTime = 0;
+
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if typing in an input, textarea or contentEditable
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+          e.preventDefault();
+          setShowSearchModal((prev) => !prev);
+        }
+        return;
+      }
+
+      // ⌘K Search
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         setShowSearchModal((prev) => !prev);
+        return;
+      }
+
+      // ? for shortcuts help
+      if (e.key === "?" || (e.shiftKey && e.key === "/")) {
+        e.preventDefault();
+        setShowShortcutsModal((prev) => !prev);
+        return;
+      }
+
+      // Escape closes modals
+      if (e.key === "Escape") {
+        setShowSearchModal(false);
+        setShowShortcutsModal(false);
+        setShowQuickActionSheet(false);
+        setShowNotifications(false);
+        return;
+      }
+
+      // N for new training session
+      if (e.key === "n" || e.key === "N") {
+        e.preventDefault();
+        navigate("/training");
+        showToast({ title: "Edzések", message: "Átnavigálás az edzésnaplóhoz", type: "info" });
+        return;
+      }
+
+      // G key combinations (G then T, G then E, G then M, G then R, G then S)
+      const now = Date.now();
+      if (e.key === "g" || e.key === "G") {
+        lastKey = "g";
+        lastKeyTime = now;
+        return;
+      }
+
+      if (lastKey === "g" && now - lastKeyTime < 1200) {
+        lastKey = "";
+        if (e.key === "m" || e.key === "M") {
+          e.preventDefault();
+          navigate("/");
+          return;
+        }
+        if (e.key === "t" || e.key === "T") {
+          e.preventDefault();
+          navigate("/training");
+          return;
+        }
+        if (e.key === "e" || e.key === "E") {
+          e.preventDefault();
+          navigate("/nutrition");
+          return;
+        }
+        if (e.key === "r" || e.key === "R") {
+          e.preventDefault();
+          navigate("/insights");
+          return;
+        }
+        if (e.key === "s" || e.key === "S") {
+          e.preventDefault();
+          navigate("/settings");
+          return;
+        }
       }
     };
+
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [navigate]);
 
   const navItems = getNavItemsForRole(user?.roles || (user?.role ? [user.role] : ["athlete"]), true);
 
@@ -88,7 +190,7 @@ export const AppLayout: React.FC = () => {
   };
 
   const cycleTheme = () => {
-    const next: ThemeMode = theme === "dark" ? "light" : theme === "light" ? "system" : "dark";
+    const next = theme === "dark" ? "light" : theme === "light" ? "auto" : "dark";
     setTheme(next);
   };
 
@@ -107,27 +209,17 @@ export const AppLayout: React.FC = () => {
     }
   }, [user?.uid]);
 
-  const [pendingLogoutCount, setPendingLogoutCount] = useState<number | null>(null);
-  const [isSyncingLogout, setIsSyncingLogout] = useState(false);
-
   const handleSignOut = async (force = false) => {
     const res = await signOut(force);
     if (res?.blocked) {
-      setPendingLogoutCount(res.pendingCount || 1);
-      return;
+      try {
+        await flushOfflineQueue();
+        await signOut(true);
+      } catch {
+        // forced
+      }
     }
-    setPendingLogoutCount(null);
     navigate("/auth");
-  };
-
-  const handleSyncAndSignOut = async () => {
-    setIsSyncingLogout(true);
-    try {
-      await flushOfflineQueue();
-      await handleSignOut(true);
-    } catch {
-      setIsSyncingLogout(false);
-    }
   };
 
   // Switch athlete/coach mode for role-aware demo
@@ -149,18 +241,47 @@ export const AppLayout: React.FC = () => {
     });
   };
 
-  // Find active navigation item title for mobile collapsed header
+  // Find active navigation item title for mobile header
   const currentNav =
     navItems.find((item) =>
       item.exact ? location.pathname === item.to : location.pathname.startsWith(item.to) && item.to !== "/"
     ) || navItems[0] || { defaultLabel: "Apex" };
 
+  // Mobile Floating Tab Bar Sliding Lens State
+  const tabContainerRef = useRef<HTMLDivElement>(null);
+  const tabButtonsRef = useRef<Map<string, HTMLAnchorElement>>(new Map());
+  const [mobileLens, setMobileLens] = useState<{ left: number; width: number } | null>(null);
+
+  const updateMobileLens = useCallback(() => {
+    const activeItem = navItems.find((item) =>
+      item.exact ? location.pathname === item.to : location.pathname.startsWith(item.to) && item.to !== "/"
+    ) || navItems[0];
+
+    if (!activeItem) return;
+    const activeEl = tabButtonsRef.current.get(activeItem.id);
+    if (activeEl && tabContainerRef.current) {
+      setMobileLens({
+        left: activeEl.offsetLeft,
+        width: activeEl.offsetWidth
+      });
+    }
+  }, [location.pathname, navItems]);
+
+  useLayoutEffect(() => {
+    updateMobileLens();
+    window.addEventListener("resize", updateMobileLens);
+    return () => window.removeEventListener("resize", updateMobileLens);
+  }, [updateMobileLens]);
+
   return (
-    <div className="min-h-screen bg-bg-primary text-text-primary flex flex-col transition-colors duration-200">
+    <div className="relative min-h-[100dvh] bg-bg-primary text-text-primary flex flex-col transition-colors duration-280">
+      {/* Static Ambient Gradient Mesh Layer */}
+      <div className="ambient-gradient-mesh" aria-hidden="true" />
+
       {/* WCAG AA Skip to Main Content */}
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-50 focus:rounded-12 focus:bg-brand focus:px-4 focus:py-2 focus:text-white focus:font-semibold focus:shadow-elevated"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-50 focus:rounded-full focus:bg-brand focus:px-4 focus:py-2 focus:text-white focus:font-semibold focus:shadow-elevated"
       >
         Ugrás a tartalomra
       </a>
@@ -169,13 +290,13 @@ export const AppLayout: React.FC = () => {
       <PwaInstallBanner />
       <OfflineIndicator />
 
-      {/* Dismissible Beta Transparency Banner */}
+      {/* Dismissible Beta Banner */}
       {showBetaBanner && (
         <aside
           aria-label="Béta verzió értesítés"
-          className="bg-brand/10 border-b border-brand/20 px-4 py-2 text-12 text-text-primary z-50 relative"
+          className="bg-brand/10 border-b border-brand/20 px-4 py-2 text-12 text-text-primary z-50 relative select-none"
         >
-          <div className="mx-auto max-w-[1200px] flex items-center justify-between gap-3">
+          <div className="mx-auto max-w-[1280px] flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-bold px-2 py-0.5 rounded-full bg-brand text-white text-[10px] tracking-wide uppercase">
                 Tesztverzió (Béta)
@@ -183,27 +304,23 @@ export const AppLayout: React.FC = () => {
               <span className="text-text-secondary text-12">
                 Az Apex fejlesztés alatt áll. Nem orvosi tanácsadás.
               </span>
-              <span className="hidden sm:inline text-border-hairline">•</span>
+              <span className="hidden sm:inline text-border/60">•</span>
               <a
                 href="mailto:marenecdozsazsombor7@gmail.com?subject=Apex%20Béta%20Visszajelzés"
-                className="font-semibold text-brand underline hover:text-brand-dark"
+                className="font-semibold text-brand underline hover:text-brand-hover"
               >
                 Visszajelzés küldése
               </a>
-              <span className="hidden sm:inline text-border-hairline">•</span>
+              <span className="hidden sm:inline text-border/60">•</span>
               <NavLink to="/privacy" className="text-text-tertiary hover:underline">
                 Adatvédelem
-              </NavLink>
-              <span className="hidden sm:inline text-border-hairline">•</span>
-              <NavLink to="/terms" className="text-text-tertiary hover:underline">
-                Feltételek
               </NavLink>
             </div>
             <button
               type="button"
               onClick={dismissBetaBanner}
               aria-label="Béta értesítés elrejtése"
-              className="p-1 rounded-8 text-text-tertiary hover:text-text-primary hover:bg-white/10 transition-colors shrink-0"
+              className="touch-target p-1 rounded-full text-text-tertiary hover:text-text-primary hover:bg-white/10 transition-colors shrink-0"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -211,34 +328,35 @@ export const AppLayout: React.FC = () => {
         </aside>
       )}
 
-      {/* Desktop Top Header (>=1024px) */}
-      <header className="hidden lg:block sticky top-0 z-40 border-b border-border-hairline bg-bg-surface/85 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-[1200px] items-center justify-between px-6">
-          {/* Quick Search Bar */}
+      {/* Desktop Liquid Glass Top Bar (>=1024px) */}
+      <header className="hidden lg:block sticky top-0 z-40 border-b border-border/60 glass-thin">
+        <div className="mx-auto flex h-16 max-w-[1280px] items-center justify-between px-6">
+          {/* Quick Search Bar with ⌘K */}
           <div className="flex items-center gap-3 w-80">
             <button
               type="button"
               onClick={() => setShowSearchModal(true)}
-              className="flex w-full items-center justify-between rounded-12 border border-border-hairline bg-bg-elevated px-3 py-2 text-12 text-text-secondary hover:border-border-subtle hover:text-text-primary transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              className="flex w-full items-center justify-between rounded-control border border-border/60 bg-bg-surface-solid dark:bg-white/[0.04] px-3.5 py-2 text-13 text-text-secondary hover:border-border hover:text-text-primary transition-all duration-160 ease-spring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand shadow-inner"
             >
               <div className="flex items-center gap-2">
-                <Search className="h-4 w-4" aria-hidden="true" />
-                <span>Keresés edzésre, mutatóra...</span>
+                <Search className="h-4 w-4 text-text-tertiary" aria-hidden="true" />
+                <span>Keresés (edzés, étrend, mutató)...</span>
               </div>
-              <kbd className="inline-flex items-center gap-0.5 rounded-8 bg-bg-surface px-1.5 py-0.5 text-[10px] font-mono border border-border-hairline">
+              <kbd className="inline-flex items-center gap-0.5 rounded-8 bg-bg-surface px-1.5 py-0.5 text-[10px] font-mono border border-border/60 text-text-tertiary shadow-sm">
                 <Command className="h-3 w-3" aria-hidden="true" />K
               </kbd>
             </button>
           </div>
 
-          {/* Top Actions: Role Switcher, Language, Theme, Notifications, User */}
+          {/* Top Actions: Sync, Role, Language, Theme, Shortcuts, Notifications, User */}
           <div className="flex items-center gap-2.5">
             <SyncStatusBadge />
-            {/* Quick Role Switcher for Cockpit Demo */}
+
+            {/* Quick Role Switcher */}
             <button
               type="button"
               onClick={toggleRoleMode}
-              className="text-12 font-medium px-2.5 py-1.5 rounded-12 border border-border-hairline bg-bg-surface hover:bg-bg-elevated text-text-secondary hover:text-text-primary transition-colors"
+              className="touch-target text-12 font-medium px-3 py-1.5 rounded-full border border-border/60 bg-bg-surface-solid dark:bg-white/[0.05] hover:bg-bg-elevated text-text-secondary hover:text-text-primary transition-colors"
               title="Váltás Sportoló és Edzői nézet között"
             >
               Szerep:{" "}
@@ -252,7 +370,7 @@ export const AppLayout: React.FC = () => {
               type="button"
               onClick={toggleLanguage}
               aria-label="Nyelvváltás"
-              className="h-9 px-2.5 rounded-12 border border-border-hairline bg-bg-surface hover:bg-bg-elevated text-text-secondary hover:text-text-primary flex items-center gap-1.5 text-12 font-medium transition-colors"
+              className="touch-target h-9 px-3 rounded-full border border-border/60 bg-bg-surface-solid dark:bg-white/[0.05] hover:bg-bg-elevated text-text-secondary hover:text-text-primary flex items-center gap-1.5 text-12 font-medium transition-colors"
             >
               <Globe className="h-3.5 w-3.5 text-brand" aria-hidden="true" />
               <span className="uppercase">{i18n.language.startsWith("hu") ? "HU" : "EN"}</span>
@@ -263,9 +381,9 @@ export const AppLayout: React.FC = () => {
               type="button"
               onClick={cycleTheme}
               aria-label={`Téma váltása: jelenleg ${theme}`}
-              className="h-9 w-9 rounded-12 border border-border-hairline bg-bg-surface hover:bg-bg-elevated text-text-secondary hover:text-text-primary flex items-center justify-center transition-colors"
+              className="touch-target h-9 w-9 rounded-full border border-border/60 bg-bg-surface-solid dark:bg-white/[0.05] hover:bg-bg-elevated text-text-secondary hover:text-text-primary flex items-center justify-center transition-colors"
             >
-              {theme === "system" ? (
+              {theme === "auto" ? (
                 <Laptop className="h-4 w-4" aria-hidden="true" />
               ) : resolvedTheme === "dark" ? (
                 <Moon className="h-4 w-4" aria-hidden="true" />
@@ -274,31 +392,44 @@ export const AppLayout: React.FC = () => {
               )}
             </button>
 
+            {/* Shortcuts Help (?) */}
+            <button
+              type="button"
+              onClick={() => setShowShortcutsModal(true)}
+              aria-label="Gyorsbillentyűk súgó"
+              title="Gyorsbillentyűk súgó (?)"
+              className="touch-target h-9 w-9 rounded-full border border-border/60 bg-bg-surface-solid dark:bg-white/[0.05] hover:bg-bg-elevated text-text-secondary hover:text-text-primary flex items-center justify-center transition-colors"
+            >
+              <HelpCircle className="h-4 w-4" aria-hidden="true" />
+            </button>
+
             {/* Notifications Bell */}
             <div className="relative">
               <button
                 type="button"
                 onClick={() => setShowNotifications(!showNotifications)}
                 aria-label="Értesítések"
-                className="relative h-9 w-9 rounded-12 border border-border-hairline bg-bg-surface hover:bg-bg-elevated text-text-secondary hover:text-text-primary flex items-center justify-center transition-colors"
+                className="touch-target relative h-9 w-9 rounded-full border border-border/60 bg-bg-surface-solid dark:bg-white/[0.05] hover:bg-bg-elevated text-text-secondary hover:text-text-primary flex items-center justify-center transition-colors"
               >
                 <Bell className="h-4 w-4" aria-hidden="true" />
-                <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-brand" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-brand animate-pulse" />
+                )}
               </button>
 
               {/* Notifications Dropdown */}
               {showNotifications && (
-                <div className="absolute right-0 mt-2 w-80 rounded-20 border border-border-hairline bg-bg-elevated p-4 shadow-elevated z-50 animate-in fade-in zoom-in-95 duration-150">
-                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-border-hairline">
+                <div className="absolute right-0 mt-2 w-80 rounded-card border border-border/60 glass-thick p-4 shadow-glass-lg z-50 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-border/40">
                     <span className="text-14 font-semibold text-text-primary">Értesítések</span>
                     <Badge variant="brand" size="sm">Új</Badge>
                   </div>
                   <div className="space-y-2 text-12">
-                    <div className="p-2.5 rounded-12 bg-bg-surface border border-border-hairline">
+                    <div className="p-2.5 rounded-14 bg-bg-surface border border-border/40">
                       <p className="font-semibold text-text-primary">Reggeli Check-in sikeres</p>
                       <p className="text-text-secondary text-[11px] mt-0.5">Regenerációs pontszám: 92% (Optimális)</p>
                     </div>
-                    <div className="p-2.5 rounded-12 bg-bg-surface border border-border-hairline">
+                    <div className="p-2.5 rounded-14 bg-bg-surface border border-border/40">
                       <p className="font-semibold text-text-primary">Vezetőedzői megjegyzés</p>
                       <p className="text-text-secondary text-[11px] mt-0.5">Dr. Varga Tamás frissítette a délutáni futóblokkot.</p>
                     </div>
@@ -308,17 +439,17 @@ export const AppLayout: React.FC = () => {
             </div>
 
             {/* Profile Avatar & Info */}
-            <div className="flex items-center gap-2.5 pl-2 border-l border-border-hairline">
+            <div className="flex items-center gap-2.5 pl-3 border-l border-border/60">
               <Avatar
                 name={user?.displayName || "Sportoló"}
                 size="md"
                 status="ready"
               />
-              <div className="hidden xl:block text-left">
+              <div className="hidden xl:block text-left select-none">
                 <p className="text-12 font-semibold text-text-primary leading-none truncate max-w-[130px]">
                   {user?.displayName || "Kovács Zsombor"}
                 </p>
-                <p className="text-[11px] text-text-secondary leading-none mt-1 uppercase">
+                <p className="text-[10px] text-text-secondary leading-none mt-1 uppercase font-semibold tracking-wider">
                   {user?.level || "Olimpikon"}
                 </p>
               </div>
@@ -327,7 +458,7 @@ export const AppLayout: React.FC = () => {
                 onClick={() => handleSignOut()}
                 aria-label="Kijelentkezés"
                 title="Kijelentkezés"
-                className="h-9 w-9 rounded-12 border border-border-hairline bg-bg-surface hover:bg-status-rest/10 hover:text-status-rest text-text-secondary flex items-center justify-center transition-colors"
+                className="touch-target h-9 w-9 rounded-full border border-border/60 bg-bg-surface-solid dark:bg-white/[0.05] hover:bg-status-rest/15 hover:text-status-rest text-text-secondary flex items-center justify-center transition-colors"
               >
                 <LogOut className="h-4 w-4" aria-hidden="true" />
               </button>
@@ -336,23 +467,24 @@ export const AppLayout: React.FC = () => {
         </div>
       </header>
 
-      {/* Mobile Top App Bar (Sticky Collapsing Header) */}
+      {/* Mobile Liquid Glass Top Bar (<1024px) */}
       <header
-        className={`lg:hidden sticky top-0 z-30 transition-all duration-200 ease-apex-out ${
+        className={`lg:hidden sticky top-0 z-30 transition-all duration-280 ease-spring ${
           isScrolled
-            ? "bg-bg-surface/90 backdrop-blur-md border-b border-border-hairline py-3 shadow-sm"
-            : "bg-transparent py-4"
+            ? "glass-thin border-b border-border/60 py-3 shadow-glass-sm"
+            : "bg-transparent py-3.5"
         }`}
       >
         <div className="px-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-12 bg-brand text-white shadow-sm">
+          {/* Brand Lockup & Title */}
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-white shadow-glass-sm">
               <Flame className="h-4 w-4" aria-hidden="true" />
             </div>
             <div>
               <span
-                className={`font-bold tracking-tight text-text-primary transition-all duration-200 ${
-                  isScrolled ? "text-16" : "text-20"
+                className={`font-bold tracking-tight text-text-primary transition-all duration-200 block ${
+                  isScrolled ? "text-16" : "text-18"
                 }`}
               >
                 {currentNav.defaultLabel}
@@ -360,13 +492,15 @@ export const AppLayout: React.FC = () => {
             </div>
           </div>
 
+          {/* Contextual Actions */}
           <div className="flex items-center gap-2">
             <SyncStatusBadge showText={false} />
+
             <button
               type="button"
               onClick={cycleTheme}
               aria-label="Téma váltás"
-              className="h-8 w-8 rounded-12 border border-border-hairline bg-bg-surface text-text-secondary flex items-center justify-center"
+              className="touch-target h-8.5 w-8.5 rounded-full border border-border/60 bg-bg-surface-solid dark:bg-white/[0.05] text-text-secondary flex items-center justify-center"
             >
               {resolvedTheme === "dark" ? (
                 <Moon className="h-3.5 w-3.5" aria-hidden="true" />
@@ -374,88 +508,108 @@ export const AppLayout: React.FC = () => {
                 <Sun className="h-3.5 w-3.5" aria-hidden="true" />
               )}
             </button>
-            <button
-              type="button"
-              onClick={toggleLanguage}
-              className="h-8 px-2 rounded-12 border border-border-hairline bg-bg-surface text-text-secondary text-[11px] font-semibold uppercase"
-            >
-              {i18n.language.startsWith("hu") ? "HU" : "EN"}
-            </button>
+
             <button
               type="button"
               onClick={() => setShowNotifications(true)}
-              aria-label="Értesítések megnyitása"
-              className="relative h-8 w-8 rounded-12 border border-border-hairline bg-bg-surface text-text-secondary hover:text-text-primary flex items-center justify-center transition-colors"
+              aria-label="Értesítések"
+              className="touch-target relative h-8.5 w-8.5 rounded-full border border-border/60 bg-bg-surface-solid dark:bg-white/[0.05] text-text-secondary hover:text-text-primary flex items-center justify-center transition-colors"
             >
               <Bell className="h-4 w-4" aria-hidden="true" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-brand text-[10px] font-bold text-white shadow-sm animate-pulse">
+                <span className="absolute -top-0.5 -right-0.5 flex h-3.5 min-w-[14px] px-1 items-center justify-center rounded-full bg-brand text-[9px] font-bold text-white shadow-sm">
                   {unreadCount}
                 </span>
               )}
             </button>
-            <Avatar
-              name={user?.displayName || "Sportoló"}
-              size="sm"
-              status="ready"
-              onClick={() => navigate("/settings")}
-            />
+
+            {/* Contextual Quick Primary Action (+) */}
+            <button
+              type="button"
+              onClick={() => setShowQuickActionSheet(true)}
+              aria-label="Gyors művelet hozzáadása"
+              className="touch-target h-8.5 w-8.5 rounded-full bg-brand text-white flex items-center justify-center shadow-glass-sm active:scale-95 transition-transform"
+            >
+              <Plus className="h-4.5 w-4.5" aria-hidden="true" />
+            </button>
           </div>
         </div>
       </header>
 
       {/* Main Body Shell */}
-      <div className="mx-auto flex w-full max-w-[1200px] flex-1 px-4 lg:px-6">
-        {/* Desktop Left Sidebar (>=1024px) */}
+      <div className="mx-auto flex w-full max-w-[1280px] flex-1 px-4 lg:px-6">
+        {/* Desktop Left Collapsible Liquid Glass Sidebar (>=1024px) */}
         <aside
           aria-label="Fő navigáció"
-          className="hidden lg:flex w-64 shrink-0 flex-col justify-between py-6 pr-6 border-r border-border-hairline min-h-[calc(100vh-4rem)]"
+          className={`hidden lg:flex shrink-0 flex-col justify-between py-6 border-r border-border/60 min-h-[calc(100vh-4rem)] transition-all duration-280 ease-spring ${
+            sidebarCollapsed ? "w-20 pr-3" : "w-64 pr-6"
+          }`}
         >
           <div className="space-y-6">
-            {/* Apex Brand Logo */}
-            <NavLink
-              to="/"
-              className="flex items-center gap-2.5 px-2 select-none group"
-              aria-label="Apex Kezdőlap"
-            >
-              <div className="flex h-9 w-9 items-center justify-center rounded-12 bg-brand text-white shadow-sm transition-transform group-hover:scale-105">
-                <Flame className="h-5 w-5" aria-hidden="true" />
-              </div>
-              <div>
-                <span className="text-16 font-black uppercase tracking-wider text-text-primary">
-                  Apex
-                </span>
-                <span className="block text-[10px] uppercase font-semibold text-text-tertiary tracking-widest">
-                  Cockpit v0.2
-                </span>
-              </div>
-            </NavLink>
+            {/* Refined APEX Branding Lockup */}
+            <div className="flex items-center justify-between px-2 select-none">
+              <NavLink
+                to="/"
+                className="flex items-center gap-3 group"
+                aria-label="Apex Kezdőlap"
+              >
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand text-white shadow-glass-sm transition-transform group-hover:scale-105">
+                  <Flame className="h-5 w-5" aria-hidden="true" />
+                </div>
+                {!sidebarCollapsed && (
+                  <div className="min-w-0">
+                    <span className="text-16 font-black tracking-widest text-text-primary uppercase block">
+                      APEX
+                    </span>
+                    <div className="h-0.5 w-6 bg-brand/80 rounded-full mt-0.5" />
+                  </div>
+                )}
+              </NavLink>
+
+              {/* Sidebar Collapse Toggle Button */}
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                aria-label={sidebarCollapsed ? "Oldalsáv kinyitása" : "Oldalsáv összecsukása"}
+                title={sidebarCollapsed ? "Oldalsáv kinyitása" : "Oldalsáv összecsukása"}
+                className="touch-target h-7 w-7 rounded-full border border-border/60 bg-bg-surface-solid dark:bg-white/[0.05] text-text-secondary hover:text-text-primary hover:bg-bg-elevated flex items-center justify-center transition-colors"
+              >
+                {sidebarCollapsed ? (
+                  <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+                ) : (
+                  <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
+                )}
+              </button>
+            </div>
 
             {/* Navigation Menu Links */}
-            <nav className="space-y-1" aria-label="Desktop Navigáció">
+            <nav className="space-y-1.5" aria-label="Desktop Navigáció">
               {navItems.map((item) => (
                 <NavLink
                   key={item.id}
                   to={item.to}
                   end={item.exact}
+                  title={sidebarCollapsed ? item.defaultLabel : undefined}
                   className={({ isActive }) =>
-                    `flex items-center justify-between px-3.5 py-2.5 rounded-12 text-14 font-medium transition-all duration-200 ease-apex-out ${
+                    `relative flex items-center ${
+                      sidebarCollapsed ? "justify-center px-2 py-3" : "justify-between px-3.5 py-2.5"
+                    } rounded-full text-14 font-medium transition-all duration-160 ease-spring select-none ${
                       isActive
-                        ? "bg-brand text-white shadow-sm"
-                        : "text-text-secondary hover:text-text-primary hover:bg-bg-elevated"
+                        ? "bg-brand text-white shadow-glass-sm dark:shadow-[0_2px_12px_rgba(61,123,255,0.35)]"
+                        : "text-text-secondary hover:text-text-primary hover:bg-bg-elevated dark:hover:bg-white/[0.05]"
                     }`
                   }
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                    <span>{item.defaultLabel}</span>
+                    {!sidebarCollapsed && <span className="truncate">{item.defaultLabel}</span>}
                   </div>
-                  {item.requiresSpecialist && (
+                  {!sidebarCollapsed && item.requiresSpecialist && (
                     <Badge variant="outline" size="sm" className="text-[10px]">
                       Stáb
                     </Badge>
                   )}
-                  {item.devOnly && (
+                  {!sidebarCollapsed && item.devOnly && (
                     <Badge variant="brand" size="sm" className="text-[10px]">
                       Dev
                     </Badge>
@@ -466,25 +620,32 @@ export const AppLayout: React.FC = () => {
           </div>
 
           {/* Sidebar Footer Info */}
-          <div className="rounded-16 border border-border-hairline bg-bg-surface p-3.5 space-y-2 text-12">
-            <div className="flex items-center justify-between text-text-secondary">
-              <span>Kapcsolat</span>
-              <span className="text-status-ready font-medium flex items-center gap-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-status-ready animate-pulse" />
-                Éles Cloud
-              </span>
+          {!sidebarCollapsed ? (
+            <div className="rounded-card border border-border/60 bg-bg-surface-solid dark:bg-white/[0.03] p-3.5 space-y-2 text-12 select-none shadow-sm">
+              <div className="flex items-center justify-between text-text-secondary">
+                <span>Kapcsolat</span>
+                <span className="text-status-ready font-medium flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-status-ready animate-pulse" />
+                  Éles Cloud
+                </span>
+              </div>
+              <div className="text-[11px] text-text-tertiary border-t border-border/40 pt-2 flex items-center justify-between">
+                <span>Interdiszciplináris</span>
+                <span className="font-mono text-[10px]">v0.2</span>
+              </div>
             </div>
-            <div className="text-[11px] text-text-tertiary border-t border-border-hairline/60 pt-2">
-              Interdiszciplináris platform
+          ) : (
+            <div className="flex justify-center select-none py-2">
+              <span className="h-2 w-2 rounded-full bg-status-ready animate-pulse" title="Éles Cloud" />
             </div>
-          </div>
+          )}
         </aside>
 
         {/* Content Outlet Canvas */}
         <main
           id="main-content"
           tabIndex={-1}
-          className="flex-1 py-4 lg:py-8 lg:pl-8 pb-28 lg:pb-12 focus:outline-none min-w-0"
+          className="flex-1 py-4 lg:py-8 lg:pl-8 pb-32 lg:pb-12 focus:outline-none min-w-0 max-w-[1120px] 2xl:max-w-[1280px]"
         >
           <ErrorBoundary>
             <Outlet />
@@ -492,31 +653,47 @@ export const AppLayout: React.FC = () => {
         </main>
       </div>
 
-      {/* Mobile Bottom Tab Bar with Frosted Glass (5 Items for Athletes, 6 for Coach) */}
+      {/* Mobile Floating Liquid Glass Capsule Bottom Tab Bar (<1024px) */}
       <nav
         aria-label="Mobil navigáció"
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-border-hairline bg-bg-surface/85 backdrop-blur-xl"
+        className="lg:hidden fixed bottom-3 left-3 right-3 z-40 max-w-md mx-auto pointer-events-auto"
+        style={{ bottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
       >
         <div
-          className={`grid h-16 items-center px-1 max-w-lg mx-auto ${
-            navItems.length <= 5 ? "grid-cols-5" : "grid-cols-6"
-          }`}
+          ref={tabContainerRef}
+          className="relative grid grid-cols-5 items-center p-1.5 rounded-full glass-thin shadow-glass-lg border border-border/60"
         >
-          {navItems.slice(0, 6).map((item) => (
+          {/* Sliding Glass Lens Indicator */}
+          {mobileLens && (
+            <div
+              aria-hidden="true"
+              className="glass-lens absolute top-1.5 bottom-1.5 rounded-full transition-all duration-280 ease-spring pointer-events-none"
+              style={{
+                left: `${mobileLens.left}px`,
+                width: `${mobileLens.width}px`
+              }}
+            />
+          )}
+
+          {navItems.slice(0, 5).map((item) => (
             <NavLink
               key={item.id}
               to={item.to}
               end={item.exact}
+              ref={(el) => {
+                if (el) tabButtonsRef.current.set(item.id, el);
+                else tabButtonsRef.current.delete(item.id);
+              }}
               className={({ isActive }) =>
-                `flex flex-col items-center justify-center py-1 transition-colors select-none ${
+                `touch-target relative z-10 flex flex-col items-center justify-center py-1.5 rounded-full transition-colors duration-160 select-none ${
                   isActive
                     ? "text-brand font-semibold"
                     : "text-text-secondary hover:text-text-primary"
                 }`
               }
             >
-              <item.icon className="h-5 w-5 mb-0.5" aria-hidden="true" />
-              <span className="text-[10px] tracking-tight truncate max-w-[54px]">
+              <item.icon className="h-5 w-5 mb-0.5 shrink-0" aria-hidden="true" />
+              <span className="text-[10px] tracking-tight truncate max-w-[56px]">
                 {item.defaultLabel}
               </span>
             </NavLink>
@@ -524,7 +701,7 @@ export const AppLayout: React.FC = () => {
         </div>
       </nav>
 
-      {/* Quick Search Modal */}
+      {/* Quick Search Modal (⌘K) */}
       {showSearchModal && (
         <div
           role="dialog"
@@ -535,85 +712,193 @@ export const AppLayout: React.FC = () => {
             className="fixed inset-0 bg-black/60 backdrop-blur-sm"
             onClick={() => setShowSearchModal(false)}
           />
-          <div className="relative z-10 w-full max-w-lg rounded-20 border border-border-hairline bg-bg-elevated p-4 shadow-elevated">
-            <div className="flex items-center gap-3 pb-3 border-b border-border-hairline">
-              <Search className="h-5 w-5 text-text-secondary" aria-hidden="true" />
+          <div className="relative z-10 w-full max-w-lg rounded-card border border-border/60 glass-thick p-5 shadow-glass-lg">
+            <div className="flex items-center gap-3 pb-3 border-b border-border/40">
+              <Search className="h-5 w-5 text-text-secondary shrink-0" aria-hidden="true" />
               <input
                 type="text"
                 autoFocus
                 placeholder="Keress edzést, receptet, sportorvost, vagy mutatót..."
-                className="w-full bg-transparent text-14 text-text-primary placeholder:text-text-tertiary focus:outline-none"
+                className="w-full bg-transparent text-16 sm:text-14 text-text-primary placeholder:text-text-tertiary focus:outline-none"
               />
               <kbd
                 onClick={() => setShowSearchModal(false)}
-                className="cursor-pointer px-2 py-0.5 text-12 font-mono text-text-secondary rounded-8 bg-bg-surface border border-border-hairline"
+                className="cursor-pointer px-2 py-0.5 text-12 font-mono text-text-secondary rounded-full bg-bg-surface border border-border/60"
               >
                 ESC
               </kbd>
             </div>
-            <div className="py-3 text-12 text-text-secondary space-y-1">
-              <p className="px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-text-tertiary">
-                Gyors parancsok
+            <div className="mt-4 space-y-2 text-13">
+              <p className="text-11 uppercase font-semibold text-text-tertiary tracking-wider px-2">
+                Gyors navigáció
               </p>
-              <button
-                type="button"
-                onClick={() => {
-                  navigate("/checkin");
-                  setShowSearchModal(false);
-                }}
-                className="w-full text-left px-3 py-2 rounded-12 hover:bg-bg-surface flex items-center justify-between text-text-primary"
-              >
-                <span>Napi Check-in kitöltése</span>
-                <ChevronRight className="h-3.5 w-3.5 text-text-tertiary" />
-              </button>
-              <button
-                type="button"
+              <div
                 onClick={() => {
                   navigate("/training");
                   setShowSearchModal(false);
                 }}
-                className="w-full text-left px-3 py-2 rounded-12 hover:bg-bg-surface flex items-center justify-between text-text-primary"
+                className="px-3 py-2 rounded-12 hover:bg-bg-elevated cursor-pointer flex items-center justify-between text-text-primary"
               >
-                <span>Edzésnapló megnyitása</span>
-                <ChevronRight className="h-3.5 w-3.5 text-text-tertiary" />
+                <span>Edzések & Tervezés</span>
+                <span className="text-11 text-text-secondary">G + T</span>
+              </div>
+              <div
+                onClick={() => {
+                  navigate("/nutrition");
+                  setShowSearchModal(false);
+                }}
+                className="px-3 py-2 rounded-12 hover:bg-bg-elevated cursor-pointer flex items-center justify-between text-text-primary"
+              >
+                <span>Étrend & Nap összeállító</span>
+                <span className="text-11 text-text-secondary">G + E</span>
+              </div>
+              <div
+                onClick={() => {
+                  navigate("/insights");
+                  setShowSearchModal(false);
+                }}
+                className="px-3 py-2 rounded-12 hover:bg-bg-elevated cursor-pointer flex items-center justify-between text-text-primary"
+              >
+                <span>Regeneráció & Készülékek</span>
+                <span className="text-11 text-text-secondary">G + R</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Keyboard Shortcuts Help Sheet Modal (?) */}
+      {showShortcutsModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        >
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowShortcutsModal(false)}
+          />
+          <div className="relative z-10 w-full max-w-md rounded-card border border-border/60 glass-thick p-6 shadow-glass-lg">
+            <div className="flex items-center justify-between pb-3 border-b border-border/40">
+              <div className="flex items-center gap-2">
+                <HelpCircle className="h-5 w-5 text-brand" />
+                <h3 className="text-16 font-bold text-text-primary">Gyorsbillentyűk</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowShortcutsModal(false)}
+                className="touch-target p-1 rounded-full text-text-secondary hover:text-text-primary"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="mt-4 space-y-3 text-13">
+              <div className="flex items-center justify-between">
+                <span className="text-text-secondary">Keresés megnyitása</span>
+                <kbd className="px-2 py-0.5 rounded-8 bg-bg-surface border border-border/60 text-11 font-mono text-text-primary">⌘K</kbd>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-text-secondary">Új edzés / Edzésnapló</span>
+                <kbd className="px-2 py-0.5 rounded-8 bg-bg-surface border border-border/60 text-11 font-mono text-text-primary">N</kbd>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-text-secondary">Ugrás: Ma</span>
+                <kbd className="px-2 py-0.5 rounded-8 bg-bg-surface border border-border/60 text-11 font-mono text-text-primary">G majd M</kbd>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-text-secondary">Ugrás: Edzésterv</span>
+                <kbd className="px-2 py-0.5 rounded-8 bg-bg-surface border border-border/60 text-11 font-mono text-text-primary">G majd T</kbd>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-text-secondary">Ugrás: Étrend</span>
+                <kbd className="px-2 py-0.5 rounded-8 bg-bg-surface border border-border/60 text-11 font-mono text-text-primary">G majd E</kbd>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-text-secondary">Ugrás: Regeneráció</span>
+                <kbd className="px-2 py-0.5 rounded-8 bg-bg-surface border border-border/60 text-11 font-mono text-text-primary">G majd R</kbd>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-text-secondary">Ugrás: Beállítások</span>
+                <kbd className="px-2 py-0.5 rounded-8 bg-bg-surface border border-border/60 text-11 font-mono text-text-primary">G majd S</kbd>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-text-secondary">Gyorsbillentyűk súgó</span>
+                <kbd className="px-2 py-0.5 rounded-8 bg-bg-surface border border-border/60 text-11 font-mono text-text-primary">?</kbd>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Contextual Quick Action Sheet */}
+      {showQuickActionSheet && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4"
+        >
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowQuickActionSheet(false)}
+          />
+          <div className="relative z-10 w-full max-w-sm rounded-t-32 sm:rounded-32 border border-border/60 glass-thick p-5 shadow-glass-lg space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-border/40">
+              <span className="text-14 font-bold text-text-primary">Gyors rögzítés</span>
+              <button
+                type="button"
+                onClick={() => setShowQuickActionSheet(false)}
+                className="touch-target p-1 rounded-full text-text-secondary hover:text-text-primary"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowQuickActionSheet(false);
+                  navigate("/training");
+                }}
+                className="w-full text-left px-4 py-3 rounded-14 bg-bg-surface border border-border/60 hover:bg-bg-elevated transition-colors flex items-center justify-between font-medium text-14 text-text-primary"
+              >
+                <span>Új edzés rögzítése</span>
+                <Plus className="h-4 w-4 text-brand" />
               </button>
               <button
                 type="button"
                 onClick={() => {
-                  navigate("/design");
-                  setShowSearchModal(false);
+                  setShowQuickActionSheet(false);
+                  navigate("/nutrition");
                 }}
-                className="w-full text-left px-3 py-2 rounded-12 hover:bg-bg-surface flex items-center justify-between text-brand"
+                className="w-full text-left px-4 py-3 rounded-14 bg-bg-surface border border-border/60 hover:bg-bg-elevated transition-colors flex items-center justify-between font-medium text-14 text-text-primary"
               >
-                <span>Design System & Styleguide</span>
-                <ChevronRight className="h-3.5 w-3.5 text-brand" />
+                <span>Étel rögzítése / Nap tervezése</span>
+                <Plus className="h-4 w-4 text-brand" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowQuickActionSheet(false);
+                  navigate("/today");
+                }}
+                className="w-full text-left px-4 py-3 rounded-14 bg-bg-surface border border-border/60 hover:bg-bg-elevated transition-colors flex items-center justify-between font-medium text-14 text-text-primary"
+              >
+                <span>Reggeli Check-in kitöltése</span>
+                <Plus className="h-4 w-4 text-brand" />
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Interactive In-App Notification Center */}
+      {/* Global Toast Container */}
+      <ToastContainer />
+
+      {/* Notifications Drawer */}
       <NotificationCenter
         isOpen={showNotifications}
         onClose={() => setShowNotifications(false)}
       />
-
-      {/* Logout Safety Confirmation */}
-      <LogoutConfirmationModal
-        isOpen={pendingLogoutCount !== null}
-        pendingCount={pendingLogoutCount || 0}
-        isSyncing={isSyncingLogout}
-        onClose={() => setPendingLogoutCount(null)}
-        onSync={handleSyncAndSignOut}
-        onForceLogout={() => handleSignOut(true)}
-      />
-
-      {/* App-Wide Toasts & PWA Updates */}
-      <ToastContainer />
-      <PwaUpdateToast />
     </div>
   );
 };
-
-export default AppLayout;

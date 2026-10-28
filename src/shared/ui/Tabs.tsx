@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useState, useLayoutEffect, useCallback } from "react";
 
 export interface TabItem {
   id: string;
@@ -26,6 +26,24 @@ export const Tabs: React.FC<TabsProps> = ({
   children
 }) => {
   const tablistRef = useRef<HTMLDivElement>(null);
+  const itemsRef = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const [lensStyle, setLensStyle] = useState<{ left: number; width: number } | null>(null);
+
+  const updateLens = useCallback(() => {
+    const activeEl = itemsRef.current.get(activeId);
+    if (activeEl && tablistRef.current) {
+      setLensStyle({
+        left: activeEl.offsetLeft,
+        width: activeEl.offsetWidth
+      });
+    }
+  }, [activeId]);
+
+  useLayoutEffect(() => {
+    updateLens();
+    window.addEventListener("resize", updateLens);
+    return () => window.removeEventListener("resize", updateLens);
+  }, [updateLens, tabs]);
 
   const handleKeyDown = (e: React.KeyboardEvent, index: number) => {
     let nextIndex = index;
@@ -45,8 +63,8 @@ export const Tabs: React.FC<TabsProps> = ({
     const nextTab = tabs[nextIndex];
     if (nextTab) {
       onChange(nextTab.id);
-      const buttons = tablistRef.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]');
-      buttons?.[nextIndex]?.focus();
+      const targetBtn = itemsRef.current.get(nextTab.id);
+      targetBtn?.focus();
     }
   };
 
@@ -56,17 +74,45 @@ export const Tabs: React.FC<TabsProps> = ({
       <div
         ref={tablistRef}
         role="tablist"
-        className={`flex items-center gap-1 overflow-x-auto no-scrollbar ${
+        className={`relative flex items-center gap-1 overflow-x-auto no-scrollbar ${
           variant === "line"
-            ? "border-b border-border-hairline"
-            : "bg-bg-surface p-1 rounded-12 border border-border-hairline"
+            ? "border-b border-border/60 pb-px"
+            : "p-1 rounded-full bg-bg-surface-solid dark:bg-white/[0.05] border border-border/60 backdrop-blur-md shadow-glass-sm"
         }`}
       >
+        {/* Sliding Lens Indicator for Pill Variant */}
+        {variant === "pill" && lensStyle && (
+          <div
+            aria-hidden="true"
+            className="glass-lens absolute top-1 bottom-1 rounded-full transition-all duration-280 ease-spring pointer-events-none"
+            style={{
+              left: `${lensStyle.left}px`,
+              width: `${lensStyle.width}px`
+            }}
+          />
+        )}
+
+        {/* Sliding Underline for Line Variant */}
+        {variant === "line" && lensStyle && (
+          <div
+            aria-hidden="true"
+            className="absolute bottom-0 h-0.5 bg-brand transition-all duration-280 ease-spring pointer-events-none"
+            style={{
+              left: `${lensStyle.left}px`,
+              width: `${lensStyle.width}px`
+            }}
+          />
+        )}
+
         {tabs.map((tab, idx) => {
           const isActive = tab.id === activeId;
           return (
             <button
               key={tab.id}
+              ref={(el) => {
+                if (el) itemsRef.current.set(tab.id, el);
+                else itemsRef.current.delete(tab.id);
+              }}
               role="tab"
               id={`tab-${tab.id}`}
               aria-selected={isActive}
@@ -74,14 +120,16 @@ export const Tabs: React.FC<TabsProps> = ({
               tabIndex={isActive ? 0 : -1}
               onClick={() => onChange(tab.id)}
               onKeyDown={(e) => handleKeyDown(e, idx)}
-              className={`relative inline-flex items-center gap-2 whitespace-nowrap px-3.5 py-2.5 text-14 font-medium transition-all duration-200 ease-apex-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
+              className={`touch-target relative z-10 inline-flex items-center gap-2 whitespace-nowrap px-4 py-2 text-14 font-medium transition-colors duration-160 select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
                 variant === "line"
                   ? isActive
-                    ? "text-text-primary border-b-2 border-brand font-semibold"
-                    : "text-text-secondary hover:text-text-primary border-b-2 border-transparent"
-                  : isActive
-                  ? "bg-bg-elevated text-text-primary rounded-12 shadow-sm border border-border-hairline"
-                  : "text-text-secondary hover:text-text-primary rounded-12"
+                    ? "text-text-primary font-semibold"
+                    : "text-text-secondary hover:text-text-primary"
+                  : `rounded-full ${
+                      isActive
+                        ? "text-text-primary font-semibold"
+                        : "text-text-secondary hover:text-text-primary"
+                    } ${!lensStyle && isActive ? "bg-bg-elevated dark:bg-white/[0.12] shadow-sm" : ""}`
               }`}
             >
               {tab.icon && <span className="shrink-0">{tab.icon}</span>}
@@ -91,7 +139,7 @@ export const Tabs: React.FC<TabsProps> = ({
                   className={`rounded-full px-1.5 py-0.2 text-[10px] font-semibold tabular-nums ${
                     isActive
                       ? "bg-brand text-white"
-                      : "bg-bg-elevated text-text-secondary"
+                      : "bg-bg-elevated text-text-secondary border border-border/40"
                   }`}
                 >
                   {tab.badge}
@@ -102,22 +150,23 @@ export const Tabs: React.FC<TabsProps> = ({
         })}
       </div>
 
-      {/* Tab Panel */}
+      {/* Tab Panels */}
       {tabs.map((tab) => {
-        if (tab.id !== activeId) return null;
+        if (tab.id !== activeId || !tab.content) return null;
         return (
           <div
             key={tab.id}
             role="tabpanel"
             id={`panel-${tab.id}`}
             aria-labelledby={`tab-${tab.id}`}
-            tabIndex={0}
-            className="focus-visible:outline-none"
+            className="focus:outline-none"
           >
-            {tab.content || children}
+            {tab.content}
           </div>
         );
       })}
+
+      {children}
     </div>
   );
 };

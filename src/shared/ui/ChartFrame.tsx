@@ -34,10 +34,10 @@ export const ChartFrame: React.FC<ChartFrameProps> = ({
 }) => {
   return (
     <div
-      className={`rounded-20 border border-border-hairline bg-bg-surface p-5 sm:p-6 shadow-sm flex flex-col justify-between ${className}`}
+      className={`rounded-card border border-border/60 bg-bg-surface-solid dark:bg-bg-surface p-5 sm:p-6 shadow-sm flex flex-col justify-between ${className}`}
     >
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 pb-3 border-b border-border-hairline/60">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 pb-3 border-b border-border/40">
         <div>
           <h3 className="text-16 font-semibold tracking-tight text-text-primary">
             {title}

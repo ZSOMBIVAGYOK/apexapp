@@ -329,9 +329,9 @@ export function calculateBlockTimeSeriesStats(
   let maxHeartRate = 0;
   let powerSum = 0;
   let powerCount = 0;
-  let startDist = filtered[0]!.distanceMeters || 0;
-  let endDist = filtered[filtered.length - 1]!.distanceMeters || 0;
-  let distanceMeters = endDist > startDist ? Math.round(endDist - startDist) : undefined;
+  const startDist = filtered[0]!.distanceMeters || 0;
+  const endDist = filtered[filtered.length - 1]!.distanceMeters || 0;
+  const distanceMeters = endDist > startDist ? Math.round(endDist - startDist) : undefined;
 
   const timeInZonesSeconds: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
 

@@ -234,7 +234,7 @@ export const NumberInput: React.FC<NumberInputProps> = ({
             onClick={handleDecrement}
             disabled={disabled || (value !== undefined && value !== null && value <= min)}
             aria-label="Csökkentés"
-            className="h-10 w-10 shrink-0 rounded-12 bg-bg-surface border border-border-hairline text-text-primary hover:bg-bg-elevated hover:border-border-subtle active:scale-95 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            className="touch-target h-10 w-10 shrink-0 rounded-full bg-bg-surface-solid dark:bg-white/[0.06] border border-border/60 text-text-primary hover:bg-bg-elevated hover:border-border active:scale-95 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center transition-all duration-120 ease-spring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
           >
             <Minus className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -255,9 +255,9 @@ export const NumberInput: React.FC<NumberInputProps> = ({
             disabled={disabled}
             placeholder={placeholder}
             aria-invalid={!!displayError}
-            className={`w-full ${showSteppers ? "text-center" : "text-left"} h-10 px-3 rounded-12 border ${
-              displayError ? "border-status-rest ring-1 ring-status-rest" : "border-border-hairline"
-            } bg-bg-surface text-text-primary text-16 font-semibold tabular-nums tracking-tight focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent disabled:opacity-40 transition-colors`}
+            className={`w-full ${showSteppers ? "text-center" : "text-left"} h-11 px-3.5 rounded-control border ${
+              displayError ? "border-status-rest ring-1 ring-status-rest/30" : "border-border/60 hover:border-border"
+            } bg-bg-surface-solid dark:bg-white/[0.05] text-text-primary text-16 font-semibold tabular-nums tracking-tight shadow-inner focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand disabled:opacity-40 transition-all duration-160 ease-spring`}
           />
           {unit && (
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-12 font-medium text-text-secondary pointer-events-none">
@@ -273,7 +273,7 @@ export const NumberInput: React.FC<NumberInputProps> = ({
             onClick={handleIncrement}
             disabled={disabled || (value !== undefined && value !== null && value >= max)}
             aria-label="Növelés"
-            className="h-10 w-10 shrink-0 rounded-12 bg-bg-surface border border-border-hairline text-text-primary hover:bg-bg-elevated hover:border-border-subtle active:scale-95 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            className="touch-target h-10 w-10 shrink-0 rounded-full bg-bg-surface-solid dark:bg-white/[0.06] border border-border/60 text-text-primary hover:bg-bg-elevated hover:border-border active:scale-95 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center transition-all duration-120 ease-spring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
           </button>

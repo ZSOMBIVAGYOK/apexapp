@@ -24,27 +24,27 @@ export const Badge: React.FC<BadgeProps> = ({
 
   const variantStyles: Record<BadgeVariant, { container: string; dot: string }> = {
     neutral: {
-      container: "bg-bg-elevated text-text-secondary border border-border-hairline",
+      container: "bg-bg-elevated dark:bg-white/[0.08] text-text-secondary border border-border/60",
       dot: "bg-text-tertiary"
     },
     brand: {
-      container: "bg-brand/10 text-brand border border-brand/20",
+      container: "bg-brand/12 text-brand border border-brand/25 dark:shadow-[0_0_8px_rgba(61,123,255,0.2)]",
       dot: "bg-brand"
     },
     ready: {
-      container: "bg-status-ready/10 text-status-ready border border-status-ready/20",
+      container: "bg-status-ready/12 text-status-ready border border-status-ready/25 dark:shadow-[0_0_8px_rgba(52,211,153,0.2)]",
       dot: "bg-status-ready"
     },
     caution: {
-      container: "bg-status-caution/10 text-status-caution border border-status-caution/20",
+      container: "bg-status-caution/12 text-status-caution border border-status-caution/25 dark:shadow-[0_0_8px_rgba(251,191,36,0.2)]",
       dot: "bg-status-caution"
     },
     rest: {
-      container: "bg-status-rest/10 text-status-rest border border-status-rest/20",
+      container: "bg-status-rest/12 text-status-rest border border-status-rest/25 dark:shadow-[0_0_8px_rgba(248,113,113,0.2)]",
       dot: "bg-status-rest"
     },
     outline: {
-      container: "bg-transparent text-text-primary border border-border-subtle",
+      container: "bg-transparent text-text-primary border border-border/80",
       dot: "bg-text-primary"
     }
   };

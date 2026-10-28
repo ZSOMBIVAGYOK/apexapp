@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuthStore } from "@features/auth/authStore";
-import { useThemeStore } from "@shared/lib/theme/themeStore";
+import { useAppearanceStore } from "@shared/lib/appearance/appearanceStore";
 import { callDeleteUserData } from "@features/auth/authService";
 import { DataMode, SupportMode, UnitSystem } from "@shared/types";
 import { useNotificationStore } from "@shared/lib/notifications/notificationStore";
@@ -58,7 +58,16 @@ import {
 export const SettingsPage: React.FC = () => {
   const { t, i18n } = useTranslation();
   const { user, signOut, updateProfile, isDemoUser } = useAuthStore();
-  const { theme, setTheme } = useThemeStore();
+  const {
+    theme,
+    setTheme,
+    glass,
+    setGlass,
+    reducedMotion,
+    setReducedMotion,
+    textSize,
+    setTextSize
+  } = useAppearanceStore();
   const navigate = useNavigate();
 
   const athleteId = user?.uid || "demo-athlete-001";
@@ -95,8 +104,8 @@ export const SettingsPage: React.FC = () => {
     });
   };
 
-  const handleThemeChange = (newTheme: "dark" | "light" | "system") => {
-    setTheme(newTheme);
+  const handleThemeChange = (newTheme: "dark" | "light" | "auto" | "system") => {
+    setTheme(newTheme === "system" ? "auto" : newTheme);
   };
 
   const handleUnitsChange = async (units: UnitSystem) => {
@@ -429,7 +438,7 @@ export const SettingsPage: React.FC = () => {
         </div>
       </Card>
 
-      {/* Preferences Section: Theme, Language, Units */}
+      {/* Preferences Section: Theme, Glass, Text Size, Motion, Language, Units */}
       <div className="space-y-4">
         <h3 className="text-12 font-semibold uppercase tracking-wider text-text-secondary">
           Megjelenés & Nyelv
@@ -437,25 +446,83 @@ export const SettingsPage: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Theme Selector */}
-          <Card variant="surface" radius="20" className="p-5 space-y-3">
+          <Card variant="surface" radius="28" className="p-5 space-y-3">
             <div className="flex items-center gap-2 text-text-primary">
               <Palette className="h-4 w-4 text-brand" aria-hidden="true" />
               <h4 className="text-14 font-bold">{t("settings.themePref")}</h4>
             </div>
             <SegmentedControl
               options={[
-                { value: "dark", label: t("common.dark") },
-                { value: "light", label: t("common.light") },
-                { value: "system", label: t("common.system") }
+                { value: "dark", label: "Sötét" },
+                { value: "light", label: "Világos" },
+                { value: "auto", label: "Automatikus" }
               ]}
               value={theme}
-              onChange={(val) => handleThemeChange(val as "dark" | "light" | "system")}
+              onChange={(val) => handleThemeChange(val as "dark" | "light" | "auto")}
               fullWidth
             />
           </Card>
 
+          {/* Liquid Glass Effect */}
+          <Card variant="surface" radius="28" className="p-5 space-y-3">
+            <div className="flex items-center justify-between text-text-primary">
+              <div className="flex items-center gap-2">
+                <Flame className="h-4 w-4 text-brand" aria-hidden="true" />
+                <h4 className="text-14 font-bold">Folyékony üveg (Glass)</h4>
+              </div>
+              <Badge variant="brand" size="sm" className="text-[10px]">
+                Apple Design
+              </Badge>
+            </div>
+            <SegmentedControl
+              options={[
+                { value: "full", label: "Teljes" },
+                { value: "reduced", label: "Csökkentett" },
+                { value: "none", label: "Ki" }
+              ]}
+              value={glass}
+              onChange={(val) => setGlass(val as "full" | "reduced" | "none")}
+              fullWidth
+            />
+            <p className="text-[11px] text-text-secondary leading-normal">
+              Valós idejű elmosás és fénytörés. Gyengébb hardveren a Csökkentett vagy Ki mód ajánlott.
+            </p>
+          </Card>
+
+          {/* Text Size Scaling */}
+          <Card variant="surface" radius="28" className="p-5 space-y-3">
+            <div className="flex items-center gap-2 text-text-primary">
+              <h4 className="text-14 font-bold">Szövegméret</h4>
+            </div>
+            <SegmentedControl
+              options={[
+                { value: "small", label: "Kisebb" },
+                { value: "default", label: "Alap" },
+                { value: "large", label: "Nagyobb" }
+              ]}
+              value={textSize}
+              onChange={(val) => setTextSize(val as "small" | "default" | "large")}
+              fullWidth
+            />
+          </Card>
+
+          {/* Reduced Motion Toggle */}
+          <Card variant="surface" radius="28" className="p-5 flex items-center justify-between">
+            <div>
+              <h4 className="text-14 font-bold text-text-primary">Mozgáscsökkentés</h4>
+              <p className="text-12 text-text-secondary mt-0.5">
+                Gyors áttűnések rugózás és elmozdulások nélkül.
+              </p>
+            </div>
+            <Toggle
+              checked={reducedMotion}
+              onChange={setReducedMotion}
+              aria-label="Mozgáscsökkentés"
+            />
+          </Card>
+
           {/* Language Selector */}
-          <Card variant="surface" radius="20" className="p-5 space-y-3">
+          <Card variant="surface" radius="28" className="p-5 space-y-3">
             <div className="flex items-center gap-2 text-text-primary">
               <Globe className="h-4 w-4 text-brand" aria-hidden="true" />
               <h4 className="text-14 font-bold">{t("settings.languagePref")}</h4>
@@ -472,7 +539,7 @@ export const SettingsPage: React.FC = () => {
           </Card>
 
           {/* Unit System */}
-          <Card variant="surface" radius="20" className="p-5 space-y-3 md:col-span-2">
+          <Card variant="surface" radius="28" className="p-5 space-y-3">
             <div className="flex items-center gap-2 text-text-primary">
               <Ruler className="h-4 w-4 text-brand" aria-hidden="true" />
               <h4 className="text-14 font-bold">{t("settings.unitsTitle")}</h4>

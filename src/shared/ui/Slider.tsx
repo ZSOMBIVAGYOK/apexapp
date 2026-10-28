@@ -60,8 +60,17 @@ export const Slider: React.FC<SliderProps> = ({
         </span>
       </div>
 
-      {/* Slider Track */}
-      <div className="relative flex items-center h-6 py-2">
+      {/* Track & Native Input */}
+      <div className="relative flex items-center py-2">
+        {/* Glass Track Background */}
+        <div className="relative h-2 w-full rounded-full bg-bg-surface-solid dark:bg-white/[0.08] border border-border/40 overflow-hidden shadow-inner">
+          <div
+            className={`h-full ${colorStyles[statusColor]} transition-all duration-120`}
+            style={{ width: `${percentage}%` }}
+          />
+        </div>
+
+        {/* Tactile Native Range Input */}
         <input
           id={id}
           type="range"
@@ -70,39 +79,34 @@ export const Slider: React.FC<SliderProps> = ({
           step={step}
           value={value}
           disabled={disabled}
-          onChange={(e) => onChange(parseFloat(e.target.value))}
-          className="absolute inset-0 w-full h-2 opacity-0 z-10 cursor-pointer disabled:cursor-not-allowed"
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="touch-target absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+          aria-valuemin={min}
+          aria-valuemax={max}
+          aria-valuenow={value}
         />
 
-        {/* Custom Track Background */}
-        <div className="w-full h-2 rounded-full bg-border-hairline relative overflow-hidden">
-          <div
-            className={`h-full transition-all duration-100 ease-apex-out ${colorStyles[statusColor]}`}
-            style={{ width: `${percentage}%` }}
-          />
-        </div>
-
-        {/* Custom Thumb */}
+        {/* Visible Tactile Thumb */}
         <div
-          className="absolute top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-white shadow-elevated border-2 border-brand pointer-events-none transition-all duration-100 ease-apex-out"
-          style={{ left: `calc(${percentage}% - 10px)` }}
+          aria-hidden="true"
+          className="pointer-events-none absolute h-5 w-5 -ml-2.5 rounded-full bg-white shadow-md border border-black/10 transition-transform duration-120 ease-spring"
+          style={{ left: `${percentage}%` }}
         />
       </div>
 
-      {/* Labelled Steps / Ticks */}
+      {/* Discrete Step Labels */}
       {steps && steps.length > 0 && (
-        <div className="flex justify-between items-center text-[11px] text-text-tertiary px-1 pt-0.5">
-          {steps.map((st) => (
-            <button
-              key={st.value}
-              type="button"
-              onClick={() => onChange(st.value)}
-              className={`hover:text-text-primary transition-colors tabular-nums ${
-                st.value === value ? "text-text-primary font-bold" : ""
+        <div className="flex justify-between text-[11px] text-text-tertiary px-1">
+          {steps.map((s) => (
+            <span
+              key={s.value}
+              onClick={() => !disabled && onChange(s.value)}
+              className={`cursor-pointer hover:text-text-primary transition-colors ${
+                s.value === value ? "font-semibold text-brand" : ""
               }`}
             >
-              {st.label || st.value}
-            </button>
+              {s.label || s.value}
+            </span>
           ))}
         </div>
       )}

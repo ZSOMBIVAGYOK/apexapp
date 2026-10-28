@@ -36,7 +36,7 @@ export function lttbDownsample<T extends DataPoint2D>(
     // Calculate point average for next bucket (c)
     let avgX = 0;
     let avgY = 0;
-    let avgRangeStart = Math.floor((i + 1) * bucketSize) + 1;
+    const avgRangeStart = Math.floor((i + 1) * bucketSize) + 1;
     let avgRangeEnd = Math.floor((i + 2) * bucketSize) + 1;
     avgRangeEnd = avgRangeEnd < dataLength ? avgRangeEnd : dataLength;
 
@@ -52,8 +52,8 @@ export function lttbDownsample<T extends DataPoint2D>(
     }
 
     // Get the range for this bucket
-    let rangeOfs = Math.floor(i * bucketSize) + 1;
-    let rangeTo = Math.floor((i + 1) * bucketSize) + 1;
+    const rangeOfs = Math.floor(i * bucketSize) + 1;
+    const rangeTo = Math.floor((i + 1) * bucketSize) + 1;
 
     // Point a
     const pointAX = data[a]!.x;

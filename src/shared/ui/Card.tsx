@@ -17,7 +17,7 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
       children,
       variant = "surface",
       padding = "md",
-      radius = "20",
+      radius = "28",
       as: Component = "div",
       className = "",
       ...props
@@ -25,30 +25,30 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
     ref
   ) => {
     const variantStyles: Record<CardVariant, string> = {
-      surface: "bg-bg-surface border border-border-hairline shadow-sm",
-      elevated: "bg-bg-elevated border border-border-hairline shadow-elevated",
-      ghost: "bg-transparent border border-border-hairline",
+      surface: "bg-bg-surface-solid dark:bg-bg-surface border border-border/60 shadow-sm",
+      elevated: "bg-bg-elevated border border-border/80 shadow-elevated",
+      ghost: "bg-transparent border border-border/40",
       interactive:
-        "bg-bg-surface border border-border-hairline hover:border-border-subtle hover:bg-bg-elevated transition-all duration-200 ease-apex-out cursor-pointer active:scale-[0.99] shadow-sm"
+        "bg-bg-surface-solid dark:bg-bg-surface border border-border/60 hover:border-border hover:bg-bg-elevated transition-all duration-160 ease-spring cursor-pointer active:scale-[0.985] shadow-sm"
     };
 
     const paddingStyles: Record<CardPadding, string> = {
       none: "p-0",
       sm: "p-3 sm:p-4",
-      md: "p-4 sm:p-5",
+      md: "p-4 sm:p-6",
       lg: "p-6 sm:p-8"
     };
 
     const radiusStyles: Record<CardRadius, string> = {
       "12": "rounded-12",
       "20": "rounded-20",
-      "28": "rounded-28"
+      "28": "rounded-card"
     };
 
     return (
       <Component
         ref={ref}
-        className={`${variantStyles[variant]} ${paddingStyles[padding]} ${radiusStyles[radius]} ${className}`}
+        className={`relative ${variantStyles[variant]} ${paddingStyles[padding]} ${radiusStyles[radius]} ${className}`}
         {...props}
       >
         {children}

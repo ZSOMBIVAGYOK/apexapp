@@ -23,18 +23,16 @@ import {
   SectionHeader,
   ChartFrame,
   WeekStrip,
+  GlassCard,
   SourceBadge,
   ConfidenceMeter,
   showToast
 } from "@shared/ui";
-import { useThemeStore } from "@shared/lib/theme/themeStore";
+import { useAppearanceStore } from "@shared/lib/appearance/appearanceStore";
 import {
   Flame,
   Activity,
   Dumbbell,
-  Moon,
-  Sun,
-  Laptop,
   CheckCircle2,
   AlertTriangle,
   AlertCircle,
@@ -47,7 +45,17 @@ import {
 } from "lucide-react";
 
 export const DesignSystemPage: React.FC = () => {
-  const { theme, resolvedTheme, setTheme } = useThemeStore();
+  const {
+    theme,
+    resolvedTheme,
+    setTheme,
+    glass,
+    setGlass,
+    textSize,
+    setTextSize,
+    reducedMotion,
+    setReducedMotion
+  } = useAppearanceStore();
 
   // Interactive component states for live testing
   const [readinessVal, setReadinessVal] = useState(88);
@@ -81,64 +89,94 @@ export const DesignSystemPage: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-10 pb-16 max-w-[1200px] mx-auto">
-      {/* Header & Theme Switcher */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-28 border border-border-hairline bg-bg-surface shadow-sm">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-brand px-2.5 py-0.5 rounded-full bg-brand/10 border border-brand/20">
-              Dev Only • Styleguide
-            </span>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-text-tertiary">
-              Apex Cockpit Design System
-            </span>
+    <div className="space-y-10 pb-16 max-w-[1280px] mx-auto">
+      {/* Header & Live Appearance Matrix Switcher */}
+      <div className="p-6 rounded-card border border-border/60 bg-bg-surface-solid dark:bg-bg-surface shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-brand px-2.5 py-0.5 rounded-full bg-brand/10 border border-brand/20">
+                Dev Only • Styleguide
+              </span>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-text-tertiary">
+                Apex Liquid Glass Design System
+              </span>
+            </div>
+            <h1 className="text-28 sm:text-40 font-bold tracking-tight text-text-primary mt-1">
+              Design Tokens & Primitives
+            </h1>
+            <p className="text-14 text-text-secondary mt-1">
+              Apple-szintű liquid glass felületek, csendes króm, kontraszt és adat-első megjelenítés.
+            </p>
           </div>
-          <h1 className="text-28 sm:text-40 font-bold tracking-tight text-text-primary mt-1">
-            Design Tokens & Components
-          </h1>
-          <p className="text-14 text-text-secondary mt-1">
-            Apple-level cleanliness, quiet chrome, high contrast, and data-first metrics.
-          </p>
         </div>
 
-        {/* Live Theme Switcher */}
-        <div className="flex items-center gap-1.5 p-1 rounded-12 bg-bg-elevated border border-border-hairline">
-          <button
-            type="button"
-            onClick={() => setTheme("dark")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-12 text-12 font-semibold transition-all ${
-              theme === "dark"
-                ? "bg-brand text-white shadow-sm"
-                : "text-text-secondary hover:text-text-primary"
-            }`}
-          >
-            <Moon className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>Dark</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setTheme("light")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-12 text-12 font-semibold transition-all ${
-              theme === "light"
-                ? "bg-brand text-white shadow-sm"
-                : "text-text-secondary hover:text-text-primary"
-            }`}
-          >
-            <Sun className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>Light</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setTheme("system")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-12 text-12 font-semibold transition-all ${
-              theme === "system"
-                ? "bg-brand text-white shadow-sm"
-                : "text-text-secondary hover:text-text-primary"
-            }`}
-          >
-            <Laptop className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>Rendszer</span>
-          </button>
+        {/* Live Controls: Theme, Glass, Text Size, Reduced Motion */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-3 border-t border-border/40">
+          <div>
+            <span className="text-11 font-medium text-text-secondary uppercase tracking-wider block mb-1.5">
+              Téma
+            </span>
+            <SegmentedControl
+              size="sm"
+              options={[
+                { value: "dark", label: "Sötét" },
+                { value: "light", label: "Világos" },
+                { value: "auto", label: "Rendszer" }
+              ]}
+              value={theme}
+              onChange={(v) => setTheme(v as "dark" | "light" | "auto")}
+              fullWidth
+            />
+          </div>
+
+          <div>
+            <span className="text-11 font-medium text-text-secondary uppercase tracking-wider block mb-1.5">
+              Folyékony üveg (Glass)
+            </span>
+            <SegmentedControl
+              size="sm"
+              options={[
+                { value: "full", label: "Teljes" },
+                { value: "reduced", label: "Csökkentett" },
+                { value: "none", label: "Ki" }
+              ]}
+              value={glass}
+              onChange={(v) => setGlass(v as "full" | "reduced" | "none")}
+              fullWidth
+            />
+          </div>
+
+          <div>
+            <span className="text-11 font-medium text-text-secondary uppercase tracking-wider block mb-1.5">
+              Szövegméret
+            </span>
+            <SegmentedControl
+              size="sm"
+              options={[
+                { value: "small", label: "Kisebb" },
+                { value: "default", label: "Alap" },
+                { value: "large", label: "Nagyobb" }
+              ]}
+              value={textSize}
+              onChange={(v) => setTextSize(v as "small" | "default" | "large")}
+              fullWidth
+            />
+          </div>
+
+          <div className="flex flex-col justify-between">
+            <span className="text-11 font-medium text-text-secondary uppercase tracking-wider block mb-1.5">
+              Mozgáscsökkentés
+            </span>
+            <div className="flex items-center justify-between h-9 px-3 rounded-full bg-bg-surface-solid dark:bg-white/[0.05] border border-border/60">
+              <span className="text-12 text-text-secondary">Animációk</span>
+              <Toggle
+                checked={reducedMotion}
+                onChange={setReducedMotion}
+                aria-label="Mozgáscsökkentés"
+              />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -260,6 +298,39 @@ export const DesignSystemPage: React.FC = () => {
                 <IconButton aria-label="Betöltés" variant="surface" isLoading icon={<Plus className="h-4 w-4" />} />
               </div>
             </Card>
+          </section>
+
+          {/* 2b. Liquid Glass Materials: GlassCard vs Calm Content Surface */}
+          <section className="space-y-4">
+            <SectionHeader
+              title="2b. Liquid Glass Anyagok (GlassCard)"
+              description="Vékony (Thin), Normál (Regular), Vastag (Thick) és Interaktív folyékony üveg felületek a funkcionalitáshoz és kiemelt widgetekhez"
+            />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <GlassCard variant="thin" className="space-y-2">
+                <span className="text-11 font-bold uppercase tracking-wider text-brand">Thin Glass</span>
+                <h4 className="text-16 font-semibold text-text-primary">Navigációs Sávok</h4>
+                <p className="text-12 text-text-secondary">20px elmosás, 180% telítettség lebegő tab bar-hoz és top bar-hoz.</p>
+              </GlassCard>
+
+              <GlassCard variant="regular" className="space-y-2">
+                <span className="text-11 font-bold uppercase tracking-wider text-status-ready">Regular Glass</span>
+                <h4 className="text-16 font-semibold text-text-primary">Fiókok & Toast</h4>
+                <p className="text-12 text-text-secondary">28px elmosás és finom belső fény csúszó alsó lapokhoz és értesítésekhez.</p>
+              </GlassCard>
+
+              <GlassCard variant="thick" className="space-y-2">
+                <span className="text-11 font-bold uppercase tracking-wider text-status-caution">Thick Glass</span>
+                <h4 className="text-16 font-semibold text-text-primary">Modális Menük</h4>
+                <p className="text-12 text-text-secondary">40px elmosás és emelt mélység fókuszált párbeszédpanelekhez.</p>
+              </GlassCard>
+
+              <GlassCard variant="interactive" className="space-y-2">
+                <span className="text-11 font-bold uppercase tracking-wider text-brand">Interactive Glass</span>
+                <h4 className="text-16 font-semibold text-text-primary">Kattintható Widget</h4>
+                <p className="text-12 text-text-secondary">Finom rugózó lenyomás (scale 0.985) és hover kiemelés.</p>
+              </GlassCard>
+            </div>
           </section>
 
           {/* 3. SegmentedControl & Tabs */}

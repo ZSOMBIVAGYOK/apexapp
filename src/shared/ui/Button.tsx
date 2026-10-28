@@ -1,7 +1,7 @@
 import React from "react";
 import { Loader2 } from "lucide-react";
 
-export type ButtonVariant = "primary" | "secondary" | "tertiary" | "ghost" | "danger" | "outline";
+export type ButtonVariant = "primary" | "secondary" | "plain" | "tertiary" | "ghost" | "destructive" | "danger" | "outline";
 export type ButtonSize = "sm" | "md" | "lg";
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -30,27 +30,31 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const baseStyles =
-      "inline-flex items-center justify-center font-medium transition-all duration-200 ease-apex-out select-none active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary disabled:opacity-40 disabled:pointer-events-none disabled:active:scale-100";
+      "touch-target inline-flex items-center justify-center font-medium rounded-full select-none transition-all duration-120 ease-spring active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary disabled:opacity-40 disabled:pointer-events-none disabled:active:scale-100";
 
     const sizeStyles: Record<ButtonSize, string> = {
-      sm: "h-8 px-3 text-12 rounded-12 gap-1.5",
-      md: "h-10 px-4 text-14 rounded-12 gap-2",
-      lg: "h-12 px-6 text-16 rounded-20 gap-2.5"
+      sm: "h-8 px-3.5 text-12 gap-1.5",
+      md: "h-10 px-4.5 text-14 gap-2",
+      lg: "h-12 px-6 text-16 gap-2.5"
     };
 
     const variantStyles: Record<ButtonVariant, string> = {
       primary:
-        "bg-brand text-white hover:bg-brand-hover shadow-sm border border-transparent",
+        "bg-brand text-white hover:bg-brand-hover shadow-sm border border-brand/40 dark:shadow-[0_2px_12px_rgba(61,123,255,0.35)] dark:hover:brightness-110",
       secondary:
-        "bg-bg-elevated text-text-primary hover:bg-bg-surface border border-border-hairline hover:border-border-subtle shadow-sm",
+        "bg-bg-surface-solid dark:bg-white/[0.08] text-text-primary hover:bg-bg-elevated dark:hover:bg-white/[0.12] border border-border/60 hover:border-border shadow-sm",
+      plain:
+        "bg-transparent text-text-secondary hover:text-text-primary hover:bg-white/[0.06] border border-transparent",
       tertiary:
-        "bg-transparent text-text-primary hover:bg-bg-elevated border border-border-hairline",
+        "bg-transparent text-text-secondary hover:text-text-primary hover:bg-white/[0.06] border border-border/40 hover:border-border",
       ghost:
-        "bg-transparent text-text-secondary hover:text-text-primary hover:bg-bg-surface border border-transparent",
+        "bg-transparent text-text-secondary hover:text-text-primary hover:bg-white/[0.06] border border-transparent",
+      destructive:
+        "bg-status-rest/15 text-status-rest hover:bg-status-rest/25 border border-status-rest/30 shadow-sm",
       danger:
-        "bg-status-rest/10 text-status-rest hover:bg-status-rest/20 border border-status-rest/30",
+        "bg-status-rest/15 text-status-rest hover:bg-status-rest/25 border border-status-rest/30 shadow-sm",
       outline:
-        "bg-transparent text-text-primary hover:bg-bg-elevated border border-border-hairline hover:border-border-subtle shadow-sm"
+        "bg-transparent text-text-primary hover:bg-white/[0.06] border border-border/60 hover:border-border shadow-sm"
     };
 
     return (
