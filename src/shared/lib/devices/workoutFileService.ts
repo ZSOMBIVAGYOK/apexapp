@@ -7,7 +7,7 @@
  * and uploads files to Cloud Storage.
  */
 
-import { NormalizedActivity } from "@shared/types/devices";
+import { NormalizedActivity, NormalizedLap, NormalizedStrengthSet } from "@shared/types/devices";
 import { CompletedSessionDocument, SessionTimeSeriesPoint, SessionTimeSeriesData } from "@shared/types/dataModel";
 import { parseFIT } from "./parsers/fitParser";
 import { parseGPX } from "./parsers/gpxParser";
@@ -62,6 +62,8 @@ export interface ParsedWorkoutFileResult {
   title: string;
   timeSeries: SessionTimeSeriesData;
   activity: NormalizedActivity;
+  laps?: NormalizedLap[];
+  strengthSets?: NormalizedStrengthSet[];
 }
 
 export interface DuplicateSessionMatch {
@@ -419,7 +421,9 @@ export async function parseWorkoutFile(
       points: downsampledPoints,
       svgRouteOutline
     },
-    activity
+    activity,
+    laps: activity.laps,
+    strengthSets: activity.strengthSets
   };
 }
 

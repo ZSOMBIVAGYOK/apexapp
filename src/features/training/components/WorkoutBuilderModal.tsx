@@ -19,8 +19,12 @@ import {
   Clock,
   Sparkles,
   Bookmark,
-  Video
+  Video,
+  Timer
 } from "lucide-react";
+import { calculateEstimatedDurationMinutes } from "@shared/lib/blocks";
+import { TrainingBlockList } from "./blocks/TrainingBlockList";
+import { RestTimerModal } from "./blocks/RestTimerModal";
 import { ExercisePickerModal } from "./ExercisePickerModal";
 import { VideoPlayerModal } from "./VideoPlayerModal";
 import { saveExercise, ExerciseDocument } from "@shared/lib/exercises";
@@ -244,6 +248,10 @@ export const WorkoutBuilderModal: React.FC<WorkoutBuilderModalProps> = ({
     videoUrl?: string;
   } | null>(null);
 
+  // Rest Timer Modal state
+  const [isRestTimerOpen, setIsRestTimerOpen] = useState(false);
+  const [timerBlock, setTimerBlock] = useState<WorkoutBlock | null>(null);
+
   // Populate from workoutToEdit
   useEffect(() => {
     if (workoutToEdit) {
@@ -269,16 +277,18 @@ export const WorkoutBuilderModal: React.FC<WorkoutBuilderModalProps> = ({
     }
   }, [workoutToEdit, todayStr, isOpen]);
 
-  // Calculate total duration
+  // Calculate total duration (becsült)
   const totalDurationMinutes = React.useMemo(() => {
     if (isStrength) {
       return strengthExercises.reduce((sum, ex) => sum + (ex.sets * 3), 15);
     }
+    const computedEst = calculateEstimatedDurationMinutes(blocks);
+    if (computedEst > 0) return computedEst;
     return blocks.reduce((sum, b) => {
       if (b.type === "interval" && b.repeats) {
-        return sum + b.repeats * (b.durationMinutes + (b.restDurationMinutes || 0));
+        return sum + b.repeats * ((b.durationMinutes || 0) + (b.restDurationMinutes || 0));
       }
-      return sum + b.durationMinutes;
+      return sum + (b.durationMinutes || 0);
     }, 0);
   }, [blocks, isStrength, strengthExercises]);
 
@@ -287,34 +297,15 @@ export const WorkoutBuilderModal: React.FC<WorkoutBuilderModalProps> = ({
     if (isStrength) return Math.round(totalDurationMinutes * 6.5);
     let weightedScore = 0;
     blocks.forEach((b) => {
+      const dur = b.durationMinutes || (b.rows && b.rows.length > 0 ? calculateEstimatedDurationMinutes([b]) : 15);
       const duration = b.type === "interval" && b.repeats
-        ? b.repeats * b.durationMinutes
-        : b.durationMinutes;
+        ? b.repeats * dur
+        : dur;
       const intensity = b.targetRpe ? b.targetRpe : b.targetZone ? b.targetZone * 1.8 : 6;
       weightedScore += (duration / 60) * Math.pow(intensity / 6.5, 2) * 60;
     });
     return Math.max(10, Math.round(weightedScore));
   }, [blocks, isStrength, totalDurationMinutes]);
-
-  // Add block
-  const handleAddBlock = () => {
-    const newBlock: WorkoutBlock = {
-      id: `b-${Date.now()}`,
-      name: isHu ? "Új blokk" : "New Block",
-      type: "main",
-      durationMinutes: 15,
-      targetType: "rpe",
-      targetRpe: 6
-    };
-    setBlocks([...blocks, newBlock]);
-  };
-
-  // Remove block
-  const handleRemoveBlock = (id: string) => {
-    if (blocks.length > 1) {
-      setBlocks(blocks.filter((b) => b.id !== id));
-    }
-  };
 
   // Add strength exercise
   const handleAddExercise = () => {
@@ -618,159 +609,36 @@ export const WorkoutBuilderModal: React.FC<WorkoutBuilderModalProps> = ({
 
         {/* STRUCTURED BLOCKS BUILDER */}
         {!isStrength ? (
-          <div>
-            <div className="flex items-center justify-between mb-3">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
                 {isHu ? "Edzésblokkok" : "Workout Blocks"}
               </span>
-              <button
+              <Button
                 type="button"
-                onClick={handleAddBlock}
-                className="text-xs text-brand-400 hover:text-brand-300 flex items-center gap-1 font-medium"
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setTimerBlock(blocks[0] || null);
+                  setIsRestTimerOpen(true);
+                }}
+                leftIcon={<Timer className="w-3.5 h-3.5 text-brand-400" />}
               >
-                <Plus className="w-3.5 h-3.5" />
-                <span>{isHu ? "Blokk hozzáadása" : "Add block"}</span>
-              </button>
+                {isHu ? "Pihenő időzítő" : "Rest Timer"}
+              </Button>
             </div>
 
-            <div className="space-y-2.5">
-              {blocks.map((block, idx) => (
-                <div
-                  key={block.id}
-                  className="bg-[#0B0C0F] p-3 rounded-2xl border border-white/5 space-y-2"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <input
-                      type="text"
-                      value={block.name}
-                      onChange={(e) => {
-                        const updated = [...blocks];
-                        if (updated[idx]) {
-                          updated[idx]!.name = e.target.value;
-                          setBlocks(updated);
-                        }
-                      }}
-                      className="bg-transparent text-white font-medium text-xs flex-1 focus:outline-none"
-                    />
-
-                    <select
-                      value={block.type}
-                      onChange={(e) => {
-                        const updated = [...blocks];
-                        if (updated[idx]) {
-                          updated[idx]!.type = e.target.value as WorkoutBlock["type"];
-                          setBlocks(updated);
-                        }
-                      }}
-                      className="bg-[#14161B] border border-white/10 rounded-lg px-2 py-1 text-[11px] text-white"
-                    >
-                      <option value="warmup">{isHu ? "Bemelegítés" : "Warmup"}</option>
-                      <option value="main">{isHu ? "Fő blokk" : "Main"}</option>
-                      <option value="interval">{isHu ? "Intervallum" : "Interval"}</option>
-                      <option value="cooldown">{isHu ? "Levezetés" : "Cooldown"}</option>
-                    </select>
-
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveBlock(block.id)}
-                      className="text-text-secondary hover:text-rose-400 p-1"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                  {/* Duration and Target fields */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-xs">
-                    <div>
-                      <span className="text-[10px] text-text-secondary block">
-                        {isHu ? "Időtartam (perc)" : "Duration (min)"}
-                      </span>
-                      <input
-                        type="number"
-                        min="1"
-                        max="240"
-                        value={block.durationMinutes}
-                        onChange={(e) => {
-                          const updated = [...blocks];
-                          if (updated[idx]) {
-                            updated[idx]!.durationMinutes = parseInt(e.target.value, 10) || 1;
-                            setBlocks(updated);
-                          }
-                        }}
-                        className="w-full bg-[#14161B] border border-white/10 rounded-lg px-2 py-1 text-white font-mono"
-                      />
-                    </div>
-
-                    <div>
-                      <span className="text-[10px] text-text-secondary block">
-                        {isHu ? "Cél típus" : "Target Type"}
-                      </span>
-                      <select
-                        value={block.targetType || "rpe"}
-                        onChange={(e) => {
-                          const updated = [...blocks];
-                          if (updated[idx]) {
-                            updated[idx]!.targetType = e.target.value as WorkoutBlock["targetType"];
-                            setBlocks(updated);
-                          }
-                        }}
-                        className="w-full bg-[#14161B] border border-white/10 rounded-lg px-2 py-1 text-white text-[11px]"
-                      >
-                        <option value="rpe">RPE (1-10)</option>
-                        <option value="hr_zone">HR Zóna (Z1-Z5)</option>
-                        <option value="power">Watt (Power)</option>
-                        <option value="pace">Tempó (Pace)</option>
-                      </select>
-                    </div>
-
-                    {block.type === "interval" && (
-                      <>
-                        <div>
-                          <span className="text-[10px] text-text-secondary block">
-                            {isHu ? "Ismétlés (db)" : "Repeats"}
-                          </span>
-                          <input
-                            type="number"
-                            min="1"
-                            max="30"
-                            value={block.repeats || 4}
-                            onChange={(e) => {
-                              const updated = [...blocks];
-                              if (updated[idx]) {
-                                updated[idx]!.repeats = parseInt(e.target.value, 10) || 1;
-                                setBlocks(updated);
-                              }
-                            }}
-                            className="w-full bg-[#14161B] border border-white/10 rounded-lg px-2 py-1 text-white font-mono"
-                          />
-                        </div>
-
-                        <div>
-                          <span className="text-[10px] text-text-secondary block">
-                            {isHu ? "Pihenő (perc)" : "Rest (min)"}
-                          </span>
-                          <input
-                            type="number"
-                            min="0.5"
-                            max="10"
-                            step="0.5"
-                            value={block.restDurationMinutes || 2}
-                            onChange={(e) => {
-                              const updated = [...blocks];
-                              if (updated[idx]) {
-                                updated[idx]!.restDurationMinutes = parseFloat(e.target.value) || 1;
-                                setBlocks(updated);
-                              }
-                            }}
-                            className="w-full bg-[#14161B] border border-white/10 rounded-lg px-2 py-1 text-white font-mono"
-                          />
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <TrainingBlockList
+              blocks={blocks}
+              onChange={setBlocks}
+              athleteId={athleteId}
+              isCompletedSession={false}
+              onOpenTimer={(b) => {
+                setTimerBlock(b);
+                setIsRestTimerOpen(true);
+              }}
+              sport={sport}
+            />
           </div>
         ) : (
           /* STRENGTH EXERCISES BUILDER */
@@ -955,7 +823,7 @@ export const WorkoutBuilderModal: React.FC<WorkoutBuilderModalProps> = ({
           <div className="flex items-center gap-2 text-text-secondary">
             <Clock className="w-4 h-4 text-brand-400" />
             <span>{isHu ? "Becsült időtartam:" : "Estimated duration:"}</span>
-            <strong className="text-white font-mono">{totalDurationMinutes} {isHu ? "perc" : "min"}</strong>
+            <strong className="text-white font-mono">{totalDurationMinutes} {isHu ? "perc (becsült)" : "min (est.)"}</strong>
           </div>
           <div className="flex items-center gap-2 text-text-secondary">
             <Sparkles className="w-4 h-4 text-amber-400" />
@@ -1030,6 +898,14 @@ export const WorkoutBuilderModal: React.FC<WorkoutBuilderModalProps> = ({
           description={videoModalExercise.description}
         />
       )}
+
+      {/* Rest Timer Modal */}
+      <RestTimerModal
+        isOpen={isRestTimerOpen}
+        onClose={() => setIsRestTimerOpen(false)}
+        initialSeconds={timerBlock?.restBetweenRoundsSeconds || timerBlock?.restAfterBlockSeconds || 60}
+        block={timerBlock || undefined}
+      />
     </BottomSheet>
   );
 };

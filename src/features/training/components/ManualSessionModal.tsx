@@ -9,7 +9,7 @@ import {
   Slider,
   showToast
 } from "@shared/ui";
-import { CompletedSessionDocument, StrengthExercise } from "@shared/types";
+import { CompletedSessionDocument, StrengthExercise, TrainingBlock } from "@shared/types";
 import {
   saveSession,
   softDeleteSession
@@ -20,6 +20,9 @@ import {
   getSportById,
   SportDefinition
 } from "@shared/lib/sports";
+import { cloneBlocks, deriveBlocksFromStrengthSets } from "@shared/lib/blocks";
+import { TrainingBlockList } from "./blocks/TrainingBlockList";
+import { RestTimerModal } from "./blocks/RestTimerModal";
 import { SportPickerSheet } from "@features/sports/components/SportPickerSheet";
 import { ExercisePickerModal } from "./ExercisePickerModal";
 import { VideoPlayerModal } from "./VideoPlayerModal";
@@ -55,7 +58,9 @@ import {
   Wrench,
   MapPin,
   AlertTriangle,
-  Sparkles
+  Sparkles,
+  Layers,
+  Timer
 } from "lucide-react";
 
 export interface ManualSessionModalProps {
@@ -147,6 +152,13 @@ export const ManualSessionModal: React.FC<ManualSessionModalProps> = ({
   // Strength Exercises list
   const [strengthExercises, setStrengthExercises] = useState<StrengthExercise[]>([]);
 
+  // Training Blocks (Rounds and Rest)
+  const [blocks, setBlocks] = useState<TrainingBlock[]>([]);
+  const [isBlocksExpanded, setIsBlocksExpanded] = useState<boolean>(false);
+  const [isRestTimerOpen, setIsRestTimerOpen] = useState<boolean>(false);
+  const [timerBlock, setTimerBlock] = useState<TrainingBlock | null>(null);
+  const [useBlockAveragedRpe, setUseBlockAveragedRpe] = useState<boolean>(false);
+
   // Equipment & Course linking
   const [allEquipment, setAllEquipment] = useState<EquipmentItem[]>([]);
   const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<string[]>([]);
@@ -221,6 +233,15 @@ export const ManualSessionModal: React.FC<ManualSessionModalProps> = ({
       setSelectedCourseId(sessionToEdit.courseId || "");
       setIsDetailsExpanded(true); // expand details when editing
 
+      if (sessionToEdit.blocks && sessionToEdit.blocks.length > 0) {
+        setBlocks(cloneBlocks(sessionToEdit.blocks));
+        setIsBlocksExpanded(true);
+      } else {
+        setBlocks([]);
+        setIsBlocksExpanded(false);
+      }
+      setUseBlockAveragedRpe(false);
+
       setParsedFileResult(
         sessionToEdit.fileRef
           ? {
@@ -284,6 +305,9 @@ export const ManualSessionModal: React.FC<ManualSessionModalProps> = ({
       setAvgPowerWatts(0);
       setCalories(0);
       setStrengthExercises([]);
+      setBlocks([]);
+      setIsBlocksExpanded(false);
+      setUseBlockAveragedRpe(false);
       const lastUsed = getLastUsedEquipment(athleteId, "running");
       setSelectedEquipmentIds(lastUsed);
       setSelectedCourseId("");
@@ -386,6 +410,15 @@ export const ManualSessionModal: React.FC<ManualSessionModalProps> = ({
       setComputedFileLoad(result.computedLoad);
     }
 
+    if (result.strengthSets && result.strengthSets.length > 0 && blocks.length === 0) {
+      const derived = deriveBlocksFromStrengthSets(result.strengthSets);
+      if (derived.length > 0) {
+        setBlocks(derived);
+        setIsBlocksExpanded(true);
+        setIsDetailsExpanded(true);
+      }
+    }
+
     setParsedFileResult(result);
     setAttachedFile(file);
     setPrefilledFields(prefilled);
@@ -459,6 +492,84 @@ export const ManualSessionModal: React.FC<ManualSessionModalProps> = ({
     handleClearAttachedFile();
   };
 
+
+  // Check if previous session of the same sport with blocks exists
+  const hasLastSessionWithBlocks = useMemo(() => {
+    const allSessions = getLocalSessions(athleteId);
+    return allSessions.some(
+      (s) => s.sport === sportId && s.sessionId !== sessionToEdit?.sessionId && s.blocks && s.blocks.length > 0
+    );
+  }, [athleteId, sportId, sessionToEdit]);
+
+  // Copy blocks from last session
+  const handleCopyLastSessionBlocks = () => {
+    const allSessions = getLocalSessions(athleteId);
+    const similar = allSessions
+      .filter((s) => s.sport === sportId && s.sessionId !== sessionToEdit?.sessionId && s.blocks && s.blocks.length > 0)
+      .sort((a, b) => b.date.localeCompare(a.date))[0];
+
+    if (similar && similar.blocks && similar.blocks.length > 0) {
+      const cloned = cloneBlocks(similar.blocks).map((b) => ({
+        ...b,
+        completedRounds: b.rounds,
+        rows: (b.rows || []).map((r) => ({
+          ...r,
+          completed: false,
+          resultText: undefined,
+          actualPowerWatts: undefined,
+          roundOverrides: r.roundOverrides?.map((o) => ({
+            ...o,
+            completed: false
+          }))
+        }))
+      }));
+      setBlocks(cloned);
+      setIsBlocksExpanded(true);
+      showToast({
+        title: "Blokkok átmásolva",
+        message: `${similar.date}-i ${similar.title || currentSport.nameHu} blokkstruktúrája átvéve (eredmények törölve).`,
+        variant: "success"
+      });
+    } else {
+      showToast({
+        title: "Nincs korábbi edzés",
+        message: `Nem található korábbi ${currentSport.nameHu} edzés blokkokkal.`,
+        variant: "info"
+      });
+    }
+  };
+
+  // Block-averaged RPE calculation
+  const blockAveragedRpe = useMemo(() => {
+    if (blocks.length === 0) return null;
+    let sum = 0;
+    let count = 0;
+    for (const b of blocks) {
+      if (b.rows && b.rows.length > 0) {
+        for (const r of b.rows) {
+          if (r.rpe && r.rpe > 0) {
+            sum += r.rpe;
+            count++;
+          }
+          if (r.roundOverrides && r.roundOverrides.length > 0) {
+            for (const o of r.roundOverrides) {
+              if (o.rpe && o.rpe > 0) {
+                sum += o.rpe;
+                count++;
+              }
+            }
+          }
+        }
+      }
+    }
+    return count > 0 ? Math.round(sum / count) : null;
+  }, [blocks]);
+
+  useEffect(() => {
+    if (useBlockAveragedRpe && blockAveragedRpe !== null) {
+      setRpe(blockAveragedRpe);
+    }
+  }, [useBlockAveragedRpe, blockAveragedRpe]);
 
   // Session-RPE Load Calculation: Foster Method
   const sessionLoad = Math.round(durationMinutes * rpe);
@@ -579,7 +690,8 @@ export const ManualSessionModal: React.FC<ManualSessionModalProps> = ({
         }
       }
 
-      const finalLoad = computedFileLoad || sessionLoad;
+      const finalRpe = (useBlockAveragedRpe && blockAveragedRpe !== null) ? blockAveragedRpe : rpe;
+      const finalLoad = computedFileLoad || Math.round(durationMinutes * finalRpe);
 
       const sessionDoc: CompletedSessionDocument = {
         sessionId,
@@ -589,9 +701,10 @@ export const ManualSessionModal: React.FC<ManualSessionModalProps> = ({
         title: defaultTitle,
         startTime,
         durationMinutes,
-        rpe,
-        targetIntensityRpe: sessionToEdit?.targetIntensityRpe || rpe,
+        rpe: finalRpe,
+        targetIntensityRpe: sessionToEdit?.targetIntensityRpe || finalRpe,
         trainingLoad: finalLoad,
+        blocks: blocks.length > 0 ? blocks : undefined,
         notes: notes.trim() || undefined,
         equipmentIds: selectedEquipmentIds.length > 0 ? selectedEquipmentIds : undefined,
         courseId: selectedCourseId || undefined,
@@ -1383,6 +1496,84 @@ export const ManualSessionModal: React.FC<ManualSessionModalProps> = ({
                     </div>
                   )}
 
+                  {/* Collapsible Edzésblokkok (Training Blocks) */}
+                  <div className="space-y-2 pt-2 border-t border-border-hairline">
+                    <div className="flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => setIsBlocksExpanded((prev) => !prev)}
+                        className="flex items-center gap-2 text-12 font-bold uppercase tracking-wider text-text-primary hover:text-brand transition-colors"
+                      >
+                        <Layers className="w-4 h-4 text-brand" />
+                        <span>Blokkok {blocks.length > 0 ? `(${blocks.length})` : ""}</span>
+                        {isBlocksExpanded ? (
+                          <ChevronUp className="w-4 h-4 text-text-tertiary" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-text-tertiary" />
+                        )}
+                      </button>
+
+                      <div className="flex items-center gap-2">
+                        {blocks.length > 0 && (
+                          <label className="hidden sm:flex items-center gap-1.5 text-11 text-text-secondary cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={useBlockAveragedRpe}
+                              onChange={(e) => setUseBlockAveragedRpe(e.target.checked)}
+                              className="rounded bg-bg-surface border-border-hairline text-brand focus:ring-brand"
+                            />
+                            <span>RPE blokkonként átlagolva</span>
+                          </label>
+                        )}
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            setTimerBlock(blocks[0] || null);
+                            setIsRestTimerOpen(true);
+                          }}
+                          leftIcon={<Timer className="w-3.5 h-3.5 text-brand" />}
+                        >
+                          Pihenő időzítő
+                        </Button>
+                      </div>
+                    </div>
+
+                    {isBlocksExpanded && (
+                      <div className="space-y-3 pt-2">
+                        {blocks.length > 0 && (
+                          <div className="sm:hidden flex items-center justify-between pb-1">
+                            <label className="flex items-center gap-1.5 text-11 text-text-secondary cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={useBlockAveragedRpe}
+                                onChange={(e) => setUseBlockAveragedRpe(e.target.checked)}
+                                className="rounded bg-bg-surface border-border-hairline text-brand focus:ring-brand"
+                              />
+                              <span>RPE blokkonként átlagolva</span>
+                            </label>
+                          </div>
+                        )}
+                        <TrainingBlockList
+                          blocks={blocks}
+                          onChange={setBlocks}
+                          athleteId={athleteId}
+                          isCompletedSession={true}
+                          hasLastSession={hasLastSessionWithBlocks}
+                          onCopyLastSessionBlocks={handleCopyLastSessionBlocks}
+                          laps={parsedFileResult?.laps}
+                          strengthSets={parsedFileResult?.strengthSets}
+                          onOpenTimer={(b) => {
+                            setTimerBlock(b);
+                            setIsRestTimerOpen(true);
+                          }}
+                          sport={sportId}
+                        />
+                      </div>
+                    )}
+                  </div>
+
                   {/* Subjective Notes */}
                   <div className="space-y-1">
                     <label className="text-11 font-semibold uppercase text-text-tertiary">
@@ -1497,6 +1688,14 @@ export const ManualSessionModal: React.FC<ManualSessionModalProps> = ({
           setRecordBeatPrompt(null);
           onClose();
         }}
+      />
+
+      {/* Rest Timer Modal */}
+      <RestTimerModal
+        isOpen={isRestTimerOpen}
+        onClose={() => setIsRestTimerOpen(false)}
+        initialSeconds={timerBlock?.restBetweenRoundsSeconds || timerBlock?.restAfterBlockSeconds || 60}
+        block={timerBlock || undefined}
       />
     </>
   );

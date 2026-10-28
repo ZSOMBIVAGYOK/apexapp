@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { PlannedWorkout } from "@shared/types/training";
+import { PlannedWorkout, TrainingBlock } from "@shared/types/training";
+import { cloneBlocks, getBlockTitle } from "@shared/lib/blocks";
 import { BottomSheet, Button } from "@shared/ui";
 import {
   CheckCircle2,
@@ -23,6 +24,7 @@ interface WorkoutFeedbackModalProps {
       athleteComment?: string;
       skipReason?: string;
       modificationReason?: string;
+      blocks?: TrainingBlock[];
     }
   ) => void;
 }
@@ -42,6 +44,7 @@ export const WorkoutFeedbackModal: React.FC<WorkoutFeedbackModalProps> = ({
   const [skipReason, setSkipReason] = useState<string>("fatigue");
   const [modificationReason, setModificationReason] = useState<string>("time");
   const [athleteComment, setAthleteComment] = useState<string>("");
+  const [editableBlocks, setEditableBlocks] = useState<TrainingBlock[]>([]);
 
   useEffect(() => {
     if (workout) {
@@ -55,6 +58,14 @@ export const WorkoutFeedbackModal: React.FC<WorkoutFeedbackModalProps> = ({
       setSkipReason(workout.skipReason || "fatigue");
       setModificationReason(workout.modificationReason || "time");
       setAthleteComment(workout.athleteFeedbackComment || "");
+      setEditableBlocks(
+        workout.blocks && workout.blocks.length > 0
+          ? cloneBlocks(workout.blocks).map((b) => ({
+              ...b,
+              completedRounds: b.completedRounds ?? b.rounds ?? 1
+            }))
+          : []
+      );
     }
   }, [workout]);
 
@@ -127,7 +138,8 @@ export const WorkoutFeedbackModal: React.FC<WorkoutFeedbackModalProps> = ({
       actualRpe: status !== "skipped" ? actualRpe : undefined,
       athleteComment,
       skipReason: status === "skipped" ? skipReason : undefined,
-      modificationReason: status === "modified" ? modificationReason : undefined
+      modificationReason: status === "modified" ? modificationReason : undefined,
+      blocks: status !== "skipped" && editableBlocks.length > 0 ? editableBlocks : undefined
     });
     onClose();
   };
@@ -284,6 +296,87 @@ export const WorkoutFeedbackModal: React.FC<WorkoutFeedbackModalProps> = ({
                     </option>
                   ))}
                 </select>
+              </div>
+            )}
+
+            {/* Quick Confirm & Adjust Blocks */}
+            {editableBlocks.length > 0 && (
+              <div className="space-y-2 pt-2 border-t border-white/5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                    {isHu ? "Blokkok megerősítése és módosítása" : "Confirm & Adjust Blocks"}
+                  </label>
+                  <span className="text-[10px] text-text-tertiary">
+                    {editableBlocks.length} {isHu ? "blokk" : "blocks"}
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  {editableBlocks.map((b, bIdx) => {
+                    const title = getBlockTitle(b);
+                    return (
+                      <div key={b.id} className="p-3 rounded-xl bg-[#0B0C0F] border border-white/5 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-white">{title}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] text-text-secondary">
+                              {isHu ? "Teljesített körök:" : "Completed rounds:"}
+                            </span>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const next = Math.max(0, (b.completedRounds ?? b.rounds ?? 1) - 1);
+                                  setEditableBlocks((prev) =>
+                                    prev.map((block, i) => (i === bIdx ? { ...block, completedRounds: next } : block))
+                                  );
+                                }}
+                                className="w-6 h-6 rounded-lg bg-[#14161B] text-white flex items-center justify-center hover:bg-white/10"
+                              >
+                                -
+                              </button>
+                              <span className="font-mono text-xs font-bold text-brand-400 px-1">
+                                {b.completedRounds ?? b.rounds}
+                              </span>
+                              <span className="text-[10px] text-text-tertiary">/ {b.rounds}</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const next = (b.completedRounds ?? b.rounds ?? 1) + 1;
+                                  setEditableBlocks((prev) =>
+                                    prev.map((block, i) => (i === bIdx ? { ...block, completedRounds: next } : block))
+                                  );
+                                }}
+                                className="w-6 h-6 rounded-lg bg-[#14161B] text-white flex items-center justify-center hover:bg-white/10"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {b.rows && b.rows.length > 0 && (
+                          <div className="space-y-1 pt-1 border-t border-white/5">
+                            {b.rows.map((r, rIdx) => (
+                              <div key={r.id} className="flex items-center justify-between text-xs py-0.5">
+                                <span className="text-text-secondary truncate max-w-[150px]">
+                                  {r.exerciseName || r.name || `Sor #${rIdx + 1}`}
+                                </span>
+                                <div className="flex items-center gap-2 text-[11px] font-mono text-white">
+                                  {r.type === "exercise" ? (
+                                    <span>{r.sets || 1} x {r.reps} @ {r.loadKg} kg</span>
+                                  ) : (
+                                    <span>{r.durationSeconds ? `${Math.round(r.durationSeconds / 60)}p` : "--"}</span>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </>

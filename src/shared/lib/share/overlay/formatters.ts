@@ -306,6 +306,22 @@ export function buildOverlayData(
     });
   }
 
+  // Block Summary
+  if (session.blocks && session.blocks.length > 0) {
+    const numBlocks = session.blocks.length;
+    const totalRounds = session.blocks.reduce((sum, b) => sum + (b.completedRounds || b.rounds || 1), 0);
+    const firstRowName = session.blocks[0]?.rows?.[0]?.exerciseName || session.blocks[0]?.rows?.[0]?.name;
+    const summaryVal = firstRowName
+      ? `${numBlocks} blokk (${totalRounds} kör, pl. ${firstRowName})`
+      : `${numBlocks} blokk (${totalRounds} kör)`;
+    metrics.push({
+      key: "blockSummary",
+      label: locale === "hu" ? "Blokkok" : "Blocks",
+      value: summaryVal,
+      unit: ""
+    });
+  }
+
   const gpsPoints = extractGpsPoints(session.timeSeries);
 
   return {

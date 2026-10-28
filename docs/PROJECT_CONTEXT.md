@@ -1047,3 +1047,31 @@ All nutrition constants and formulas are documented in `src/shared/lib/nutrition
 - **Full JSON Data Export & 30-Day Reminder:** Complete data export covering profile, sessions, planned workouts, daily check-ins, nutrition, equipment, exercises, and competitions, with automated 30-day backup reminder alert.
 - **Emergency Data Recovery Routine (`recoveryRoutine.ts`):** Automatically invoked on application startup to discover orphaned legacy data keys in browser localStorage and cleanly back them up to Firestore.
 
+---
+
+## 19. Training Blocks with Rounds & Rest Times Subsystem (COMPLETED)
+
+### A. Shared Block Model & Data Architecture
+- **Unified `TrainingBlock` Type (`src/shared/types/training.ts`):** A single schema used across both planned workouts and completed sessions (`athletes/{athleteId}/plannedWorkouts` and `athletes/{athleteId}/sessions`).
+  - Block types: Warmup (`bemelegítés`), Alphabetic (`A`, `B`, `C`, `D`, `E`, `F`, `G`, `H`), Cooldown (`levezetés`), Other (`egyéb` with custom name).
+  - Rounds & Rest: `rounds` (default 1), `restBetweenRoundsSeconds` (mm:ss input e.g. 1:00), `restAfterBlockSeconds` (e.g. 2:00).
+  - One-line block summary: e.g. `"A blokk • 3 kör • 1:00 pihenő körök között • 2:00 pihenő utána"`.
+  - Quick-pick rest chips: `0:30`, `1:00`, `1:30`, `2:00`, `3:00` plus free text/numeric mm:ss input.
+  - Rows (`TrainingBlockRow`): Exercise rows (sets, reps, load, RPE, rest between sets) or endurance rows (duration/distance, target, actual).
+  - Round Overrides (`RoundOverride`): Per-round modifications for progressive overload / drop sets without duplicate rows.
+  - Volume calculation: Total volume = `rounds x sets (default 1) x reps x loadKg` (or sum of round overrides), strictly preventing double-counting.
+- **Estimated Duration Engine (`calculateEstimatedDurationMinutes`):** Planned workouts compute total time based on rows (`DEFAULT_SECONDS_PER_REP = 4` seconds per rep, or duration seconds) + intra-set rests + inter-round rests + post-block rests, labeled as `(becsült)`.
+
+### B. FIT File & Device Derivation (`fitParser.ts`, `blockUtils.ts`)
+- **Laps to Blocks:** Converts recorded laps from FIT/GPX/TCX into structured blocks with pace, HR, power, and time offsets.
+- **FIT Strength Sets (Global Message 225):** Automatically parses strength sets recorded by Garmin/wearable devices (reps, weight in kg, active vs rest intervals) into structured strength exercise blocks.
+- **Chart Interactive Highlighting:** Tapping a block highlights the semi-transparent cyan band over the multi-channel time-series charts. Editing blocks does not mutate raw file telemetry.
+
+### C. UI & Workflow Integration
+- **`TrainingBlockList.tsx`:** Shared collapsible block editor component. Supports reordering via drag-and-drop and mobile up/down buttons, duplicate block, delete with confirmation, and exercise library integration with "Mentés a könyvtárba".
+- **`RestTimerModal.tsx`:** Floating circular progress countdown timer with Web Audio ascending chime, device vibration, and "+30 mp" button.
+- **`ManualSessionModal.tsx`:** Collapsible "Blokkok" drawer under "Részletek", "Előző edzés másolása" (retains block structure and targets, clears actual values), block-averaged RPE calculation toggle.
+- **`WorkoutBuilderModal.tsx` & `WorkoutFeedbackModal.tsx`:** Seamless plan-to-completion conversion with side-by-side planned vs actual comparison.
+- **`SessionShareModal.tsx`:** Optional "Blokk összegző" chip displaying compact block breakdown on export stickers and photos.
+
+

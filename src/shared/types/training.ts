@@ -50,28 +50,117 @@ export interface ExerciseDocument {
   schemaVersion?: number;
 }
 
-export type WorkoutBlockType =
-  | "warmup"
+export type TrainingBlockType =
+  | "warmup" // Bemelegítés
+  | "A"
+  | "B"
+  | "C"
+  | "D"
+  | "E"
+  | "F"
+  | "G"
+  | "H"
+  | "cooldown" // Levezetés
+  | "other" // Egyéb (egyedi névvel)
+  // Backward compatibility with legacy WorkoutBlockType
   | "main"
   | "interval"
-  | "cooldown"
   | "strength"
-  | "recovery";
+  | "recovery"
+  | (string & {});
 
-export interface WorkoutBlock {
+export type WorkoutBlockType = TrainingBlockType;
+
+export type BlockRowType = "exercise" | "endurance";
+
+export interface RoundOverride {
+  roundNumber: number; // 1-indexed (1, 2, 3...)
+  reps?: number;
+  loadKg?: number;
+  rpe?: number;
+  durationSeconds?: number;
+  distanceMeters?: number;
+  completed?: boolean;
+  notes?: string;
+}
+
+export interface TrainingBlockRow {
   id: string;
-  name: string;
+  type: BlockRowType; // "exercise" | "endurance"
+  name?: string; // name or label
+  groupCode?: string; // e.g. "A1", "A2", "B1" for supersets/circuits
+
+  // Exercise fields:
+  exerciseId?: string; // from exercise library if picked
+  exerciseName?: string; // name from library or typed
+  sets?: number; // default 1
+  reps?: number;
+  loadKg?: number;
+  rpe?: number; // 1-10
+  restBetweenSetsSeconds?: number; // optional rest between sets
+
+  // Endurance / interval segment fields:
+  durationSeconds?: number;
+  distanceMeters?: number;
+  target?: string; // e.g. "Z4", "3:50/km", "280W", "RPE 8"
+  result?: string; // actual result: e.g. "3:48/km", "285W"
+
+  // Completion:
+  completed?: boolean;
+
+  // Per-round variations ("Körönkénti eltérés"):
+  roundOverrides?: RoundOverride[];
+
+  notes?: string;
+}
+
+export interface TrainingBlockTimeRange {
+  startOffsetSeconds: number;
+  endOffsetSeconds: number;
+}
+
+export interface TrainingBlockStats {
+  durationSeconds?: number;
+  avgHeartRate?: number;
+  maxHeartRate?: number;
+  avgPowerWatts?: number;
+  distanceMeters?: number;
+  avgPace?: string;
+  avgSpeedKmh?: number;
+  timeInZonesSeconds?: Record<number, number>;
+  tonnageKg?: number;
+  totalReps?: number;
+  totalRestSeconds?: number;
+}
+
+export interface TrainingBlock {
+  id: string;
+  type: TrainingBlockType;
+  customTypeName?: string; // custom name if type === "other"
+  label?: string; // optional user label, e.g. "Guggolás + Törzs"
+  order?: number;
+  notes?: string;
+  rounds?: number; // default 1 ("Körök")
+  completedRounds?: number; // planned vs completed rounds (e.g. planned 3, did 2)
+  restBetweenRoundsSeconds?: number; // "Pihenő körök között"
+  restAfterBlockSeconds?: number; // "Pihenő a blokk után"
+  rpe?: number; // optional per-block RPE
+  timeRange?: TrainingBlockTimeRange; // optional time range inside session
+  stats?: TrainingBlockStats;
+  rows?: TrainingBlockRow[];
+
+  // Legacy WorkoutBlock compatibility fields:
+  name?: string;
   title?: string;
-  type: WorkoutBlockType;
-  durationMinutes: number;
+  durationMinutes?: number;
   distanceMeters?: number;
   targetType?: TargetMetricType | string;
-  targetValue?: string | number; // e.g., 7 (RPE), "Z4" (HR), 280 (Watts), "3:50/km" (Pace)
+  targetValue?: string | number;
   targetRpe?: number;
   targetZone?: number;
   targetPower?: number;
   targetPace?: string;
-  repeats?: number; // E.g., 5 for 5x repeats
+  repeats?: number;
   restDurationMinutes?: number;
   workDurationSeconds?: number;
   restDurationSeconds?: number;
@@ -79,8 +168,9 @@ export interface WorkoutBlock {
   restTarget?: string;
   strengthExercises?: StrengthExercise[];
   description?: string;
-  notes?: string;
 }
+
+export type WorkoutBlock = TrainingBlock;
 
 export type WorkoutStatus = "scheduled" | "completed" | "modified" | "skipped";
 

@@ -28,6 +28,7 @@ import {
   Clock,
   Compass
 } from "lucide-react";
+import { showToast } from "@shared/ui";
 
 export interface SessionMultiChannelChartsProps {
   sessionId: string;
@@ -41,6 +42,8 @@ export interface SessionMultiChannelChartsProps {
   avgPace?: string;
   elevationGainMeters?: number;
   distanceMeters?: number;
+  highlightRange?: { startOffsetSeconds: number; endOffsetSeconds: number } | null;
+  onRangeSelect?: (range: { startOffsetSeconds: number; endOffsetSeconds: number }) => void;
 }
 
 type XAxisMode = "time" | "distance";
@@ -72,10 +75,13 @@ export const SessionMultiChannelCharts: React.FC<SessionMultiChannelChartsProps>
   avgPowerWatts,
   avgPace,
   elevationGainMeters,
-  distanceMeters
+  distanceMeters,
+  highlightRange,
+  onRangeSelect
 }) => {
   const [xAxisMode, setXAxisMode] = useState<XAxisMode>("time");
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const [selectionStart, setSelectionStart] = useState<number | null>(null);
 
   // Reset hover on session change
   useEffect(() => {
@@ -314,6 +320,75 @@ export const SessionMultiChannelCharts: React.FC<SessionMultiChannelChartsProps>
     return { linePath, areaPath };
   };
 
+  const renderHighlightBand = (height: number, pad = 8) => {
+    if (!highlightRange) return null;
+    const drawW = 320 - pad * 2;
+    const startX = Math.max(pad, pad + (Math.max(0, highlightRange.startOffsetSeconds) / (maxTime || 1)) * drawW);
+    const endX = Math.min(320 - pad, pad + (Math.min(maxTime, highlightRange.endOffsetSeconds) / (maxTime || 1)) * drawW);
+    const w = Math.max(3, endX - startX);
+    return (
+      <rect
+        x={startX}
+        y={pad - 2}
+        width={w}
+        height={height - pad * 2 + 4}
+        fill="#06B6D4"
+        fillOpacity={0.22}
+        stroke="#06B6D4"
+        strokeWidth={1.5}
+        strokeDasharray="3 3"
+        rx={3}
+        pointerEvents="none"
+      />
+    );
+  };
+
+  const renderSelectionStartLine = (height: number, pad = 8) => {
+    if (selectionStart === null) return null;
+    const drawW = 320 - pad * 2;
+    const x = pad + (selectionStart / (maxTime || 1)) * drawW;
+    return (
+      <line
+        x1={x}
+        y1={pad}
+        x2={x}
+        y2={height - pad}
+        stroke="#06B6D4"
+        strokeWidth={2}
+        strokeDasharray="2 2"
+        pointerEvents="none"
+      />
+    );
+  };
+
+  const handleChartClick = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (!onRangeSelect) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const relX = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const idx = Math.min(processedPoints.length - 1, Math.round(relX * (processedPoints.length - 1)));
+    const pt = processedPoints[idx];
+    if (pt) {
+      if (selectionStart === null) {
+        setSelectionStart(pt.timeOffset);
+        showToast({
+          title: "Blokk kezdőpont kiválasztva",
+          message: `Kattints a végpontra a grafikonon (${formatOffset(pt.timeOffset)}).`,
+          variant: "info"
+        });
+      } else {
+        const start = Math.min(selectionStart, pt.timeOffset);
+        const end = Math.max(selectionStart, pt.timeOffset);
+        onRangeSelect({ startOffsetSeconds: start, endOffsetSeconds: end });
+        setSelectionStart(null);
+        showToast({
+          title: "Blokk határok kijelölve",
+          message: `${formatOffset(start)} - ${formatOffset(end)} időtartomány hozzárendelve a blokkhoz.`,
+          variant: "success"
+        });
+      }
+    }
+  };
+
   if (processedPoints.length === 0) {
     return (
       <div className="p-4 rounded-xl bg-neutral-900/60 border border-neutral-800 text-center text-xs text-text-secondary">
@@ -390,6 +465,7 @@ export const SessionMultiChannelCharts: React.FC<SessionMultiChannelChartsProps>
                 setHoverIndex(idx);
               }}
               onMouseLeave={() => setHoverIndex(null)}
+              onClick={handleChartClick}
             >
               <defs>
                 <linearGradient id="hrGrad" x1="0" y1="0" x2="0" y2="1">
@@ -397,6 +473,10 @@ export const SessionMultiChannelCharts: React.FC<SessionMultiChannelChartsProps>
                   <stop offset="100%" stopColor="#F43F5E" stopOpacity="0.0" />
                 </linearGradient>
               </defs>
+
+              {/* Block Highlight Band & Point Selection */}
+              {renderHighlightBand(90)}
+              {renderSelectionStartLine(90)}
 
               {/* Zone Background Bands */}
               {(() => {
@@ -511,6 +591,7 @@ export const SessionMultiChannelCharts: React.FC<SessionMultiChannelChartsProps>
                 setHoverIndex(idx);
               }}
               onMouseLeave={() => setHoverIndex(null)}
+              onClick={handleChartClick}
             >
               <defs>
                 <linearGradient id="speedGrad" x1="0" y1="0" x2="0" y2="1">
@@ -518,6 +599,10 @@ export const SessionMultiChannelCharts: React.FC<SessionMultiChannelChartsProps>
                   <stop offset="100%" stopColor="#06B6D4" stopOpacity="0.0" />
                 </linearGradient>
               </defs>
+
+              {/* Block Highlight Band & Point Selection */}
+              {renderHighlightBand(90)}
+              {renderSelectionStartLine(90)}
 
               {(() => {
                 if (speedMetrics?.mode === "pace") {

@@ -7,7 +7,8 @@ import {
   Competition,
   SeasonPhase,
   AthleteTrainingZones,
-  SportType
+  SportType,
+  TrainingBlock
 } from "@shared/types/training";
 import {
   calculatePMCSeries,
@@ -54,8 +55,10 @@ import { EquipmentView } from "@features/equipment/components/EquipmentView";
 import { getEquipmentList, hasDueMaintenance } from "@shared/lib/equipment";
 import { getLocalSessions } from "@shared/lib/offline/offlineStorage";
 import { CompletedSessionDocument } from "@shared/types";
+import { convertPlannedWorkoutToCompletedBlocks } from "@shared/lib/blocks";
 import {
   getSessions,
+  saveSession,
   subscribeSessions,
   getPlannedWorkouts,
   subscribePlannedWorkouts,
@@ -736,6 +739,7 @@ export const TrainingPage: React.FC = () => {
       athleteComment?: string;
       skipReason?: string;
       modificationReason?: string;
+      blocks?: TrainingBlock[];
     }
   ) => {
     let updatedWorkout: PlannedWorkout | null = null;
@@ -749,7 +753,8 @@ export const TrainingPage: React.FC = () => {
             actualRpe: feedback.actualRpe,
             athleteFeedbackComment: feedback.athleteComment,
             skipReason: feedback.skipReason,
-            modificationReason: feedback.modificationReason
+            modificationReason: feedback.modificationReason,
+            blocks: feedback.blocks || w.blocks
           };
           return updatedWorkout;
         }
@@ -760,8 +765,37 @@ export const TrainingPage: React.FC = () => {
     if (updatedWorkout) {
       try {
         await savePlannedWorkout(updatedWorkout);
+
+        if (feedback.status === "completed" || feedback.status === "modified") {
+          const u = updatedWorkout as PlannedWorkout;
+          const completedBlocks = convertPlannedWorkoutToCompletedBlocks(feedback.blocks || u.blocks);
+          const sessionDoc: CompletedSessionDocument = {
+            sessionId: u.id,
+            athleteId,
+            date: u.date,
+            sport: u.sport,
+            title: u.title,
+            startTime: "09:00",
+            durationMinutes: feedback.actualDurationMinutes || u.plannedDurationMinutes,
+            rpe: feedback.actualRpe || 6,
+            targetIntensityRpe: feedback.actualRpe || 6,
+            trainingLoad: feedback.actualRpe
+              ? Math.round((feedback.actualDurationMinutes || u.plannedDurationMinutes) * feedback.actualRpe)
+              : u.plannedLoad,
+            blocks: completedBlocks.length > 0 ? completedBlocks : undefined,
+            strengthExercises: u.strengthExercises,
+            notes: feedback.athleteComment || undefined,
+            completed: true,
+            source: "manual",
+            confidence: 0.95,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            updatedBy: athleteId
+          };
+          await saveSession(sessionDoc);
+        }
       } catch (err) {
-        console.warn("Failed saving feedback:", err);
+        console.warn("Failed saving feedback or session doc:", err);
       }
     }
 
@@ -1110,7 +1144,7 @@ export const TrainingPage: React.FC = () => {
             actualRpe: session.rpe,
             plannedLoad: session.trainingLoad || 50,
             status: "completed",
-            blocks: [],
+            blocks: session.blocks || [],
             strengthExercises: session.strengthExercises
           };
           handleSaveWorkout(newWorkout);

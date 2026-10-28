@@ -152,6 +152,7 @@ Completed training sessions:
 - `timeSeries`: Downsampled time series ($\le 500$ points):
   - `points`: Array of `{ timeOffsetSeconds, heartRate?, powerWatts?, speedMps?, paceSecondsPerKm?, elevationMeters?, distanceMeters?, lat?, lon? }`
   - `svgRouteOutline`: String (Normalized SVG `<path d="..." />` vector path, zero external map tiles)
+- `blocks`: Array of `TrainingBlock` (Unified training blocks with rounds, rest intervals, and exercise/endurance rows)
 - `coachFeedback`: String
 - `notes`: String
 - `completed`: Boolean
@@ -164,12 +165,41 @@ Workouts prescribed by the athlete or authorized coach:
 - `date`: String (`YYYY-MM-DD`)
 - `sport`: String
 - `title`: String
-- `plannedDurationMinutes`: Number
+- `plannedDurationMinutes`: Number (or estimated from blocks: sum of rows + rests)
 - `targetRpe`: Number
 - `structuredSteps`: String
+- `blocks`: Array of `TrainingBlock` (Unified training blocks shared with completed sessions)
 - `assignedBy`: String (UID of author)
 - `status`: `'scheduled' | 'completed' | 'skipped'`
 - Standard metadata: `source`, `confidence`, `createdAt`, `updatedAt`, `updatedBy`
+
+#### Unified `TrainingBlock` Schema (Shared across Planned and Completed Workouts)
+- `id`: String (UUID)
+- `type`: `'warmup' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'cooldown' | 'other'`
+- `customName`: String (used when `type === 'other'`)
+- `label`: String (optional display subtitle/label)
+- `order`: Number (zero-indexed sequence)
+- `rounds`: Number (default 1, multiplier for rows)
+- `restBetweenRoundsSeconds`: Number (e.g. 60s for 1:00)
+- `restAfterBlockSeconds`: Number (e.g. 120s for 2:00)
+- `timeRange`: `{ startOffsetSeconds: number, endOffsetSeconds: number }` (optional timestamp boundaries within session)
+- `notes`: String
+- `rows`: Array of `TrainingBlockRow`:
+  - `id`: String
+  - `kind`: `'exercise' | 'endurance'`
+  - `exerciseId`: String (library reference)
+  - `name`: String (exercise or segment name)
+  - `sets`: Number (default 1)
+  - `reps`: Number
+  - `loadKg`: Number
+  - `rpe`: Number (1-10)
+  - `restSeconds`: Number (rest between sets)
+  - `durationSeconds`: Number (for endurance rows)
+  - `distanceMeters`: Number (for endurance rows)
+  - `targetIntensity`: String
+  - `actualValue`: String
+  - `roundOverrides`: Array of `{ round: number, reps?: number, loadKg?: number, rpe?: number, completed?: boolean }`
+- `stats`: `{ durationSeconds, avgHeartRate?, maxHeartRate?, avgPowerWatts?, avgSpeedMps?, tonnageKg?, workRestRatio? }`
 
 ### F. `athletes/{id}/nutritionDays/{date}` & `/entries/{id}` (NUTRITION Module)
 Target and actual nutrient values:

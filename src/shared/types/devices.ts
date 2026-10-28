@@ -68,6 +68,20 @@ export interface NormalizedLap {
   calories?: number;
 }
 
+export interface NormalizedStrengthSet {
+  index: number;
+  type: "active" | "rest"; // 1 = active, 0 = rest
+  durationSeconds?: number;
+  repetitions?: number;
+  weightKg?: number;
+  category?: number | string;
+  categorySubtype?: number | string;
+  exerciseName?: string;
+  startTimeIso?: string;
+  startOffsetSeconds?: number;
+  endOffsetSeconds?: number;
+}
+
 /**
  * Normalized Activity Record across all providers
  */
@@ -96,6 +110,7 @@ export interface NormalizedActivity {
   warningsHu?: string[];
   timeSeries?: any;
   laps?: NormalizedLap[];
+  strengthSets?: NormalizedStrengthSet[];
   samplesRef?: string; // Reference to Cloud Storage time-series sample (FIT/TCX points)
   rawPayloadRef?: string;
   sourceConfidence: number; // 0.0 - 1.0

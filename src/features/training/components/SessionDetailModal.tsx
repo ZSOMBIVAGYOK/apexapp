@@ -20,10 +20,22 @@ import {
   MapPin,
   Paperclip,
   Activity,
-  Share2
+  Share2,
+  Layers,
+  Dumbbell,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 import { SessionShareModal } from "./SessionShareModal";
 import { SessionMultiChannelCharts } from "./charts/SessionMultiChannelCharts";
+import {
+  getBlockTitle,
+  getBlockHeaderSummary,
+  calculateBlockVolume,
+  calculateSessionTonnage,
+  calculateBlockTimeSeriesStats,
+  formatDurationMmSs
+} from "@shared/lib/blocks";
 
 interface SessionDetailModalProps {
   isOpen: boolean;
@@ -45,6 +57,8 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
   const [isAttachingFile, setIsAttachingFile] = useState(false);
   const [isSavingFile, setIsSavingFile] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [highlightedBlockId, setHighlightedBlockId] = useState<string | null>(null);
+  const [isBlocksListExpanded, setIsBlocksListExpanded] = useState<boolean>(true);
 
   if (!session) return null;
 
@@ -258,6 +272,183 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
           </div>
         )}
 
+        {/* Training Blocks Section (Collapsible with Block Stats & Chart Highlighting) */}
+        {session.blocks && session.blocks.length > 0 && (
+          <div className="p-3.5 rounded-xl bg-bg-surface border border-border-hairline space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Layers className="w-4 h-4 text-brand-primary" />
+                <span className="text-13 font-semibold text-text-primary">
+                  Edzésblokkok ({session.blocks.length})
+                </span>
+                {(() => {
+                  const sTonnage = calculateSessionTonnage(session.blocks);
+                  if (sTonnage.totalTonnageKg > 0) {
+                    return (
+                      <Badge variant="brand" size="sm">
+                        <Dumbbell className="w-3 h-3 mr-1" />
+                        {sTonnage.totalTonnageKg.toLocaleString()} kg összsúly
+                      </Badge>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsBlocksListExpanded(!isBlocksListExpanded)}
+                className="p-1 text-text-secondary hover:text-text-primary transition-colors"
+              >
+                {isBlocksListExpanded ? (
+                  <ChevronUp className="w-4 h-4" />
+                ) : (
+                  <ChevronDown className="w-4 h-4" />
+                )}
+              </button>
+            </div>
+
+            {isBlocksListExpanded && (
+              <div className="space-y-2 pt-1">
+                {session.blocks.map((block) => {
+                  const isHighlighted = highlightedBlockId === block.id;
+                  const title = getBlockTitle(block, true);
+                  const summary = getBlockHeaderSummary(block, true);
+                  const vol = calculateBlockVolume(block);
+                  const tsStats = calculateBlockTimeSeriesStats(block, timeSeries);
+
+                  return (
+                    <div
+                      key={block.id}
+                      onClick={() =>
+                        setHighlightedBlockId(isHighlighted ? null : block.id)
+                      }
+                      className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                        isHighlighted
+                          ? "bg-cyan-950/25 border-cyan-500 shadow-sm"
+                          : "bg-neutral-900/40 border-border-subtle hover:border-border-hairline"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-xs text-text-primary">
+                            {title}
+                          </span>
+                          {block.label && (
+                            <span className="text-[11px] text-text-secondary">
+                              ({block.label})
+                            </span>
+                          )}
+                          <span className="text-[11px] text-text-tertiary">
+                            • {block.rounds || 1} kör
+                            {block.completedRounds !== undefined &&
+                              ` (teljesítve: ${block.completedRounds})`}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-[11px] font-mono">
+                          {vol.tonnageKg > 0 && (
+                            <Badge variant="outline" size="sm">
+                              {vol.tonnageKg.toLocaleString()} kg ({vol.totalReps} rep)
+                            </Badge>
+                          )}
+                          {block.timeRange && (
+                            <Badge
+                              variant={isHighlighted ? "brand" : "outline"}
+                              size="sm"
+                            >
+                              {formatDurationMmSs(block.timeRange.startOffsetSeconds)} -{" "}
+                              {formatDurationMmSs(block.timeRange.endOffsetSeconds)}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Header summary text */}
+                      <div className="text-[11px] text-text-tertiary mt-1">
+                        {summary}
+                      </div>
+
+                      {/* Per-block stats from time range */}
+                      {tsStats && (
+                        <div className="mt-2 pt-2 border-t border-border-hairline/40 grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] font-mono text-text-secondary">
+                          {tsStats.avgHeartRate && (
+                            <div>
+                              <span>Átl. pulzus:</span>{" "}
+                              <strong className="text-rose-300">
+                                {tsStats.avgHeartRate} bpm
+                              </strong>
+                            </div>
+                          )}
+                          {tsStats.maxHeartRate && (
+                            <div>
+                              <span>Max pulzus:</span>{" "}
+                              <strong className="text-rose-400">
+                                {tsStats.maxHeartRate} bpm
+                              </strong>
+                            </div>
+                          )}
+                          {tsStats.distanceMeters && (
+                            <div>
+                              <span>Távolság:</span>{" "}
+                              <strong className="text-blue-300">
+                                {(tsStats.distanceMeters / 1000).toFixed(2)} km
+                              </strong>
+                            </div>
+                          )}
+                          {tsStats.avgPace && (
+                            <div>
+                              <span>Tempó:</span>{" "}
+                              <strong className="text-cyan-300">
+                                {tsStats.avgPace}
+                              </strong>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Rows breakdown */}
+                      {block.rows && block.rows.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {block.rows.map((row) => (
+                            <div
+                              key={row.id}
+                              className="text-[11px] flex items-center justify-between text-text-secondary bg-neutral-950/40 rounded px-2 py-0.5"
+                            >
+                              <div className="flex items-center gap-1.5">
+                                {row.groupCode && (
+                                  <span className="font-bold text-text-tertiary">
+                                    {row.groupCode}:
+                                  </span>
+                                )}
+                                <span>{row.exerciseName || row.target || "Szakasz"}</span>
+                              </div>
+                              <div className="font-mono text-[10px]">
+                                {row.type === "exercise" ? (
+                                  <span>
+                                    {row.sets || 1} x {row.reps || 8} @ {row.loadKg || 0} kg
+                                    {row.rpe ? ` (RPE ${row.rpe})` : ""}
+                                  </span>
+                                ) : (
+                                  <span>
+                                    {formatDurationMmSs(row.durationSeconds)}
+                                    {row.distanceMeters ? ` • ${row.distanceMeters}m` : ""}
+                                    {row.result ? ` (${row.result})` : ""}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Generic Multi-Channel Charts (HR with zones, Speed/Pace, Power, Cadence, Elevation, Temp) */}
         {timeSeries.length > 0 && (
           <SessionMultiChannelCharts
@@ -270,6 +461,11 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
             avgPace={session.metrics?.avgPace}
             elevationGainMeters={session.metrics?.elevationGainMeters}
             distanceMeters={session.metrics?.distanceMeters}
+            highlightRange={
+              highlightedBlockId
+                ? session.blocks?.find((b) => b.id === highlightedBlockId)?.timeRange || null
+                : null
+            }
           />
         )}
 

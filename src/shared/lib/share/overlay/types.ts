@@ -25,7 +25,8 @@ export type ShareMetricKey =
   | "load"
   | "rpe"
   | "recordBadge"
-  | "gear";
+  | "gear"
+  | "blockSummary";
 
 export interface FormattedMetric {
   key: ShareMetricKey;

@@ -1,5 +1,5 @@
 import { UserRole } from "./index";
-import { StrengthExercise } from "./training";
+import { StrengthExercise, TrainingBlock } from "./training";
 
 /**
  * Standard data record metadata required on EVERY record
@@ -250,6 +250,7 @@ export interface CompletedSessionDocument extends StandardRecordMetadata {
   }>;
   coachFeedback?: string;
   notes?: string;
+  blocks?: TrainingBlock[];
   strengthExercises?: StrengthExercise[];
   equipmentIds?: string[];
   courseId?: string;
@@ -277,6 +278,7 @@ export interface PlannedWorkoutDocument extends StandardRecordMetadata {
   structuredSteps?: string;
   assignedBy: string; // uid of coach or athlete
   status: "scheduled" | "completed" | "skipped";
+  blocks?: TrainingBlock[];
 }
 
 /**

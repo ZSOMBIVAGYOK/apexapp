@@ -773,7 +773,8 @@ export const SessionShareModal: React.FC<SessionShareModalProps> = ({
                 load: t("share.metricLoad", "Terhelés"),
                 rpe: t("share.metricRpe", "RPE"),
                 recordBadge: t("share.metricRecord", "Új rekord jelvény"),
-                gear: t("share.metricGear", "Eszköz")
+                gear: t("share.metricGear", "Eszköz"),
+                blockSummary: t("share.metricBlocks", "Blokk összegző")
               };
 
               return (

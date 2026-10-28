@@ -5,7 +5,7 @@
  * developer fields, and compressed timestamp messages.
  */
 
-import { NormalizedActivity, NormalizedLap } from "@shared/types/devices";
+import { NormalizedActivity, NormalizedLap, NormalizedStrengthSet } from "@shared/types/devices";
 import { SessionTimeSeriesPoint } from "@shared/types/dataModel";
 import { mapFitSport } from "@shared/lib/sports/sportMapping";
 import { cleanTimeSeries } from "./seriesCleaner";
@@ -13,6 +13,33 @@ import { calculateSessionLoadDetailed } from "@shared/lib/load";
 
 // FIT epoch begins at UTC 1989-12-31 00:00:00 (Unix timestamp 631065600)
 const FIT_EPOCH_MS = 631065600000;
+
+export const FIT_EXERCISE_CATEGORIES: Record<number, { hu: string; en: string }> = {
+  0: { hu: "Fekvenyomás", en: "Bench Press" },
+  1: { hu: "Vádliemelés", en: "Calf Raise" },
+  2: { hu: "Kardió", en: "Cardio" },
+  3: { hu: "Súlycipelés", en: "Carry" },
+  4: { hu: "Fakorcolás / Átlós húzás", en: "Chop" },
+  5: { hu: "Törzsizomzat", en: "Core" },
+  6: { hu: "Hasprés", en: "Crunch" },
+  7: { hu: "Bicepszhajlítás", en: "Curl" },
+  8: { hu: "Felhúzás", en: "Deadlift" },
+  9: { hu: "Tárogatás", en: "Flye" },
+  10: { hu: "Csípőemelés", en: "Hip Raise" },
+  11: { hu: "Kitörés", en: "Lunge" },
+  12: { hu: "Olimpiai súlyemelés", en: "Olympic Lift" },
+  13: { hu: "Plank", en: "Plank" },
+  14: { hu: "Húzódzkodás", en: "Pull Up" },
+  15: { hu: "Fekvőtámasz", en: "Push Up" },
+  16: { hu: "Döntött törzsű evezés", en: "Row" },
+  17: { hu: "Vállból nyomás", en: "Shoulder Press" },
+  18: { hu: "Vállvonogatás", en: "Shrug" },
+  19: { hu: "Felülés", en: "Sit Up" },
+  20: { hu: "Guggolás", en: "Squat" },
+  21: { hu: "Teljes test", en: "Total Body" },
+  22: { hu: "Tricepsznyújtás", en: "Triceps Extension" },
+  23: { hu: "Melegítés", en: "Warm Up" }
+};
 
 interface FieldDefinition {
   fieldNum: number;
@@ -79,6 +106,7 @@ export function parseFIT(
   let elevationGainMeters: number | undefined;
   let elevationLossMeters: number | undefined;
   const laps: NormalizedLap[] = [];
+  const strengthSets: NormalizedStrengthSet[] = [];
 
   // Time series records
   const rawPoints: SessionTimeSeriesPoint[] = [];
@@ -335,6 +363,59 @@ export function parseFIT(
         }
       }
 
+      // -------------------------------------------------------------
+      // Global Msg 225: Set message (Strength sets & rest intervals)
+      // -------------------------------------------------------------
+      if (def.globalMsgNum === 225) {
+        let fOffset = offset;
+        let setDurationSec = 0;
+        let repetitions = 0;
+        let weightKg = 0;
+        let setType: "active" | "rest" = "active";
+        let category: number | undefined;
+        let startTimeSec: number | undefined;
+
+        for (const f of def.fields) {
+          if (f.fieldNum === 0 && f.size === 4) {
+            const raw = readUint32(fOffset);
+            if (raw > 0 && raw < 0xfffffffe) setDurationSec = Math.round(raw / 1000);
+          } else if (f.fieldNum === 3 && f.size === 2) {
+            const raw = readUint16(fOffset);
+            if (raw > 0 && raw < 0xfffe) repetitions = raw;
+          } else if (f.fieldNum === 4 && f.size === 2) {
+            const raw = readUint16(fOffset);
+            if (raw > 0 && raw < 0xfffe) {
+              weightKg = raw > 250 ? Math.round((raw / 16) * 10) / 10 : raw;
+            }
+          } else if (f.fieldNum === 5 && f.size === 1) {
+            const raw = bytes[fOffset]!;
+            setType = raw === 0 ? "rest" : "active";
+          } else if (f.fieldNum === 6 && f.size === 4) {
+            const raw = readUint32(fOffset);
+            if (raw > 0 && raw < 0xfffffffe) startTimeSec = raw;
+          } else if (f.fieldNum === 7 && f.size === 2) {
+            category = readUint16(fOffset);
+          }
+          fOffset += f.size;
+        }
+
+        const categoryInfo = category !== undefined ? FIT_EXERCISE_CATEGORIES[category] : undefined;
+        const exerciseName = categoryInfo ? categoryInfo.hu : undefined;
+
+        strengthSets.push({
+          index: strengthSets.length,
+          type: setType,
+          durationSeconds: setDurationSec > 0 ? setDurationSec : undefined,
+          repetitions: setType === "active" ? repetitions : undefined,
+          weightKg: setType === "active" && weightKg > 0 ? weightKg : undefined,
+          category,
+          exerciseName,
+          startTimeIso: startTimeSec
+            ? new Date(FIT_EPOCH_MS + startTimeSec * 1000).toISOString()
+            : undefined
+        });
+      }
+
       // Advance by record size + developer fields
       for (const f of def.fields) offset += f.size;
       if (def.devFields) {
@@ -428,6 +509,7 @@ export function parseFIT(
     loadSourceLabelHu: loadResult.sourceLabelHu,
     warningsHu: report.warningsHu,
     laps: laps.length > 0 ? laps : undefined,
+    strengthSets: strengthSets.length > 0 ? strengthSets : undefined,
     timeSeries: {
       points: smoothedPoints.length > 0 ? smoothedPoints : cleanedPoints
     },

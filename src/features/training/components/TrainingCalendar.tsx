@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PlannedWorkout, SportType } from "@shared/types/training";
+import { calculateEstimatedDurationMinutes, getBlockHeaderSummary } from "@shared/lib/blocks";
 import { Card, Button, BottomSheet } from "@shared/ui";
 import {
   ChevronLeft,
@@ -474,7 +475,7 @@ export const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
                             <span>
                               {isCompleted && workout.actualDurationMinutes
                                 ? `${workout.actualDurationMinutes}p`
-                                : `${workout.plannedDurationMinutes}p`}
+                                : `${(workout.blocks && workout.blocks.length > 0) ? calculateEstimatedDurationMinutes(workout.blocks) : workout.plannedDurationMinutes}p (becsült)`}
                             </span>
                             <span>{workout.plannedLoad} TSS</span>
                           </div>
@@ -768,18 +769,28 @@ export const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
                         <span className="text-[11px] font-semibold text-text-secondary uppercase">
                           {isHu ? "Blokkok" : "Blocks"}
                         </span>
-                        {w.blocks.map((b) => (
-                          <div
-                            key={b.id}
-                            className="flex items-center justify-between text-xs p-2 rounded-xl bg-[#14161B]"
-                          >
-                            <span className="text-white">{b.name}</span>
-                            <span className="text-text-secondary font-mono">
-                              {b.durationMinutes}p{" "}
-                              {b.targetRpe ? `(RPE ${b.targetRpe})` : b.targetZone ? `(Z${b.targetZone})` : ""}
-                            </span>
-                          </div>
-                        ))}
+                        {w.blocks.map((b) => {
+                          const summary = getBlockHeaderSummary(b);
+                          const estMinutes = calculateEstimatedDurationMinutes([b]);
+                          return (
+                            <div
+                              key={b.id}
+                              className="flex items-center justify-between text-xs p-2 rounded-xl bg-[#14161B]"
+                            >
+                              <div className="flex flex-col">
+                                <span className="text-white font-medium">{summary}</span>
+                                {b.rows && b.rows.length > 0 && (
+                                  <span className="text-[11px] text-text-tertiary">
+                                    {b.rows.map((r) => r.exerciseName || r.name || "Gyakorlat").join(", ")}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-text-secondary font-mono text-[11px] shrink-0 ml-2">
+                                {estMinutes > 0 ? `${estMinutes}p (becsült)` : b.durationMinutes ? `${b.durationMinutes}p` : ""}
+                              </span>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
 
