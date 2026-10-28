@@ -319,7 +319,17 @@
     "batchNumber": "Tételszám (Batch Number)",
     "antiDopingNotice": "WADA Objektív Felelősség (Strict Liability)",
     "honestCoverage": "Mikrotápanyag fedettség",
-    "missingData": "Adathiányos címke"
+    "missingData": "Adathiányos címke",
+    "mealPlan": "Étrendterv",
+    "myFoods": "Ételeim",
+    "targets": "Célok",
+    "composeDay": "Nap összeállítása",
+    "weekPlan": "Hétterv",
+    "shoppingList": "Bevásárlólista",
+    "eatenBtn": "Megettem",
+    "ateOtherBtn": "Mást ettem",
+    "plannedMealBadge": "Tervezett étrend",
+    "poolTopOptions": "Javasolt opciók az étrendtervből"
   },
 
   "devices": {

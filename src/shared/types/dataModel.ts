@@ -321,6 +321,8 @@ export interface NutritionEntryDocument extends StandardRecordMetadata {
   loggedAt: string;
 }
 
+export * from "./mealPlan";
+
 /**
  * Injury Record in athletes/{id}/injuries/{id} (HEALTH module)
  */

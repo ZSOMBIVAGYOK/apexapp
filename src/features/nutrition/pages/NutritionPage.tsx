@@ -16,7 +16,6 @@ import {
   UserCheck,
   Utensils,
   Sparkles,
-  Pill,
   Scale,
   HeartPulse
 } from "lucide-react";
@@ -43,6 +42,16 @@ import { SupplementsTab } from "../components/SupplementsTab";
 import { BodyMetricsTab } from "../components/BodyMetricsTab";
 import { DietitianPlanModal } from "../components/DietitianPlanModal";
 import { HydrationTrackerCard } from "../components/HydrationTrackerCard";
+import { MealPlanEditor } from "../components/plans/MealPlanEditor";
+import { MyFoodsTab } from "../components/plans/MyFoodsTab";
+import { DayComposerModal } from "../components/plans/DayComposerModal";
+import { WeekPlannerModal } from "../components/plans/WeekPlannerModal";
+import { ShoppingListModal } from "../components/plans/ShoppingListModal";
+import { getActiveMealPlan } from "@shared/lib/repositories/mealPlanRepository";
+import { getPlannedDay, subscribePlannedDay, savePlannedDay } from "@shared/lib/repositories/plannedDayRepository";
+import { MealPlanDocument, PlannedDayDocument, MealPlanOption, PlannedDayOptionSelection } from "@shared/types/mealPlan";
+import { calculateOptionNutrients, generateStarterMealPlan } from "@shared/lib/nutrition/mealPlanEngine";
+import { Layers, Calendar, ShoppingCart, Check } from "lucide-react";
 import { useAuthStore } from "@features/auth/authStore";
 import { getNutritionDay, saveNutritionDay, subscribeNutritionDay } from "@shared/lib/repositories/nutritionRepository";
 import {
@@ -63,8 +72,15 @@ export const NutritionPage: React.FC = () => {
 
   // Active top-level navigation tab
   const [activeTab, setActiveTab] = useState<
-    "overview" | "dietitian_plan" | "supplements" | "body_metrics"
+    "overview" | "meal_plan" | "my_foods" | "targets" | "dietitian_plan" | "supplements" | "body_metrics"
   >("overview");
+
+  // Meal pool active plan & planned day for selected date
+  const [activeMealPlan, setActiveMealPlan] = useState<MealPlanDocument | null>(null);
+  const [currentPlannedDay, setCurrentPlannedDay] = useState<PlannedDayDocument | null>(null);
+  const [showDayComposerFromNaplo, setShowDayComposerFromNaplo] = useState(false);
+  const [showWeekPlannerModal, setShowWeekPlannerModal] = useState(false);
+  const [showShoppingModal, setShowShoppingModal] = useState(false);
 
   // Sensitive-use safeguard: "Hide calorie numbers" -> switches to plate-method portion view
   const [hideCalories, setHideCalories] = useState<boolean>(() => {
@@ -346,7 +362,7 @@ export const NutritionPage: React.FC = () => {
   const [caffeineMg] = useState(160);
 
   // Active dietitian meal plan (demo data only in development)
-  const [activePlan, setActivePlan] = useState<DietitianMealPlan | null>(() => {
+  const [_activePlan, setActivePlan] = useState<DietitianMealPlan | null>(() => {
     if (import.meta.env.PROD || user?.uid !== "demo-athlete-001") {
       return null;
     }
@@ -442,6 +458,105 @@ export const NutritionPage: React.FC = () => {
       // ignore
     }
   }, [meals, user?.uid, selectedDate]);
+
+  // Subscribe to active meal plan and current planned day
+  useEffect(() => {
+    if (!user?.uid) return;
+    getActiveMealPlan(user.uid).then(setActiveMealPlan);
+  }, [user?.uid, activeTab]);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    const unsub = subscribePlannedDay(user.uid, selectedDate, (day) => {
+      setCurrentPlannedDay(day);
+    });
+    return () => unsub();
+  }, [user?.uid, selectedDate]);
+
+  // One-tap log from active plan option pool
+  const handleLogOptionOneTap = (mType: MealType, option: MealPlanOption, portion: number = 1.0) => {
+    const nutrients = calculateOptionNutrients(option, portion, currentTarget.dayType);
+    const servingGrams = Math.round((option.baseServingGrams || 100) * portion);
+
+    const newItem: LoggedFoodItem = {
+      id: `item_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      foodId: option.sourceFoodId || option.id,
+      name: option.name,
+      servingGrams,
+      mode: "precise",
+      calories: nutrients.calories,
+      proteinGrams: nutrients.proteinGrams,
+      carbsGrams: nutrients.carbsGrams,
+      fatGrams: nutrients.fatGrams,
+      micros: {},
+      coverageScore: 80,
+      missingNutrients: [],
+      createdAt: new Date().toISOString()
+    };
+
+    const currentMeal = meals[mType] || createDefaultMeal(mType);
+    const updatedItems = [...(currentMeal.items || []), newItem];
+
+    const updatedMeal: LoggedMeal = {
+      ...currentMeal,
+      items: updatedItems,
+      totalCalories: updatedItems.reduce((acc, i) => acc + i.calories, 0),
+      totalProteinGrams: Math.round(updatedItems.reduce((acc, i) => acc + i.proteinGrams, 0) * 10) / 10,
+      totalCarbsGrams: Math.round(updatedItems.reduce((acc, i) => acc + i.carbsGrams, 0) * 10) / 10,
+      totalFatGrams: Math.round(updatedItems.reduce((acc, i) => acc + i.fatGrams, 0) * 10) / 10,
+      time: currentMeal.time || new Date().toTimeString().slice(0, 5)
+    };
+
+    setMeals((prev) => ({
+      ...prev,
+      [mType]: updatedMeal
+    }));
+
+    showToast({ title: "Naplózva", message: `„${option.name}” hozzáadva a naplóhoz!`, variant: "success" });
+  };
+
+  // One-tap consume on planned meal
+  const handleConsumePlannedOption = (mType: MealType, selection: PlannedDayOptionSelection) => {
+    handleLogOptionOneTap(mType, selection.optionSnapshot, selection.portionMultiplier);
+
+    if (currentPlannedDay && user?.uid) {
+      const updatedSlots = currentPlannedDay.slots.map((s) => {
+        if (s.slotId !== mType) return s;
+        return {
+          ...s,
+          selectedOptions: s.selectedOptions.map((o) =>
+            o.optionId === selection.optionId
+              ? { ...o, status: "consumed" as const, loggedAt: new Date().toISOString() }
+              : o
+          )
+        };
+      });
+      const updatedDay: PlannedDayDocument = { ...currentPlannedDay, slots: updatedSlots };
+      setCurrentPlannedDay(updatedDay);
+      savePlannedDay(user.uid, updatedDay);
+    }
+  };
+
+  const handleReplacePlannedOption = (mType: MealType, selection: PlannedDayOptionSelection) => {
+    if (currentPlannedDay && user?.uid) {
+      const updatedSlots = currentPlannedDay.slots.map((s) => {
+        if (s.slotId !== mType) return s;
+        return {
+          ...s,
+          selectedOptions: s.selectedOptions.map((o) =>
+            o.optionId === selection.optionId
+              ? { ...o, status: "replaced" as const, replacementItemName: "Egyéni választás" }
+              : o
+          )
+        };
+      });
+      const updatedDay: PlannedDayDocument = { ...currentPlannedDay, slots: updatedSlots };
+      setCurrentPlannedDay(updatedDay);
+      savePlannedDay(user.uid, updatedDay);
+    }
+    setAddFoodMealType(mType);
+    setShowAddFoodModal(true);
+  };
 
   // Persist hide calories setting
   const toggleHideCalories = (val: boolean) => {
@@ -720,18 +835,17 @@ export const NutritionPage: React.FC = () => {
         activeId={activeTab}
         onChange={(tab) =>
           setActiveTab(
-            tab as "overview" | "dietitian_plan" | "supplements" | "body_metrics"
+            tab as any
           )
         }
-
-
         tabs={[
-          { id: "overview", label: "Napi Étrend & Napló", icon: <Utensils className="w-4 h-4" /> },
-          { id: "dietitian_plan", label: "Dietetikusi Terv", icon: <Sparkles className="w-4 h-4" /> },
-          { id: "supplements", label: "Kiegészítők (WADA)", icon: <Pill className="w-4 h-4" /> },
-          { id: "body_metrics", label: "Testösszetétel Trend", icon: <Scale className="w-4 h-4" /> }
+          { id: "overview", label: "Napló", icon: <Utensils className="w-4 h-4" /> },
+          { id: "meal_plan", label: "Étrendterv", icon: <Sparkles className="w-4 h-4" /> },
+          { id: "my_foods", label: "Ételeim", icon: <Layers className="w-4 h-4" /> },
+          { id: "targets", label: "Célok", icon: <Scale className="w-4 h-4" /> }
         ]}
       />
+
 
       {/* TAB 1: OVERVIEW & DIARY */}
       {activeTab === "overview" && (
@@ -887,15 +1001,51 @@ export const NutritionPage: React.FC = () => {
 
           {/* Meals Diary List */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-16 font-bold text-text-primary">
-                Napi étkezések
-              </h3>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-16 font-bold text-text-primary">
+                  Napi étkezések
+                </h3>
+                {currentPlannedDay && (
+                  <p className="text-12 text-brand font-medium">
+                    ✓ Étrendterv alkalmazva erre a napra ({currentPlannedDay.dayType ? (dayTypeLabels[currentPlannedDay.dayType] || currentPlannedDay.dayType) : ""})
+                  </p>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  leftIcon={<Sparkles className="w-3.5 h-3.5 text-brand" />}
+                  onClick={() => setShowDayComposerFromNaplo(true)}
+                >
+                  Nap összeállítása
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  leftIcon={<Calendar className="w-3.5 h-3.5" />}
+                  onClick={() => setShowWeekPlannerModal(true)}
+                >
+                  Hétterv
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  leftIcon={<ShoppingCart className="w-3.5 h-3.5" />}
+                  onClick={() => setShowShoppingModal(true)}
+                >
+                  Bevásárlólista
+                </Button>
+              </div>
             </div>
 
             {CANONICAL_MEAL_TYPES.map((mType) => {
               const meal = meals[mType] || createDefaultMeal(mType);
               const hasItems = Array.isArray(meal?.items) && meal.items.length > 0;
+              const plannedSlot = currentPlannedDay?.slots?.find((s) => s.slotId === mType);
+              const poolSlot = activeMealPlan?.slots?.find((s) => s.slotId === mType);
+              const topPoolOptions = poolSlot?.options?.slice(0, 3) || [];
 
               return (
                 <Card
@@ -939,6 +1089,105 @@ export const NutritionPage: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* Planned meal selection from Étrendterv */}
+                  {plannedSlot && plannedSlot.selectedOptions.length > 0 && (
+                    <div className="p-3.5 rounded-14 bg-brand/5 border border-brand/20 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-brand">
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span className="text-11 font-bold uppercase tracking-wider">
+                            Tervezett étkezés (Étrendterv)
+                          </span>
+                        </div>
+                        {plannedSlot.selectedOptions.every((o) => o.status === "consumed") ? (
+                          <Badge variant="ready" size="sm">
+                            Minden tervezett elem megevve ✓
+                          </Badge>
+                        ) : (
+                          <span className="text-11 text-text-secondary">
+                            1 koppintás a naplózáshoz
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        {plannedSlot.selectedOptions.map((sel) => {
+                          const opt = sel.optionSnapshot;
+                          const isConsumed = sel.status === "consumed";
+                          const isReplaced = sel.status === "replaced";
+                          const scaled = calculateOptionNutrients(
+                            opt,
+                            sel.portionMultiplier,
+                            currentTarget.dayType
+                          );
+
+                          return (
+                            <div
+                              key={sel.optionId}
+                              className={`p-3 rounded-12 border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 transition-all ${
+                                isConsumed
+                                  ? "bg-status-ready/10 border-status-ready/30 opacity-75"
+                                  : isReplaced
+                                  ? "bg-bg-elevated/50 border-border-hairline opacity-60"
+                                  : "bg-bg-surface border-border-hairline shadow-xs"
+                              }`}
+                            >
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-13 font-bold text-text-primary truncate">
+                                    {opt.name}
+                                  </span>
+                                  <Badge variant="outline" size="sm">
+                                    {sel.portionMultiplier}x adag
+                                  </Badge>
+                                  {isConsumed && (
+                                    <Badge variant="ready" size="sm">
+                                      Megetve ✓
+                                    </Badge>
+                                  )}
+                                  {isReplaced && (
+                                    <Badge variant="neutral" size="sm">
+                                      Mást ettél
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="text-11 text-text-secondary mt-0.5">
+                                  {!hideCalories && (
+                                    <span className="font-medium text-text-primary">
+                                      {scaled.calories} kcal •{" "}
+                                    </span>
+                                  )}
+                                  F: {scaled.proteinGrams}g, Sz: {scaled.carbsGrams}g, Zs:{" "}
+                                  {scaled.fatGrams}g
+                                </div>
+                              </div>
+
+                              {!isConsumed && (
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <Button
+                                    variant="primary"
+                                    size="sm"
+                                    leftIcon={<Check className="w-3.5 h-3.5" />}
+                                    onClick={() => handleConsumePlannedOption(mType, sel)}
+                                  >
+                                    Megettem
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleReplacePlannedOption(mType, sel)}
+                                  >
+                                    Mást ettem
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Items inside this meal */}
                   {hasItems ? (
                     <div
@@ -966,8 +1215,48 @@ export const NutritionPage: React.FC = () => {
                       ))}
                     </div>
                   ) : (
-                    <div className="p-4 rounded-12 bg-bg-elevated/40 border border-dashed border-border-hairline text-center text-12 text-text-secondary">
-                      Még nem rögzítettél ételt ehhez az étkezéshez.
+                    (!plannedSlot || plannedSlot.selectedOptions.length === 0) && (
+                      <div className="p-4 rounded-12 bg-bg-elevated/40 border border-dashed border-border-hairline text-center text-12 text-text-secondary">
+                        Még nem rögzítettél ételt ehhez az étkezéshez.
+                      </div>
+                    )
+                  )}
+
+                  {/* Quick-pick Pool chips from Étrendterv */}
+                  {topPoolOptions.length > 0 && (
+                    <div className="pt-2 border-t border-border-hairline space-y-1.5">
+                      <span className="text-11 font-semibold text-text-tertiary uppercase tracking-wider block">
+                        Gyors opciók az étrendtervből:
+                      </span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {topPoolOptions.map((opt) => (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => handleLogOptionOneTap(mType, opt, 1.0)}
+                            className="group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-10 bg-bg-elevated hover:bg-brand/10 border border-border-hairline hover:border-brand/40 text-12 text-text-primary transition-all text-left"
+                            title={`1 koppintásos naplózás: ${opt.name}`}
+                          >
+                            <Plus className="w-3.5 h-3.5 text-text-tertiary group-hover:text-brand" />
+                            <span className="font-medium">{opt.name}</span>
+                            {!hideCalories && opt.baseCalories && (
+                              <span className="text-10 text-text-tertiary group-hover:text-brand tabular-nums">
+                                ({opt.baseCalories} kcal)
+                              </span>
+                            )}
+                          </button>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAddFoodMealType(mType);
+                            setShowAddFoodModal(true);
+                          }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-10 bg-bg-surface hover:bg-bg-elevated border border-dashed border-border-hairline text-11 text-text-secondary hover:text-text-primary"
+                        >
+                          + Más étel
+                        </button>
+                      </div>
                     </div>
                   )}
                 </Card>
@@ -977,129 +1266,94 @@ export const NutritionPage: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 2: DIETITIAN MEAL PLAN */}
-      {activeTab === "dietitian_plan" && (
+      {/* TAB 2: MEAL PLAN (ÉTRENDTERV) */}
+      {activeTab === "meal_plan" && (
+        <MealPlanEditor
+          athleteId={user?.uid || "demo_athlete"}
+          isDietitianMode={isDietitianMode}
+          currentUserId={user?.uid || "demo_athlete"}
+          currentUserName={user?.displayName || "Sportoló"}
+          target={currentTarget}
+          hideCalories={hideCalories}
+        />
+      )}
+
+      {/* TAB 3: MY FOODS (ÉTELEIM) */}
+      {activeTab === "my_foods" && (
+        <MyFoodsTab athleteId={user?.uid || "demo_athlete"} />
+      )}
+
+      {/* TAB 4: TARGETS & COCKPIT */}
+      {activeTab === "targets" && (
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-16 font-bold text-text-primary">
-                Szakértői Étrendterv (Dietitian Plan)
-              </h3>
-              <p className="text-12 text-text-secondary">
-                A sportdietetikusod által készített periodizált napi mintaétrend és tányérjavaslatok.
-              </p>
-            </div>
-            {isDietitianMode && (
+          <div className="rounded-20 bg-bg-surface p-6 border border-border-hairline space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-16 font-bold text-text-primary">
+                  Napi célok és makrotápanyagok
+                </h3>
+                <p className="text-12 text-text-secondary">
+                  Periodizált kalória- és fehérjecélok a testsúlyod és edzésintenzitásod alapján.
+                </p>
+              </div>
               <Button
                 variant="primary"
-                leftIcon={<Plus className="w-4 h-4" />}
-                onClick={() => setShowDietitianPlanModal(true)}
+                size="sm"
+                onClick={() => setShowTargetsModal(true)}
               >
-                Új étrendterv kiadása
+                Célértékek módosítása
               </Button>
-            )}
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="p-4 rounded-14 bg-bg-elevated border border-border-hairline">
+                <span className="text-11 text-text-secondary font-medium block">Napi kalória</span>
+                <span className="text-22 font-bold text-text-primary mt-1 block tabular-nums">
+                  {currentTarget.targetCalories} kcal
+                </span>
+                <span className="text-10 text-text-tertiary">
+                  Alapanyagcsere + edzésigény
+                </span>
+              </div>
+              <div className="p-4 rounded-14 bg-bg-elevated border border-border-hairline">
+                <span className="text-11 text-text-secondary font-medium block">Fehérje</span>
+                <span className="text-22 font-bold text-text-primary mt-1 block tabular-nums">
+                  {currentTarget.targetProteinGrams}g
+                </span>
+                <span className="text-10 text-text-tertiary">
+                  ~{(currentTarget.targetProteinGrams / (user?.weightKg || 70)).toFixed(1)} g/ttkg
+                </span>
+              </div>
+              <div className="p-4 rounded-14 bg-bg-elevated border border-border-hairline">
+                <span className="text-11 text-text-secondary font-medium block">Szénhidrát</span>
+                <span className="text-22 font-bold text-text-primary mt-1 block tabular-nums">
+                  {currentTarget.targetCarbsGrams}g
+                </span>
+                <span className="text-10 text-text-tertiary">
+                  Naptípustól függő glikogéntöltés
+                </span>
+              </div>
+              <div className="p-4 rounded-14 bg-bg-elevated border border-border-hairline">
+                <span className="text-11 text-text-secondary font-medium block">Zsír</span>
+                <span className="text-22 font-bold text-text-primary mt-1 block tabular-nums">
+                  {currentTarget.targetFatGrams}g
+                </span>
+                <span className="text-10 text-text-tertiary">
+                  Esszenciális zsírsavak
+                </span>
+              </div>
+            </div>
           </div>
 
-          {activePlan ? (
-            <Card variant="surface" radius="20" className="p-6 space-y-6">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-border-hairline">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-18 font-bold text-text-primary">
-                      {activePlan.title}
-                    </h4>
-                    <Badge variant="brand" size="sm">
-                      {activePlan.targetCalories} kcal
-                    </Badge>
-                  </div>
-                  <p className="text-13 text-text-secondary mt-1">
-                    {activePlan.description}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <span className="text-11 text-text-secondary block">Készítette:</span>
-                  <span className="text-13 font-bold text-brand block">
-                    {activePlan.dietitianName}
-                  </span>
-                </div>
-              </div>
-
-              {/* Macro breakdown */}
-              <div className="grid grid-cols-3 gap-3 text-center">
-                <div className="p-3 rounded-12 bg-bg-elevated border border-border-hairline">
-                  <span className="text-11 text-text-secondary block font-medium">Fehérjecél</span>
-                  <span className="text-18 font-bold text-text-primary tabular-nums">
-                    {activePlan.targetProteinGrams}g
-                  </span>
-                </div>
-                <div className="p-3 rounded-12 bg-bg-elevated border border-border-hairline">
-                  <span className="text-11 text-text-secondary block font-medium">Szénhidrátcél</span>
-                  <span className="text-18 font-bold text-text-primary tabular-nums">
-                    {activePlan.targetCarbsGrams}g
-                  </span>
-                </div>
-                <div className="p-3 rounded-12 bg-bg-elevated border border-border-hairline">
-                  <span className="text-11 text-text-secondary block font-medium">Zsírcél</span>
-                  <span className="text-18 font-bold text-text-primary tabular-nums">
-                    {activePlan.targetFatGrams}g
-                  </span>
-                </div>
-              </div>
-
-              {/* Meals in the plan */}
-              <div className="space-y-3">
-                <h4 className="text-13 font-semibold text-text-secondary uppercase tracking-wider">
-                  Javasolt étkezési ritmus & Tányérmódszer
-                </h4>
-                <div className="space-y-3">
-                  {activePlan.meals.map((m, idx) => (
-                    <div
-                      key={idx}
-                      className="p-4 rounded-14 bg-bg-elevated border border-border-hairline space-y-1.5"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-11 font-bold text-brand uppercase tracking-wider">
-                          {mealLabels[m.mealType] || m.mealType}
-                        </span>
-                        <span className="text-11 text-text-secondary">
-                          Szénhidrát: ~{m.targetCarbsGrams}g • Fehérje: ~{m.targetProteinGrams}g
-                        </span>
-                      </div>
-                      <h5 className="text-14 font-semibold text-text-primary">
-                        {m.suggestedName}
-                      </h5>
-                      {m.plateSuggestion && (
-                        <p className="text-12 text-text-secondary italic">
-                          Tányérmegoszlás: {m.plateSuggestion}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </Card>
-          ) : (
-            <Card variant="surface" radius="20" className="p-8 text-center space-y-3">
-              <p className="text-14 text-text-secondary">
-                Még nincs aktív étrendterved. A dietetikusod vagy te magad is rögzíthetsz tervet a céljaidhoz.
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                leftIcon={<Plus className="w-4 h-4" />}
-                onClick={() => setShowDietitianPlanModal(true)}
-              >
-                Új étrendterv rögzítése
-              </Button>
-            </Card>
-          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <SupplementsTab />
+            <BodyMetricsTab />
+          </div>
         </div>
       )}
 
-      {/* TAB 3: SUPPLEMENTS */}
+      {/* FALLBACK OLD TABS */}
       {activeTab === "supplements" && <SupplementsTab />}
-
-      {/* TAB 4: BODY METRICS */}
       {activeTab === "body_metrics" && <BodyMetricsTab />}
 
       {/* MODALS */}
@@ -1140,6 +1394,42 @@ export const NutritionPage: React.FC = () => {
         onSavePlan={(plan) => setActivePlan(plan)}
         dietitianName="Dr. Kovács Anna (Sportdietetikus)"
       />
+
+      {showDayComposerFromNaplo && (
+        <DayComposerModal
+          isOpen={showDayComposerFromNaplo}
+          onClose={() => setShowDayComposerFromNaplo(false)}
+          athleteId={user?.uid || "demo_athlete"}
+          date={selectedDate}
+          plan={activeMealPlan || generateStarterMealPlan(user?.uid || "demo_athlete", user?.displayName || "Sportoló", "athlete")}
+          target={currentTarget}
+          onApplied={() => {
+            if (user?.uid) {
+              getPlannedDay(user.uid, selectedDate).then(setCurrentPlannedDay);
+            }
+          }}
+          hideCalories={hideCalories}
+        />
+      )}
+
+      {showWeekPlannerModal && (
+        <WeekPlannerModal
+          isOpen={showWeekPlannerModal}
+          onClose={() => setShowWeekPlannerModal(false)}
+          athleteId={user?.uid || "demo_athlete"}
+          plan={activeMealPlan || generateStarterMealPlan(user?.uid || "demo_athlete", user?.displayName || "Sportoló", "athlete")}
+          target={currentTarget}
+          hideCalories={hideCalories}
+        />
+      )}
+
+      {showShoppingModal && (
+        <ShoppingListModal
+          isOpen={showShoppingModal}
+          onClose={() => setShowShoppingModal(false)}
+          athleteId={user?.uid || "demo_athlete"}
+        />
+      )}
     </div>
   );
 };

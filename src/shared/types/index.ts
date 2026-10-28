@@ -154,6 +154,7 @@ export interface SpecialistStaff {
 export * from "./dataModel";
 export * from "./training";
 export * from "./nutrition";
+export * from "./mealPlan";
 export * from "./devices";
 export * from "./coach";
 export * from "./recovery";

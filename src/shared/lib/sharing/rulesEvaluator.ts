@@ -161,7 +161,12 @@ export const evaluateFirestoreRules = (
     }
 
     // nutritionDays and /entries (NUTRITION module)
-    if (subcollection === "nutritionDays") {
+    if (
+      subcollection === "nutritionDays" ||
+      subcollection === "mealPlans" ||
+      subcollection === "dayTemplates" ||
+      subcollection === "plannedDays"
+    ) {
       if (operation === "read") {
         return { allowed: canReadModule(athleteId, "nutrition") };
       }

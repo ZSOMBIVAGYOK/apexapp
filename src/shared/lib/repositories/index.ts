@@ -2,5 +2,8 @@ export * from "./sessionRepository";
 export * from "./plannedWorkoutRepository";
 export * from "./checkinRepository";
 export * from "./nutritionRepository";
+export * from "./mealPlanRepository";
+export * from "./plannedDayRepository";
+export * from "./dayTemplateRepository";
 export * from "./competitionRepository";
 export * from "./trashRepository";

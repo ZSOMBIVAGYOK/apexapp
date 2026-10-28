@@ -94,6 +94,24 @@ service cloud.firestore {
         }
       }
 
+      // Subcollection: mealPlans (NUTRITION module)
+      match /mealPlans/{planId} {
+        allow read: if canReadModule(athleteId, 'nutrition');
+        allow write: if canWriteModule(athleteId, 'nutrition');
+      }
+
+      // Subcollection: dayTemplates (NUTRITION module)
+      match /dayTemplates/{templateId} {
+        allow read: if canReadModule(athleteId, 'nutrition');
+        allow write: if canWriteModule(athleteId, 'nutrition');
+      }
+
+      // Subcollection: plannedDays (NUTRITION module)
+      match /plannedDays/{date} {
+        allow read: if canReadModule(athleteId, 'nutrition');
+        allow write: if canWriteModule(athleteId, 'nutrition');
+      }
+
       // Subcollection: injuries (HEALTH module - strictly blocked unless health: 'read' | 'write')
       match /injuries/{injuryId} {
         allow read: if canReadModule(athleteId, 'health');

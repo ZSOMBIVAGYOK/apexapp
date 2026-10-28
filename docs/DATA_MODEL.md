@@ -17,6 +17,9 @@ firestore-root/
 │   ├── plannedWorkouts/{workoutId}                # Prescribed sessions by athlete or coach
 │   ├── nutritionDays/{date}                       # Daily macro targets, calories, hydration
 │   │   └── entries/{entryId}                      # Meal logs, pre/post workout nutrition, fluids
+│   ├── mealPlans/{planId}                         # [NUTRITION] Meal pool plans (slots & food options)
+│   ├── dayTemplates/{templateId}                  # [NUTRITION] Saved day compositions & macros
+│   ├── plannedDays/{date}                         # [NUTRITION] Applied daily meal selections & portions
 │   ├── injuries/{injuryId}                        # [HEALTH] Diagnoses, anatomical sites, rehab plans
 │   ├── measurements/{measurementId}              # [HEALTH] Body composition, VO2 max, lactate tests
 │   ├── notes/{noteId}                             # [HEALTH] Confidential specialist & medical notes
@@ -206,6 +209,83 @@ Target and actual nutrient values:
 - Daily: `targetCalories`, `targetProteinGrams`, `targetCarbsGrams`, `targetFatGrams`, `targetHydrationLiters`, `consumedCalories`, `consumedProteinGrams`, `consumedCarbsGrams`, `consumedFatGrams`, `consumedHydrationLiters`, `platePortions: { proteinPct, vegPct, carbsPct }`
 - Subcollection `entries`: individual meal logs (`mealType`, `calories`, `proteinGrams`, `carbsGrams`, `fatGrams`, `waterMilliliters`, `loggedAt`)
 - Standard metadata: `source`, `confidence`, `createdAt`, `updatedAt`, `updatedBy`
+
+### F.2. Meal Pools, Day Templates & Planned Days (NUTRITION Module)
+Structured diet planning where dietitians and athletes define flexible meal pools per meal slot rather than rigid calendars, and athletes assemble daily and weekly meal plans:
+
+1. **`athletes/{id}/mealPlans/{planId}`**:
+   - `id`: String (UUID)
+   - `athleteId`: String
+   - `title`: String (e.g. "Mérsékelt edzésnapi étrendterv")
+   - `description`: String?
+   - `authorRole`: `'athlete' | 'dietitian'`
+   - `authorUid`: String
+   - `authorName`: String
+   - `isActive`: Boolean (only one active plan at a time)
+   - `validFrom`: String? (ISO date)
+   - `validTo`: String? (ISO date)
+   - `targetCalories`: `{ min: number, max: number }`?
+   - `targetProteinGrams`: `{ min: number, max: number }`?
+   - `targetCarbsGrams`: `{ min: number, max: number }`?
+   - `targetFatGrams`: `{ min: number, max: number }`?
+   - `slots`: Array of `MealPlanSlot`:
+     - `slotId`: `'breakfast' | 'lunch' | 'dinner' | 'snack' | 'pre_workout' | 'post_workout' | string`
+     - `name`: String (e.g. "Reggeli", "Ebéd", "Vacsora")
+     - `order`: Number
+     - `options`: Array of `MealPlanOption`:
+       - `id`: String
+       - `sourceFoodId`: String? (points to unified saved foods library)
+       - `name`: String
+       - `baseServingGrams`: Number
+       - `baseCalories`: Number
+       - `baseProteinGrams`: Number
+       - `baseCarbsGrams`: Number
+       - `baseFatGrams`: Number
+       - `authorRole`: `'athlete' | 'dietitian'` (Athlete cannot modify dietitian options, but can add custom options)
+       - `portionLimits`: `{ minMultiplier: number, maxMultiplier: number }` (default 0.5x - 2.0x)
+       - `dayTypeScaling`: `{ rest?: number, light?: number, moderate?: number, hard?: number, competition?: number }`
+       - `tags`: Array of string (`"gyors"`, `"edzés előtt"`, `"magas rost"`, etc.)
+       - `dayTypeTags`: Array of `NutritionDayType` (`"rest"`, `"light"`, `"moderate"`, `"hard"`, `"competition"`)
+       - `allergens`: Array of `AllergenTag`
+       - `ingredients`: Array of `{ name, amount, unit, category? }` (used for automated shopping list aggregation)
+   - `schemaVersion`: 1
+   - `deletedAt`: String? (Soft delete with 30-day trash retention)
+   - Standard metadata: `source`, `confidence`, `createdAt`, `updatedAt`, `updatedBy`
+
+2. **`athletes/{id}/plannedDays/{date}`**:
+   - `date`: String (`YYYY-MM-DD`)
+   - `athleteId`: String
+   - `planId`: String (references active `MealPlanDocument`)
+   - `dayType`: `NutritionDayType`
+   - `slots`: Array of `PlannedDaySlot`:
+     - `slotId`: String
+     - `slotName`: String
+     - `selectedOptions`: Array of `PlannedDayOptionSelection`:
+       - `optionId`: String
+       - `optionSnapshot`: `MealPlanOption` (snapshot preserves meal details even if source food is deleted)
+       - `portionMultiplier`: Number
+       - `effectiveCalories`: Number
+       - `effectiveProteinGrams`: Number
+       - `effectiveCarbsGrams`: Number
+       - `effectiveFatGrams`: Number
+       - `status`: `'planned' | 'consumed' | 'replaced' | 'skipped'`
+       - `loggedAt`: String?
+   - `totalCalories`: Number
+   - `totalProteinGrams`: Number
+   - `totalCarbsGrams`: Number
+   - `totalFatGrams`: Number
+   - `isLocked`: Boolean (prevents automated week-filler from overwriting)
+   - Standard metadata: `source`, `confidence`, `createdAt`, `updatedAt`, `updatedBy`
+
+3. **`athletes/{id}/dayTemplates/{templateId}`**:
+   - Reusable composite day templates saved by athlete or dietitian:
+   - `id`: String
+   - `athleteId`: String
+   - `name`: String (e.g. "Kemény edzésnapi sablon")
+   - `dayType`: `NutritionDayType`
+   - `slots`: Array of `PlannedDaySlot`
+   - `totalCalories`, `totalProteinGrams`, `totalCarbsGrams`, `totalFatGrams`
+   - Standard metadata: `source`, `confidence`, `createdAt`, `updatedAt`, `updatedBy`
 
 ### G. `athletes/{id}/injuries/{injuryId}` (HEALTH Module - Protected)
 Musculoskeletal tracking and therapy:

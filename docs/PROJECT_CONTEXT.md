@@ -1074,4 +1074,69 @@ All nutrition constants and formulas are documented in `src/shared/lib/nutrition
 - **`WorkoutBuilderModal.tsx` & `WorkoutFeedbackModal.tsx`:** Seamless plan-to-completion conversion with side-by-side planned vs actual comparison.
 - **`SessionShareModal.tsx`:** Optional "Blokk összegző" chip displaying compact block breakdown on export stickers and photos.
 
+---
+
+## 20. Meal Pools & Flexible Diet Planning Subsystem (COMPLETED)
+
+### A. Core Concept & Architectural Model
+- **Flexible Meal Pools ("Étrendterv"):** Rather than prescribing rigid calendar days, dietitians and athletes construct pools of meal options for each meal slot (Reggeli, Ebéd, Vacsora, Tízórai/Uzsonna, Edzés előtt/után). Athletes mix and match options into actual days based on daily schedule and training demands.
+- **Author Roles & Permission Protection:**
+  - Plans and options carry `authorRole: 'athlete' | 'dietitian'`.
+  - When a dietitian issues a plan (`isDietitianAuthored`), their options are protected (read-only for the athlete).
+  - The athlete cannot modify or delete the dietitian's options, but can freely supplement each slot with their own options in a distinct "Saját" pool.
+  - In dietitian mode (`isDietitianMode`), dietitians can author, modify, and leave clinical/practical notes per option.
+- **Decoupled Snapshots (`PlannedDayOptionSelection`):**
+  - Planned days store self-contained option snapshots (`optionSnapshot`).
+  - If a saved food in the library is modified or deleted, historical plans and past days remain intact, showing `"az étel törölve"` gracefully without breaking nutrient accounting.
+
+### B. Suggestion & Scaling Engines (`mealPlanEngine.ts`)
+- **Deterministic Suggestion Engine (`suggestDayMeals`):**
+  - Synthesizes a balanced day from the active plan's meal pools based on user target (calories, protein, carbs, fat) and day type (pihenő, könnyű, mérsékelt, kemény, verseny).
+  - Avoids repeating options used in the preceding 2 days (`recentOptionIds`).
+  - Clamps portion multipliers within the option's configured min/max limits (`portionLimits: { minMultiplier, maxMultiplier }`).
+- **Day-Type Scaling (`calculateOptionNutrients`):**
+  - Scales carbohydrate and calorie density automatically according to training load (e.g., hard days scale carbohydrate-rich options by 1.3-1.5x, rest days reduce to 0.8-0.9x).
+- **Allergen Cross-Matching (`checkOptionAllergens`):**
+  - Bidirectional keyword and tag matching across Hungarian and English allergen dictionaries (glutén, laktóz, mogyorófélék, szója, tojás, hal, rákfélék, szezámmag, stb.).
+  - Alerts users with an informational confirmation dialog ("figyelmeztetés, nem garancia").
+- **Shopping List Aggregation (`aggregateShoppingList`, `formatShoppingListAsText`):**
+  - Traverses ingredients across all planned days in a selected date range.
+  - Normalizes and aggregates quantities across matching items and units (g, dkg, kg, ml, dl, l, db, csipet, ek, tk).
+  - Generates clean, copyable and shareable grocery checklists grouped by food category (Zöldség & Gyümölcs, Hús & Hal, Tejtermék, Gabonafélék, stb.).
+
+### C. UI Components & Daily Workflows (`src/features/nutrition/components/plans/`)
+- **Étrendterv Screen (`MealPlanEditor.tsx`):**
+  - Visual grid displaying slots as cards with option chips showing photo, name, macros, and author attribution badge (`"Dietetikus: Dr. Kovács Anna"` vs `"Saját"`).
+  - Drag-and-drop and arrow reordering of options.
+  - Option creation/editing modal (`OptionEditModal.tsx`) with search from Ételeim library, manual macro inputs, portion ranges, day-type tags, allergen markers, and recipe ingredients.
+  - Plan duplication, archiving, and soft-deletion with 30-day trash retention.
+- **Nap Összeállító Sheet (`DayComposerModal.tsx`):**
+  - Selectable option cards per meal slot with interactive portion slider (0.5x - 2.0x).
+  - Sticky summary bar comparing day total against target calories and macros with live status colors.
+  - "Javasolj egy napot" deterministic generation button with "Másik javaslat" seed rotator.
+  - "Mentés napi sablonként" and "Alkalmaz a napra" storing directly to `plannedDays/{date}`.
+- **Napló Integration (`NutritionPage.tsx`):**
+  - Top 3 pool options from active plan displayed as instant 1-tap logging chips on empty meal cards.
+  - Planned meals highlighted with 1-tap "Megettem" (logs meal items and marks status as consumed) and "Mást ettem" (marks status as replaced and opens food picker).
+  - Quick action buttons in header: "Nap összeállítása", "Hétterv", "Bevásárlólista".
+- **Hétterv Sheet (`WeekPlannerModal.tsx`):**
+  - 7-day strip (Hétfő - Vasárnap) showing planned meals and macro totals per day.
+  - Individual day lock toggles (🔒/🔓) to protect user-chosen days.
+  - "Hét automatikus kitöltése" button generating a varied, load-adapted weekly diet plan.
+- **Bevásárlólista Sheet (`ShoppingListModal.tsx`):**
+  - Preset date range selector ("Következő 3 nap", "Ez a hét", "Jövő hét").
+  - Interactive checkbox list with crossed-out completed items.
+  - Native clipboard copy with toast confirmation and Web Share API integration.
+- **Ételeim Library Tab (`MyFoodsTab.tsx`):**
+  - Unified repository of staples, curated sports nutrition items, and custom user-created foods with favorite toggles.
+
+### D. Sensitive-Use Safeguards & Ethics
+- **Tányérmódszer (Plate Method) & Hide Calories:**
+  - Respects athlete's `apex_hide_calories` setting everywhere: hides numerical calorie and gram counts in plan cards, option cards, summary bars, and shopping lists, replacing them with qualitative plate balance and portion sizing.
+- **Non-Shaming Language:**
+  - All hints and feedback provide constructive, supportive physiological explanations (e.g. `"kb. 40 g szénhidrát hiányzik a glikogénraktárak feltöltéséhez"` instead of deficit/surplus shaming).
+- **Medical Disclaimer:**
+  - Clearly identifies diet plans as sports nutrition guidance and includes mandatory disclaimer that plans do not constitute clinical medical nutrition therapy.
+
+
 

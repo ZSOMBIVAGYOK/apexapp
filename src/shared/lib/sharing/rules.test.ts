@@ -244,6 +244,26 @@ describe("Firestore Security Rules - Zero-Trust Sharing Suite (45+ Tests)", () =
       expect(res.allowed).toBe(true);
     });
 
+    it("19b. Dietitian can create and manage meal plans (nutrition: write)", () => {
+      const planRes = evaluateFirestoreRules(
+        { auth: { uid: DIETITIAN_UID }, path: `athletes/${ATHLETE_UID}/mealPlans/plan-1`, operation: "write" },
+        mockDb
+      );
+      expect(planRes.allowed).toBe(true);
+
+      const dayRes = evaluateFirestoreRules(
+        { auth: { uid: DIETITIAN_UID }, path: `athletes/${ATHLETE_UID}/plannedDays/2026-10-28`, operation: "write" },
+        mockDb
+      );
+      expect(dayRes.allowed).toBe(true);
+
+      const tplRes = evaluateFirestoreRules(
+        { auth: { uid: DIETITIAN_UID }, path: `athletes/${ATHLETE_UID}/dayTemplates/tpl-1`, operation: "write" },
+        mockDb
+      );
+      expect(tplRes.allowed).toBe(true);
+    });
+
     it("20. Dietitian CANNOT read injuries (health: none)", () => {
       const res = evaluateFirestoreRules(
         { auth: { uid: DIETITIAN_UID }, path: `athletes/${ATHLETE_UID}/injuries/inj-1`, operation: "read" },

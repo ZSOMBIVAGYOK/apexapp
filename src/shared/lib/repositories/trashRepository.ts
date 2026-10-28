@@ -16,13 +16,18 @@ import {
   restorePlannedWorkout,
   permanentDeletePlannedWorkout
 } from "./plannedWorkoutRepository";
+import {
+  getMealPlans,
+  restoreMealPlan,
+  permanentDeleteMealPlan
+} from "./mealPlanRepository";
 import { getEquipmentList } from "@shared/lib/equipment/equipmentService";
 import { getExercises } from "@shared/lib/exercises/exerciseService";
 import { getRecords } from "@shared/lib/records/recordsService";
 import { db } from "@shared/lib/firebase";
 import { doc, setDoc, deleteDoc } from "firebase/firestore";
 
-export type TrashItemType = "session" | "workout" | "equipment" | "exercise" | "record";
+export type TrashItemType = "session" | "workout" | "equipment" | "exercise" | "record" | "mealPlan";
 
 export interface TrashItem {
   id: string;
@@ -161,6 +166,30 @@ export async function getTrashItems(athleteId: string): Promise<TrashItem[]> {
     console.warn("Failed fetching trash records:", err);
   }
 
+  // 6. Soft-deleted meal plans
+  try {
+    const allPlans = await getMealPlans(athleteId, { includeDeleted: true });
+    allPlans
+      .filter((p) => p.deletedAt)
+      .forEach((p) => {
+        const delDate = parseISO(p.deletedAt!);
+        const elapsed = differenceInDays(now, delDate);
+        const remaining = Math.max(0, RETENTION_DAYS - elapsed);
+        items.push({
+          id: p.id,
+          athleteId,
+          type: "mealPlan",
+          title: p.title,
+          subtitle: `Étrendterv · ${p.slots?.length || 0} étkezési idősáv`,
+          deletedAt: p.deletedAt!,
+          daysRemaining: remaining,
+          originalData: p
+        });
+      });
+  } catch (err) {
+    console.warn("Failed fetching trash meal plans:", err);
+  }
+
   // Sort by deletion date descending (most recently deleted first)
   return items.sort((a, b) => b.deletedAt.localeCompare(a.deletedAt));
 }
@@ -170,6 +199,8 @@ export async function restoreTrashItem(item: TrashItem): Promise<void> {
     await restoreSession(item.athleteId, item.id);
   } else if (item.type === "workout") {
     await restorePlannedWorkout(item.athleteId, item.id);
+  } else if (item.type === "mealPlan") {
+    await restoreMealPlan(item.athleteId, item.id);
   } else if (item.type === "equipment") {
     const ref = doc(db, "athletes", item.athleteId, "equipment", item.id);
     await setDoc(ref, { deletedAt: null }, { merge: true });
@@ -187,6 +218,8 @@ export async function permanentDeleteTrashItem(item: TrashItem): Promise<void> {
     await permanentDeleteSession(item.athleteId, item.id);
   } else if (item.type === "workout") {
     await permanentDeletePlannedWorkout(item.athleteId, item.id);
+  } else if (item.type === "mealPlan") {
+    await permanentDeleteMealPlan(item.athleteId, item.id);
   } else if (item.type === "equipment") {
     const ref = doc(db, "athletes", item.athleteId, "equipment", item.id);
     await deleteDoc(ref);
@@ -198,3 +231,4 @@ export async function permanentDeleteTrashItem(item: TrashItem): Promise<void> {
     await deleteDoc(ref);
   }
 }
+

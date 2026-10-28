@@ -5,3 +5,4 @@ export * from "./bodyMetricsAnalytics";
 export * from "./leaDetector";
 export * from "./foodService";
 export * from "./nutritionNormalization";
+export * from "./mealPlanEngine";

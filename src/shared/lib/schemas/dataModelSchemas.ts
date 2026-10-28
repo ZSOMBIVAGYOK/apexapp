@@ -598,3 +598,134 @@ export const EquipmentItemSchema = z.object({
   updatedAt: z.string()
 });
 
+export const AllergenTagSchema = z.enum([
+  "gluten",
+  "lactose",
+  "nuts",
+  "soy",
+  "eggs",
+  "fish_shellfish",
+  "peanuts",
+  "sesame",
+  "celery",
+  "mustard"
+]);
+
+export const MealOptionIngredientSchema = z.object({
+  name: z.string().min(1),
+  amount: z.number().positive(),
+  unit: z.string().min(1)
+});
+
+export const MealPlanOptionSchema = z.object({
+  id: z.string().min(1),
+  sourceFoodId: z.string().optional(),
+  isDeletedFood: z.boolean().optional(),
+  name: z.string().min(1),
+  label: z.string().optional(),
+  authorRole: z.enum(["athlete", "dietitian"]),
+  authorName: z.string().optional(),
+  authorUid: z.string().optional(),
+  photoUrl: z.string().optional(),
+  baseCalories: z.number().nonnegative(),
+  baseProteinGrams: z.number().nonnegative(),
+  baseCarbsGrams: z.number().nonnegative(),
+  baseFatGrams: z.number().nonnegative(),
+  baseServingGrams: z.number().positive().optional(),
+  baseServingUnit: z.string().optional(),
+  minPortionMultiplier: z.number().positive().default(0.5),
+  maxPortionMultiplier: z.number().positive().default(2.0),
+  defaultPortionMultiplier: z.number().positive().default(1.0),
+  tags: z.array(z.string()).default([]),
+  dayTypeTags: z.array(z.enum(["rest", "light", "moderate", "hard", "competition"])).default([]),
+  dayTypeScaling: z.record(z.string(), z.number()).optional(),
+  allergens: z.array(AllergenTagSchema).optional(),
+  ingredients: z.array(MealOptionIngredientSchema).optional(),
+  notes: z.string().optional(),
+  usageCount: z.number().nonnegative().optional(),
+  order: z.number().optional(),
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional()
+});
+
+export const MealPlanSlotSchema = z.object({
+  slotId: z.string().min(1),
+  name: z.string().min(1),
+  order: z.number(),
+  targetCaloriesRange: z.object({ min: z.number(), max: z.number() }).optional(),
+  targetProteinRange: z.object({ min: z.number(), max: z.number() }).optional(),
+  targetCarbsRange: z.object({ min: z.number(), max: z.number() }).optional(),
+  targetFatRange: z.object({ min: z.number(), max: z.number() }).optional(),
+  options: z.array(MealPlanOptionSchema).default([])
+});
+
+export const MealPlanDocumentSchema = StandardRecordMetadataSchema.extend({
+  id: z.string().min(1),
+  athleteId: z.string().min(1),
+  title: z.string().min(1),
+  description: z.string().optional(),
+  authorUid: z.string().min(1),
+  authorRole: z.enum(["athlete", "dietitian"]),
+  authorName: z.string().min(1),
+  isActive: z.boolean().default(false),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  targetCalories: z.object({ min: z.number(), max: z.number() }).optional(),
+  targetProteinGrams: z.object({ min: z.number(), max: z.number() }).optional(),
+  targetCarbsGrams: z.object({ min: z.number(), max: z.number() }).optional(),
+  targetFatGrams: z.object({ min: z.number(), max: z.number() }).optional(),
+  slots: z.array(MealPlanSlotSchema).default([]),
+  archived: z.boolean().optional(),
+  deletedAt: z.string().optional(),
+  schemaVersion: z.number().default(1)
+});
+
+export const PlannedDayOptionSelectionSchema = z.object({
+  optionId: z.string().min(1),
+  optionSnapshot: MealPlanOptionSchema,
+  portionMultiplier: z.number().positive(),
+  effectiveCalories: z.number().nonnegative(),
+  effectiveProteinGrams: z.number().nonnegative(),
+  effectiveCarbsGrams: z.number().nonnegative(),
+  effectiveFatGrams: z.number().nonnegative(),
+  status: z.enum(["planned", "consumed", "replaced"]),
+  loggedAt: z.string().optional(),
+  actualConsumedPortion: z.number().optional(),
+  replacementItemName: z.string().optional()
+});
+
+export const PlannedDaySlotSchema = z.object({
+  slotId: z.string().min(1),
+  slotName: z.string().min(1),
+  selectedOptions: z.array(PlannedDayOptionSelectionSchema)
+});
+
+export const PlannedDayDocumentSchema = StandardRecordMetadataSchema.extend({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  athleteId: z.string().min(1),
+  planId: z.string().optional(),
+  dayType: z.enum(["rest", "light", "moderate", "hard", "competition"]).optional(),
+  slots: z.array(PlannedDaySlotSchema).default([]),
+  totalCalories: z.number().nonnegative(),
+  totalProteinGrams: z.number().nonnegative(),
+  totalCarbsGrams: z.number().nonnegative(),
+  totalFatGrams: z.number().nonnegative(),
+  isLocked: z.boolean().optional(),
+  notes: z.string().optional(),
+  schemaVersion: z.number().default(1)
+});
+
+export const DayTemplateDocumentSchema = StandardRecordMetadataSchema.extend({
+  id: z.string().min(1),
+  athleteId: z.string().min(1),
+  name: z.string().min(1),
+  dayType: z.enum(["rest", "light", "moderate", "hard", "competition"]),
+  slots: z.array(PlannedDaySlotSchema).default([]),
+  totalCalories: z.number().nonnegative(),
+  totalProteinGrams: z.number().nonnegative(),
+  totalCarbsGrams: z.number().nonnegative(),
+  totalFatGrams: z.number().nonnegative(),
+  notes: z.string().optional(),
+  schemaVersion: z.number().default(1)
+});
+

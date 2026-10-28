@@ -137,4 +137,59 @@ describe("Data Safety & Repositories Architecture", () => {
       expect(remaining35).toBe(0);
     });
   });
+
+  describe("Meal Plan Repository", () => {
+    it("saves and retrieves meal plans locally, deactivating other plans when one is active", async () => {
+      const { saveMealPlan, getMealPlans, getActiveMealPlan } = await import("./mealPlanRepository");
+
+      const planA = {
+        id: "plan-a",
+        athleteId: "athlete-xyz",
+        title: "Terv A",
+        authorUid: "athlete-xyz",
+        authorRole: "athlete" as const,
+        authorName: "Sportoló",
+        isActive: true,
+        slots: [],
+        schemaVersion: 1,
+        source: "manual" as const,
+        confidence: 1.0,
+        createdAt: "2026-10-28T10:00:00Z",
+        updatedAt: "2026-10-28T10:00:00Z",
+        updatedBy: "athlete-xyz"
+      };
+
+      const planB = {
+        id: "plan-b",
+        athleteId: "athlete-xyz",
+        title: "Terv B",
+        authorUid: "athlete-xyz",
+        authorRole: "athlete" as const,
+        authorName: "Sportoló",
+        isActive: true,
+        slots: [],
+        schemaVersion: 1,
+        source: "manual" as const,
+        confidence: 1.0,
+        createdAt: "2026-10-28T10:00:00Z",
+        updatedAt: "2026-10-28T10:00:00Z",
+        updatedBy: "athlete-xyz"
+      };
+
+      await saveMealPlan("athlete-xyz", planA);
+      let plans = await getMealPlans("athlete-xyz");
+      expect(plans.length).toBe(1);
+      expect(plans[0]?.isActive).toBe(true);
+
+      // Now saving planB as active should deactivate planA
+      await saveMealPlan("athlete-xyz", planB);
+      plans = await getMealPlans("athlete-xyz");
+      expect(plans.length).toBe(2);
+      const active = await getActiveMealPlan("athlete-xyz");
+      expect(active?.id).toBe("plan-b");
+      const foundA = plans.find((p) => p.id === "plan-a");
+      expect(foundA?.isActive).toBe(false);
+    });
+  });
 });
+

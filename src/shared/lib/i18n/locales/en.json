@@ -319,7 +319,17 @@
     "batchNumber": "Batch Number (LOT)",
     "antiDopingNotice": "WADA Strict Liability Notice",
     "honestCoverage": "Micronutrient Coverage",
-    "missingData": "Missing Label Data"
+    "missingData": "Missing Label Data",
+    "mealPlan": "Meal Plan",
+    "myFoods": "My Foods",
+    "targets": "Targets",
+    "composeDay": "Compose Day",
+    "weekPlan": "Week Plan",
+    "shoppingList": "Shopping List",
+    "eatenBtn": "Consumed",
+    "ateOtherBtn": "Ate Something Else",
+    "plannedMealBadge": "Planned Meal",
+    "poolTopOptions": "Suggested pool options"
   },
 
   "devices": {
