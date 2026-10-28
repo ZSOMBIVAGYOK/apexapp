@@ -1,35 +1,18 @@
 /**
  * Binary FIT (Flexible and Interoperable Data Transfer) File Parser
- * Pure TypeScript parser for Garmin FIT files compliant with the FIT Protocol 2.0 specification.
- * Extracts session summary (Message 18), laps (Message 19), and records (Message 20).
+ * Pure TypeScript parser compliant with ANT+ FIT Protocol 2.0 specification.
+ * Extracts session summary (Message 18), laps (Message 19), records (Message 20),
+ * developer fields, and compressed timestamp messages.
  */
 
-import { NormalizedActivity, StandardSport, NormalizedLap } from "@shared/types/devices";
+import { NormalizedActivity, NormalizedLap } from "@shared/types/devices";
+import { SessionTimeSeriesPoint } from "@shared/types/dataModel";
+import { mapFitSport } from "@shared/lib/sports/sportMapping";
+import { cleanTimeSeries } from "./seriesCleaner";
+import { calculateSessionLoadDetailed } from "@shared/lib/load";
 
 // FIT epoch begins at UTC 1989-12-31 00:00:00 (Unix timestamp 631065600)
 const FIT_EPOCH_MS = 631065600000;
-
-function fitSportToStandard(sportId?: number): StandardSport {
-  switch (sportId) {
-    case 1:
-      return "running";
-    case 2:
-      return "cycling";
-    case 5:
-      return "swimming";
-    case 11: // Training / strength
-    case 20:
-      return "strength";
-    case 15:
-      return "rowing";
-    case 17:
-      return "walking";
-    case 37:
-      return "triathlon";
-    default:
-      return "other";
-  }
-}
 
 interface FieldDefinition {
   fieldNum: number;
@@ -37,10 +20,17 @@ interface FieldDefinition {
   baseType: number;
 }
 
+interface DeveloperFieldDefinition {
+  fieldNum: number;
+  size: number;
+  devIdx: number;
+}
+
 interface DefinitionMessage {
   globalMsgNum: number;
   endianness: "little" | "big";
   fields: FieldDefinition[];
+  devFields?: DeveloperFieldDefinition[];
 }
 
 export function parseFIT(
@@ -74,6 +64,9 @@ export function parseFIT(
 
   // Extracted Session data
   let sportId: number | undefined;
+  let subSportId: number | undefined;
+  const sessionSports: Array<{ sport?: number; subSport?: number }> = [];
+
   let startTimeIso: string | undefined;
   let durationSeconds = 0;
   let distanceMeters: number | undefined;
@@ -85,8 +78,12 @@ export function parseFIT(
   let normalizedPowerWatts: number | undefined;
   let elevationGainMeters: number | undefined;
   let elevationLossMeters: number | undefined;
-  let trainingStressScore: number | undefined;
   const laps: NormalizedLap[] = [];
+
+  // Time series records
+  const rawPoints: SessionTimeSeriesPoint[] = [];
+  let firstTimestamp: number | null = null;
+  let lastTimestamp: number | null = null;
 
   let offset = headerSize;
 
@@ -94,19 +91,44 @@ export function parseFIT(
     const recordHeader = bytes[offset]!;
     offset++;
 
-    // Check if compressed timestamp header (bit 7 = 1)
+    // ------------------------------------------------------------------
+    // A. Compressed Timestamp Data Message (bit 7 = 1)
+    // ------------------------------------------------------------------
     if ((recordHeader & 0x80) !== 0) {
-      // Compressed timestamp header: local message type is bits 5-6
       const localMsgType = (recordHeader >> 5) & 0x03;
+      const timeOffset = recordHeader & 0x1f;
       const def = localDefs.get(localMsgType);
-      if (def) {
-        // Skip data bytes for this compressed record
-        for (const f of def.fields) offset += f.size;
+
+      if (!def) {
+        // Unknown definition, skip
+        continue;
+      }
+
+      if (lastTimestamp !== null) {
+        lastTimestamp = (lastTimestamp & 0xffffffe0) + timeOffset;
+      }
+
+      // If it's a Record message (Msg 20), extract data fields
+      if (def.globalMsgNum === 20) {
+        const pt = parseRecordMessage(bytes, offset, def, lastTimestamp);
+        if (pt) {
+          if (firstTimestamp === null && pt.timestamp) firstTimestamp = pt.timestamp;
+          rawPoints.push(pt.point);
+        }
+      }
+
+      for (const f of def.fields) offset += f.size;
+      if (def.devFields) {
+        for (const df of def.devFields) offset += df.size;
       }
       continue;
     }
 
+    // ------------------------------------------------------------------
+    // B. Normal Header (bit 7 = 0)
+    // ------------------------------------------------------------------
     const isDefinition = (recordHeader & 0x40) !== 0;
+    const hasDevData = (recordHeader & 0x20) !== 0;
     const localMsgType = recordHeader & 0x0f;
 
     if (isDefinition) {
@@ -133,22 +155,36 @@ export function parseFIT(
         fields.push({ fieldNum, size, baseType });
       }
 
+      let devFields: DeveloperFieldDefinition[] | undefined;
+      if (hasDevData) {
+        const numDevFields = bytes[offset]!;
+        offset++;
+        devFields = [];
+        for (let i = 0; i < numDevFields; i++) {
+          const fieldNum = bytes[offset]!;
+          const size = bytes[offset + 1]!;
+          const devIdx = bytes[offset + 2]!;
+          offset += 3;
+          devFields.push({ fieldNum, size, devIdx });
+        }
+      }
+
       localDefs.set(localMsgType, {
         globalMsgNum,
         endianness: isBigEndian ? "big" : "little",
-        fields
+        fields,
+        devFields
       });
     } else {
-      // Data message
+      // Normal Data message
       const def = localDefs.get(localMsgType);
       if (!def) {
-        // If unknown definition, abort to avoid desync
+        // Unknown definition, advance to next byte or abort
         break;
       }
 
       const isLE = def.endianness === "little";
 
-      // Read fields for this data message
       const readUint16 = (pos: number) =>
         isLE ? bytes[pos]! | (bytes[pos + 1]! << 8) : (bytes[pos]! << 8) | bytes[pos + 1]!;
       const readUint32 = (pos: number) =>
@@ -164,94 +200,113 @@ export function parseFIT(
               bytes[pos + 3]!) >>>
             0;
 
-      // Check for Session message (Global Message 18)
+      // -------------------------------------------------------------
+      // Global Msg 18: Session message
+      // -------------------------------------------------------------
       if (def.globalMsgNum === 18) {
-        let fieldOffset = offset;
+        let fOffset = offset;
+        let sSport: number | undefined;
+        let sSubSport: number | undefined;
+
         for (const f of def.fields) {
           if (f.fieldNum === 2 && f.size === 4) {
             // start_time (seconds since FIT epoch)
-            const fitSeconds = readUint32(fieldOffset);
+            const fitSeconds = readUint32(fOffset);
             if (fitSeconds > 0 && fitSeconds < 0xfffffffe) {
               startTimeIso = new Date(FIT_EPOCH_MS + fitSeconds * 1000).toISOString();
             }
           } else if (f.fieldNum === 5 && f.size === 1) {
             // sport
-            sportId = bytes[fieldOffset];
+            sSport = bytes[fOffset];
+            sportId = sSport;
+          } else if (f.fieldNum === 6 && f.size === 1) {
+            // sub_sport
+            sSubSport = bytes[fOffset];
+            subSportId = sSubSport;
           } else if (f.fieldNum === 7 && f.size === 4) {
             // total_elapsed_time (scale 1000 = 1s)
-            const raw = readUint32(fieldOffset);
+            const raw = readUint32(fOffset);
             if (raw > 0 && raw < 0xfffffffe) durationSeconds = Math.round(raw / 1000);
           } else if (f.fieldNum === 8 && f.size === 4 && durationSeconds === 0) {
             // total_timer_time
-            const raw = readUint32(fieldOffset);
+            const raw = readUint32(fOffset);
             if (raw > 0 && raw < 0xfffffffe) durationSeconds = Math.round(raw / 1000);
           } else if (f.fieldNum === 9 && f.size === 4) {
             // total_distance (scale 100 = 1m)
-            const raw = readUint32(fieldOffset);
+            const raw = readUint32(fOffset);
             if (raw > 0 && raw < 0xfffffffe) distanceMeters = Math.round(raw / 100);
           } else if (f.fieldNum === 11 && f.size === 2) {
             // total_calories
-            const raw = readUint16(fieldOffset);
+            const raw = readUint16(fOffset);
             if (raw > 0 && raw < 0xfffe) calories = raw;
-          } else if (f.fieldNum === 16 && f.size === 1) {
+          } else if ((f.fieldNum === 16 || f.fieldNum === 15) && f.size === 1 && !avgHeartRate) {
             // avg_heart_rate
-            const raw = bytes[fieldOffset]!;
-            if (raw > 30 && raw < 250) avgHeartRate = raw;
-          } else if (f.fieldNum === 17 && f.size === 1) {
+            const raw = bytes[fOffset]!;
+            if (raw > 30 && raw < 240) avgHeartRate = raw;
+          } else if ((f.fieldNum === 17 || f.fieldNum === 16) && f.size === 1 && !maxHeartRate) {
             // max_heart_rate
-            const raw = bytes[fieldOffset]!;
+            const raw = bytes[fOffset]!;
             if (raw > 30 && raw < 250) maxHeartRate = raw;
           } else if (f.fieldNum === 20 && f.size === 2) {
             // avg_power
-            const raw = readUint16(fieldOffset);
+            const raw = readUint16(fOffset);
             if (raw > 0 && raw < 3000) avgPowerWatts = raw;
           } else if (f.fieldNum === 21 && f.size === 2) {
             // max_power
-            const raw = readUint16(fieldOffset);
+            const raw = readUint16(fOffset);
             if (raw > 0 && raw < 4000) maxPowerWatts = raw;
           } else if (f.fieldNum === 22 && f.size === 2) {
             // total_ascent
-            const raw = readUint16(fieldOffset);
+            const raw = readUint16(fOffset);
             if (raw > 0 && raw < 0xfffe) elevationGainMeters = raw;
           } else if (f.fieldNum === 23 && f.size === 2) {
             // total_descent
-            const raw = readUint16(fieldOffset);
+            const raw = readUint16(fOffset);
             if (raw > 0 && raw < 0xfffe) elevationLossMeters = raw;
-          } else if (f.fieldNum === 25 && f.size === 2) {
+          } else if (f.fieldNum === 34 && f.size === 2) {
             // normalized_power
-            const raw = readUint16(fieldOffset);
+            const raw = readUint16(fOffset);
             if (raw > 0 && raw < 3000) normalizedPowerWatts = raw;
-          } else if (f.fieldNum === 26 && f.size === 2) {
-            // training_stress_score (scale 10 = 1 TSS)
-            const raw = readUint16(fieldOffset);
-            if (raw > 0 && raw < 0xfffe) trainingStressScore = Math.round(raw / 10);
           }
 
-          fieldOffset += f.size;
+          fOffset += f.size;
+        }
+
+        if (sSport !== undefined) {
+          sessionSports.push({ sport: sSport, subSport: sSubSport });
         }
       }
 
-      // Check for Lap message (Global Message 19)
+      // -------------------------------------------------------------
+      // Global Msg 19: Lap message
+      // -------------------------------------------------------------
       if (def.globalMsgNum === 19) {
-        let fieldOffset = offset;
+        let fOffset = offset;
         let lapTime = 0;
         let lapDist = 0;
         let lapHr = 0;
         let lapPwr = 0;
+        let lapSport: number | undefined;
 
         for (const f of def.fields) {
-          if (f.fieldNum === 7 && f.size === 4) {
-            const raw = readUint32(fieldOffset);
+          if (f.fieldNum === 25 && f.size === 1) {
+            lapSport = bytes[fOffset]!;
+          } else if (f.fieldNum === 7 && f.size === 4) {
+            const raw = readUint32(fOffset);
             if (raw > 0 && raw < 0xfffffffe) lapTime = Math.round(raw / 1000);
           } else if (f.fieldNum === 9 && f.size === 4) {
-            const raw = readUint32(fieldOffset);
+            const raw = readUint32(fOffset);
             if (raw > 0 && raw < 0xfffffffe) lapDist = Math.round(raw / 100);
-          } else if (f.fieldNum === 15 && f.size === 1) {
-            lapHr = bytes[fieldOffset]!;
-          } else if (f.fieldNum === 19 && f.size === 2) {
-            lapPwr = readUint16(fieldOffset);
+          } else if ((f.fieldNum === 15 || f.fieldNum === 16) && f.size === 1) {
+            lapHr = bytes[fOffset]!;
+          } else if ((f.fieldNum === 19 || f.fieldNum === 20) && f.size === 2) {
+            lapPwr = readUint16(fOffset);
           }
-          fieldOffset += f.size;
+          fOffset += f.size;
+        }
+
+        if (lapSport !== undefined) {
+          sessionSports.push({ sport: lapSport });
         }
 
         if (lapTime > 0) {
@@ -260,24 +315,75 @@ export function parseFIT(
             startTime: startTimeIso || new Date().toISOString(),
             durationSeconds: lapTime,
             distanceMeters: lapDist > 0 ? lapDist : undefined,
-            avgHeartRate: lapHr > 30 ? lapHr : undefined,
-            avgPowerWatts: lapPwr > 0 ? lapPwr : undefined
+            avgHeartRate: lapHr > 30 && lapHr < 240 ? lapHr : undefined,
+            avgPowerWatts: lapPwr > 0 && lapPwr < 3000 ? lapPwr : undefined
           });
         }
       }
 
-      // Advance by record size
+      // -------------------------------------------------------------
+      // Global Msg 20: Record message (Time series point)
+      // -------------------------------------------------------------
+      if (def.globalMsgNum === 20) {
+        const pt = parseRecordMessage(bytes, offset, def, lastTimestamp);
+        if (pt) {
+          if (pt.timestamp) {
+            lastTimestamp = pt.timestamp;
+            if (firstTimestamp === null) firstTimestamp = pt.timestamp;
+          }
+          rawPoints.push(pt.point);
+        }
+      }
+
+      // Advance by record size + developer fields
       for (const f of def.fields) offset += f.size;
+      if (def.devFields) {
+        for (const df of def.devFields) offset += df.size;
+      }
     }
   }
 
-  // Fallback if session wasn't encountered or duration is 0
+  // ------------------------------------------------------------------
+  // Post-processing: Time offsets & Series Cleaning
+  // ------------------------------------------------------------------
+  const pointsWithOffset = rawPoints.map((p, idx) => ({
+    ...p,
+    timeOffsetSeconds: p.timeOffsetSeconds ?? idx
+  }));
+
+  const { cleanedPoints, smoothedPoints, report } = cleanTimeSeries(pointsWithOffset);
+
+  // Compute duration from points if missing from session
   if (durationSeconds === 0) {
-    durationSeconds = laps.reduce((sum, l) => sum + l.durationSeconds, 0);
-    if (durationSeconds === 0) durationSeconds = 1800; // 30m fallback
+    if (cleanedPoints.length > 0) {
+      const lastPoint = cleanedPoints[cleanedPoints.length - 1]!;
+      durationSeconds = lastPoint.timeOffsetSeconds || cleanedPoints.length;
+    } else {
+      durationSeconds = laps.reduce((sum, l) => sum + l.durationSeconds, 0);
+    }
+    if (durationSeconds === 0) durationSeconds = 1800; // 30 min default fallback
   }
 
-  const sport = fitSportToStandard(sportId);
+  // Derive Heart Rate statistics if missing from session message
+  if (!avgHeartRate && report.cleanedAvgHr) {
+    avgHeartRate = report.cleanedAvgHr;
+  }
+  if (!maxHeartRate && report.cleanedMaxHr) {
+    maxHeartRate = report.cleanedMaxHr;
+  }
+
+  // Derive distance from points if missing from session
+  if (!distanceMeters && cleanedPoints.length > 0) {
+    const lastDist = cleanedPoints[cleanedPoints.length - 1]?.distanceMeters;
+    if (lastDist && lastDist > 0) {
+      distanceMeters = Math.round(lastDist);
+    }
+  }
+
+  // Sport Mapping (Official FIT SDK & SubSport)
+  const mapped = mapFitSport(sportId, subSportId, sessionSports);
+  const sport = mapped.sportId;
+
   const start = startTimeIso || new Date().toISOString();
 
   let avgPaceSecondsPerKm: number | undefined = undefined;
@@ -285,7 +391,18 @@ export function parseFIT(
     avgPaceSecondsPerKm = Math.round(durationSeconds / (distanceMeters / 1000));
   }
 
-  const title = `${sport.charAt(0).toUpperCase() + sport.slice(1)} edzés (${Math.round(durationSeconds / 60)} perc)`;
+  const durationMin = Math.max(1, Math.round(durationSeconds / 60));
+  const title = `${mapped.sportNameHu} edzés (${durationMin} perc)`;
+
+  // Accurate Training Load calculation (Never default to 1!)
+  const loadResult = calculateSessionLoadDetailed({
+    durationMinutes: durationMin,
+    avgHeartRate,
+    maxHr: maxHeartRate,
+    avgPower: avgPowerWatts,
+    normalizedPower: normalizedPowerWatts,
+    sport
+  });
 
   return {
     id: `fit_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -293,6 +410,7 @@ export function parseFIT(
     provider: "file",
     providerRecordId: `file_${fileName}_${start}`,
     sport,
+    sportRawName: mapped.detectedRaw,
     title,
     startTime: start,
     durationSeconds,
@@ -306,9 +424,126 @@ export function parseFIT(
     elevationGainMeters,
     elevationLossMeters,
     calories,
-    trainingLoad: trainingStressScore,
+    trainingLoad: loadResult.load,
+    loadSourceLabelHu: loadResult.sourceLabelHu,
+    warningsHu: report.warningsHu,
     laps: laps.length > 0 ? laps : undefined,
-    sourceConfidence: 0.98,
+    timeSeries: {
+      points: smoothedPoints.length > 0 ? smoothedPoints : cleanedPoints
+    },
+    sourceConfidence: mapped.confidence,
     createdAt: new Date().toISOString()
+  };
+}
+
+/**
+ * Parses a single Record message (Global Msg 20) data payload
+ */
+function parseRecordMessage(
+  bytes: Uint8Array,
+  offset: number,
+  def: DefinitionMessage,
+  currentTimestamp: number | null
+): { point: SessionTimeSeriesPoint; timestamp?: number } | null {
+  const isLE = def.endianness === "little";
+
+  const readUint16 = (pos: number) =>
+    isLE ? bytes[pos]! | (bytes[pos + 1]! << 8) : (bytes[pos]! << 8) | bytes[pos + 1]!;
+  const readUint32 = (pos: number) =>
+    isLE
+      ? (bytes[pos]! |
+          (bytes[pos + 1]! << 8) |
+          (bytes[pos + 2]! << 16) |
+          (bytes[pos + 3]! << 24)) >>>
+        0
+      : ((bytes[pos]! << 24) |
+          (bytes[pos + 1]! << 16) |
+          (bytes[pos + 2]! << 8) |
+          bytes[pos + 3]!) >>>
+        0;
+  const readInt32 = (pos: number) => {
+    const u = readUint32(pos);
+    return u > 0x7fffffff ? u - 0x100000000 : u;
+  };
+
+  let fOffset = offset;
+  let ts: number | undefined = currentTimestamp || undefined;
+  let lat: number | undefined;
+  let lon: number | undefined;
+  let alt: number | undefined;
+  let hr: number | undefined;
+  let pwr: number | undefined;
+  let cad: number | undefined;
+  let speed: number | undefined;
+  let dist: number | undefined;
+  let temp: number | undefined;
+
+  for (const f of def.fields) {
+    if (f.fieldNum === 253 && f.size === 4) {
+      // timestamp (seconds since FIT epoch)
+      const raw = readUint32(fOffset);
+      if (raw > 0 && raw < 0xfffffffe) ts = raw;
+    } else if (f.fieldNum === 0 && f.size === 4) {
+      // position_lat (semicircles -> degrees)
+      const raw = readInt32(fOffset);
+      if (raw !== 0x7fffffff) lat = raw * (180 / 2147483648);
+    } else if (f.fieldNum === 1 && f.size === 4) {
+      // position_long (semicircles -> degrees)
+      const raw = readInt32(fOffset);
+      if (raw !== 0x7fffffff) lon = raw * (180 / 2147483648);
+    } else if (f.fieldNum === 78 && f.size === 4) {
+      // enhanced_altitude (scale 5, offset 500)
+      const raw = readUint32(fOffset);
+      if (raw !== 0xffffffff) alt = +(raw / 5 - 500).toFixed(1);
+    } else if (f.fieldNum === 2 && f.size === 2 && alt === undefined) {
+      // altitude
+      const raw = readUint16(fOffset);
+      if (raw !== 0xffff) alt = +(raw / 5 - 500).toFixed(1);
+    } else if (f.fieldNum === 73 && f.size === 4) {
+      // enhanced_speed (scale 1000 = m/s)
+      const raw = readUint32(fOffset);
+      if (raw !== 0xffffffff) speed = +(raw / 1000).toFixed(2);
+    } else if (f.fieldNum === 6 && f.size === 2 && speed === undefined) {
+      // speed (scale 1000 = m/s)
+      const raw = readUint16(fOffset);
+      if (raw !== 0xffff) speed = +(raw / 1000).toFixed(2);
+    } else if (f.fieldNum === 3 && f.size === 1) {
+      // heart_rate (bpm)
+      hr = bytes[fOffset]!;
+    } else if (f.fieldNum === 4 && f.size === 1) {
+      // cadence (rpm / spm)
+      const raw = bytes[fOffset]!;
+      if (raw > 0 && raw < 250) cad = raw;
+    } else if (f.fieldNum === 7 && f.size === 2) {
+      // power (Watts)
+      const raw = readUint16(fOffset);
+      if (raw > 0 && raw < 3000) pwr = raw;
+    } else if (f.fieldNum === 5 && f.size === 4) {
+      // distance (scale 100 = meters)
+      const raw = readUint32(fOffset);
+      if (raw !== 0xffffffff) dist = Math.round(raw / 100);
+    } else if (f.fieldNum === 13 && f.size === 1) {
+      // temperature (deg C, signed int8)
+      const raw = (bytes[fOffset]! << 24) >> 24;
+      if (raw > -40 && raw < 60) temp = raw;
+    }
+
+    fOffset += f.size;
+  }
+
+  return {
+    timestamp: ts,
+    point: {
+      timeOffsetSeconds: 0, // Will be resolved by caller
+      heartRate: hr,
+      speedMps: speed,
+      powerWatts: pwr,
+      cadence: cad,
+      elevationMeters: alt,
+      distanceMeters: dist,
+      temperatureCelsius: temp,
+      lat,
+      lon
+    }
   };
 }

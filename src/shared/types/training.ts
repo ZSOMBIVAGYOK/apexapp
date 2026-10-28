@@ -11,8 +11,10 @@ export type SportType =
   | "strength"
   | "triathlon"
   | "rowing"
+  | "stand_up_paddling"
   | "mobility"
-  | "other";
+  | "other"
+  | (string & {});
 
 export type TargetMetricType = "rpe" | "hr_zone" | "power" | "pace" | "custom";
 

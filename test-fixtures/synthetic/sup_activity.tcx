@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2">
+  <Activities>
+    <Activity Sport="Stand Up Paddleboarding">
+      <Id>2026-10-26T16:00:00Z</Id>
+      <Lap StartTime="2026-10-26T16:00:00Z">
+        <TotalTimeSeconds>2400.0</TotalTimeSeconds>
+        <DistanceMeters>4200.0</DistanceMeters>
+        <AverageHeartRateBpm><Value>132</Value></AverageHeartRateBpm>
+        <MaximumHeartRateBpm><Value>152</Value></MaximumHeartRateBpm>
+      </Lap>
+    </Activity>
+  </Activities>
+</TrainingCenterDatabase>

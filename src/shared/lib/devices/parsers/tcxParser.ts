@@ -4,15 +4,12 @@
  */
 
 import { NormalizedActivity, NormalizedLap, StandardSport } from "@shared/types/devices";
+import { mapActivityNameToSport } from "@shared/lib/sports/sportMapping";
 
 function mapTcxSport(sportAttr?: string): StandardSport {
   if (!sportAttr) return "running";
-  const s = sportAttr.toLowerCase();
-  if (s.includes("biking") || s.includes("cycling")) return "cycling";
-  if (s.includes("running")) return "running";
-  if (s.includes("swimming")) return "swimming";
-  if (s.includes("strength") || s.includes("training")) return "strength";
-  return "other";
+  const mapped = mapActivityNameToSport(sportAttr);
+  return mapped.sportId as StandardSport;
 }
 
 export function parseTCX(xmlText: string, fileName = "workout.tcx"): NormalizedActivity {

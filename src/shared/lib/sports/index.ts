@@ -4,6 +4,7 @@ import { SportDefinition, SportCategory } from "./types";
 export * from "./types";
 export * from "./catalog";
 export * from "./customSportsService";
+export * from "./sportMapping";
 
 /**
  * Returns all available sports (catalog + optional custom sports)

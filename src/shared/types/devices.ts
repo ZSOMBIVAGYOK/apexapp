@@ -19,13 +19,42 @@ export type DeviceProvider =
 
 export type StandardSport =
   | "running"
+  | "trail_running"
+  | "road_cycling"
   | "cycling"
+  | "mountain_biking"
+  | "gravel_cycling"
   | "swimming"
-  | "strength"
-  | "triathlon"
+  | "open_water_swimming"
+  | "stand_up_paddling"
+  | "kayak"
+  | "canoe"
+  | "rafting"
   | "rowing"
+  | "rowing_ergometer"
+  | "sailing"
+  | "windsurfing"
+  | "kitesurfing"
+  | "surfing"
+  | "strength"
+  | "functional_fitness"
+  | "crossfit"
+  | "triathlon"
+  | "duathlon"
+  | "aquathlon"
   | "walking"
-  | "other";
+  | "walking_hiking"
+  | "hiking"
+  | "cross_country_skiing"
+  | "alpine_skiing"
+  | "ski_touring"
+  | "roller_skiing"
+  | "snowboarding"
+  | "climbing_bouldering"
+  | "yoga"
+  | "pilates"
+  | "other"
+  | (string & {});
 
 export interface NormalizedLap {
   index: number;
@@ -63,6 +92,9 @@ export interface NormalizedActivity {
   elevationLossMeters?: number;
   calories?: number;
   trainingLoad?: number; // TSS, hrTSS, or session-RPE
+  loadSourceLabelHu?: string;
+  warningsHu?: string[];
+  timeSeries?: any;
   laps?: NormalizedLap[];
   samplesRef?: string; // Reference to Cloud Storage time-series sample (FIT/TCX points)
   rawPayloadRef?: string;

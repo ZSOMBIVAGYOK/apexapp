@@ -733,6 +733,7 @@ export const ManualSessionModal: React.FC<ManualSessionModalProps> = ({
               <WorkoutFileDropzone
                 onFileParsed={handleFileParsed}
                 onClearFile={handleClearAttachedFile}
+                onOpenSportPicker={() => setIsSportPickerOpen(true)}
                 currentParsedFile={parsedFileResult}
                 compact={Boolean(parsedFileResult || sessionToEdit)}
                 label={

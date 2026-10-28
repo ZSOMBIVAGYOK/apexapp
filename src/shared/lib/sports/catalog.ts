@@ -45,6 +45,15 @@ export const SPORT_CATALOG: SportDefinition[] = [
     common: true
   },
   {
+    id: "cycling",
+    nameHu: "Kerékpározás",
+    nameEn: "Cycling",
+    category: "endurance",
+    metricProfile: "distance_duration",
+    icon: "🚴",
+    common: true
+  },
+  {
     id: "gravel_cycling",
     nameHu: "Gravel kerékpár",
     nameEn: "Gravel Cycling",
@@ -95,6 +104,23 @@ export const SPORT_CATALOG: SportDefinition[] = [
     common: true
   },
   {
+    id: "hiking",
+    nameHu: "Túrázás / Hegyi túra",
+    nameEn: "Hiking",
+    category: "endurance",
+    metricProfile: "distance_duration",
+    icon: "🥾",
+    common: true
+  },
+  {
+    id: "roller_skiing",
+    nameHu: "Görsí",
+    nameEn: "Roller Skiing",
+    category: "endurance",
+    metricProfile: "distance_duration",
+    icon: "🎿"
+  },
+  {
     id: "race_walking",
     nameHu: "Gyalogló atlétika",
     nameEn: "Race Walking",
@@ -130,6 +156,15 @@ export const SPORT_CATALOG: SportDefinition[] = [
   // ==========================================
   // 2. ERŐ ÉS KONDÍCIÓ (Strength & Conditioning)
   // ==========================================
+  {
+    id: "strength",
+    nameHu: "Kondi és erőfejlesztés",
+    nameEn: "Strength Training",
+    category: "strength",
+    metricProfile: "sets_reps_load",
+    icon: "🏋️",
+    common: true
+  },
   {
     id: "strength_general",
     nameHu: "Kondi és általános erőfejlesztés",
@@ -517,6 +552,15 @@ export const SPORT_CATALOG: SportDefinition[] = [
     common: true
   },
   {
+    id: "swimming",
+    nameHu: "Úszás",
+    nameEn: "Swimming",
+    category: "water",
+    metricProfile: "distance_duration",
+    icon: "🏊",
+    common: true
+  },
+  {
     id: "swimming_open_water",
     nameHu: "Nyíltvízi úszás",
     nameEn: "Open Water Swimming",
@@ -562,11 +606,35 @@ export const SPORT_CATALOG: SportDefinition[] = [
   },
   {
     id: "windsurfing",
-    nameHu: "Szörf és Windsurf",
-    nameEn: "Surfing & Windsurfing",
+    nameHu: "Windsurf",
+    nameEn: "Windsurfing",
     category: "water",
     metricProfile: "duration_only",
     icon: "🏄"
+  },
+  {
+    id: "surfing",
+    nameHu: "Hullámszörf",
+    nameEn: "Surfing",
+    category: "water",
+    metricProfile: "duration_only",
+    icon: "🏄"
+  },
+  {
+    id: "kitesurfing",
+    nameHu: "Kiteszörf",
+    nameEn: "Kitesurfing",
+    category: "water",
+    metricProfile: "duration_only",
+    icon: "🪁"
+  },
+  {
+    id: "rafting",
+    nameHu: "Vadvízi evezés (Rafting)",
+    nameEn: "Whitewater Rafting",
+    category: "water",
+    metricProfile: "distance_duration",
+    icon: "🛶"
   },
   {
     id: "stand_up_paddling",
@@ -574,7 +642,8 @@ export const SPORT_CATALOG: SportDefinition[] = [
     nameEn: "SUP (Stand Up Paddle)",
     category: "water",
     metricProfile: "distance_duration",
-    icon: "🏄‍♂️"
+    icon: "🏄‍♂️",
+    common: true
   },
   {
     id: "diving",
@@ -629,6 +698,14 @@ export const SPORT_CATALOG: SportDefinition[] = [
     metricProfile: "distance_duration",
     icon: "🎿",
     common: true
+  },
+  {
+    id: "ski_touring",
+    nameHu: "Túrasí / Hegyisí (Ski Touring)",
+    nameEn: "Ski Touring & Mountaineering",
+    category: "winter",
+    metricProfile: "distance_duration",
+    icon: "⛷️"
   },
   {
     id: "snowboarding",

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Antigravity Test Suite" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>Indoor Gym Session</name>
+    <type>strength</type>
+    <trkseg>
+      <trkpt lat="47.0000" lon="19.0000">
+        <time>2026-10-26T18:00:00Z</time>
+        <extensions><hr>115</hr></extensions>
+      </trkpt>
+      <trkpt lat="47.0000" lon="19.0000">
+        <time>2026-10-26T18:30:00Z</time>
+        <extensions><hr>140</hr></extensions>
+      </trkpt>
+    </trkseg>
+  </trk>
+</gpx>

@@ -2,8 +2,9 @@
  * Workout File Service
  *
  * Client-side browser parser and prefill pipeline for FIT, GPX, and TCX activity files.
- * Reuses core parsers from @shared/lib/devices, validates constraints (max 25MB, supported formats),
- * downsamples time series to <= 500 points, performs duplicate detection, and uploads files to Cloud Storage.
+ * Integrates core parsers from @shared/lib/devices, validates constraints (max 25MB, supported formats),
+ * applies LTTB peak-preserving downsampling, detects duplicates robustly, cleans sensor series,
+ * and uploads files to Cloud Storage.
  */
 
 import { NormalizedActivity } from "@shared/types/devices";
@@ -13,7 +14,10 @@ import { parseGPX } from "./parsers/gpxParser";
 import { parseTCX } from "./parsers/tcxParser";
 import { SPORT_CATALOG } from "@shared/lib/sports/catalog";
 import { generateSvgRouteOutline, haversineDistance } from "@shared/lib/courses";
-import { calculateSessionLoad } from "@shared/lib/load";
+import { calculateSessionLoadDetailed } from "@shared/lib/load";
+import { mapActivityNameToSport } from "@shared/lib/sports/sportMapping";
+import { cleanTimeSeries, SeriesCleaningReport } from "./parsers/seriesCleaner";
+import { downsampleSessionTimeSeries } from "@shared/lib/charts/lttb";
 import { storage } from "@shared/lib/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
@@ -26,6 +30,10 @@ export interface ParsedWorkoutFileResult {
   fileSizeBytes: number;
   sportId: string;
   isSportKnown: boolean;
+  detectedSportNameHu?: string;
+  detectedRawSport?: string;
+  isSportAmbiguous?: boolean;
+  suggestedSportIds?: string[];
   date: string; // YYYY-MM-DD
   startTime: string; // HH:mm
   isoStartTime: string; // ISO 8601
@@ -39,6 +47,18 @@ export interface ParsedWorkoutFileResult {
   avgPace?: string;
   calories?: number;
   computedLoad?: number;
+  loadSourceLabelHu?: string;
+  channels?: {
+    hasHr: boolean;
+    hasSpeed: boolean;
+    hasPower: boolean;
+    hasCadence: boolean;
+    hasElevation: boolean;
+    hasGps: boolean;
+    hasTemperature: boolean;
+  };
+  warningsHu?: string[];
+  cleaningReport?: SeriesCleaningReport;
   title: string;
   timeSeries: SessionTimeSeriesData;
   activity: NormalizedActivity;
@@ -52,7 +72,7 @@ export interface DuplicateSessionMatch {
 
 /**
  * Downsamples time-series points to maxPoints (default 500) while preserving
- * start point, end point, and intermediate distribution.
+ * peaks and start/end points using LTTB.
  */
 export function downsampleTimeSeries(
   points: SessionTimeSeriesPoint[],
@@ -61,20 +81,7 @@ export function downsampleTimeSeries(
   if (!points || points.length <= maxPoints) {
     return points || [];
   }
-
-  const result: SessionTimeSeriesPoint[] = [];
-  const total = points.length;
-  const step = (total - 1) / (maxPoints - 1);
-
-  for (let i = 0; i < maxPoints; i++) {
-    const idx = Math.min(total - 1, Math.round(i * step));
-    const pt = points[idx];
-    if (pt) {
-      result.push(pt);
-    }
-  }
-
-  return result;
+  return downsampleSessionTimeSeries(points, maxPoints);
 }
 
 /**
@@ -83,91 +90,61 @@ export function downsampleTimeSeries(
 export function mapFileSportToCatalog(
   rawSport?: string,
   rawTitle?: string
-): { sportId: string; isKnown: boolean; isSportKnown: boolean } {
+): {
+  sportId: string;
+  isKnown: boolean;
+  isSportKnown: boolean;
+  isAmbiguous: boolean;
+  suggestedSportIds: string[];
+  sportNameHu: string;
+} {
   const sportCandidate = (rawSport || "").toLowerCase().trim();
   const titleCandidate = (rawTitle || "").toLowerCase().trim();
-  const normTitle = titleCandidate.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-  // Direct ID check in catalog
-  const catalogMatch = SPORT_CATALOG.find((s) => s.id === sportCandidate);
-  if (catalogMatch) {
-    return { sportId: catalogMatch.id, isKnown: true, isSportKnown: true };
-  }
-
-  // Common sport mapping dictionary
-  const mappings: Record<string, string> = {
-    running: "running",
-    run: "running",
-    futas: "running",
-    futás: "running",
-    cycling: "cycling",
-    biking: "cycling",
-    bike: "cycling",
-    ride: "cycling",
-    kerekpar: "cycling",
-    kerékpár: "cycling",
-    swimming: "swimming",
-    swim: "swimming",
-    uszas: "swimming",
-    úszás: "swimming",
-    strength: "strength",
-    training: "strength",
-    kondi: "strength",
-    kondizás: "strength",
-    kondizas: "strength",
-    sulyemeles: "strength",
-    súlyemelés: "strength",
-    weightlifting: "strength",
-    rowing: "rowing",
-    row: "rowing",
-    evezer: "rowing",
-    evezes: "rowing",
-    evezés: "rowing",
-    walking: "walking",
-    walk: "walking",
-    gyaloglas: "walking",
-    gyaloglás: "walking",
-    hike: "walking",
-    hiking: "walking",
-    turazas: "walking",
-    túrázás: "walking",
-    triathlon: "triathlon",
-    crossfit: "crossfit",
-    yoga: "yoga",
-    joga: "yoga",
-    jóga: "yoga"
-  };
-
-  if (mappings[sportCandidate]) {
-    return { sportId: mappings[sportCandidate]!, isKnown: true, isSportKnown: true };
-  }
-
-  // Keyword check in title
-  if (normTitle.includes("futas") || titleCandidate.includes("futás") || normTitle.includes("jogging")) {
-    return { sportId: "running", isKnown: true, isSportKnown: true };
-  }
-  if (normTitle.includes("bringa") || normTitle.includes("kerekpar") || titleCandidate.includes("kerékpár") || normTitle.includes("cycling")) {
-    return { sportId: "cycling", isKnown: true, isSportKnown: true };
-  }
-  if (normTitle.includes("uszas") || titleCandidate.includes("úszás") || normTitle.includes("swimming")) {
-    return { sportId: "swimming", isKnown: true, isSportKnown: true };
-  }
-  if (normTitle.includes("kondi") || normTitle.includes("sulyemeles") || normTitle.includes("strength")) {
-    return { sportId: "strength", isKnown: true, isSportKnown: true };
-  }
-
-  // Search by title keywords in Hungarian and English across catalog
-  for (const s of SPORT_CATALOG) {
-    if (
-      titleCandidate.includes(s.nameHu.toLowerCase()) ||
-      titleCandidate.includes(s.nameEn.toLowerCase())
-    ) {
-      return { sportId: s.id, isKnown: true, isSportKnown: true };
+  // 1. Direct ID check in catalog (if not "other")
+  if (sportCandidate && sportCandidate !== "other") {
+    const catalogMatch = SPORT_CATALOG.find((s) => s.id === sportCandidate);
+    if (catalogMatch) {
+      return {
+        sportId: catalogMatch.id,
+        isKnown: true,
+        isSportKnown: true,
+        isAmbiguous: false,
+        suggestedSportIds: [catalogMatch.id],
+        sportNameHu: catalogMatch.nameHu
+      };
     }
   }
 
-  // Fallback if unknown
-  return { sportId: "other", isKnown: false, isSportKnown: false };
+  // 2. Query selection: if rawSport is "other" or empty, try title first
+  const query = (sportCandidate === "other" || !sportCandidate) ? (titleCandidate || "other") : sportCandidate;
+  const mapped = mapActivityNameToSport(query);
+
+  // If query was empty or mapped to "other", but titleCandidate is present and might match
+  if (mapped.sportId === "other" && titleCandidate && query !== titleCandidate) {
+    const titleMapped = mapActivityNameToSport(titleCandidate);
+    if (titleMapped.sportId !== "other" && !titleMapped.isAmbiguous) {
+      return {
+        sportId: titleMapped.sportId,
+        isKnown: true,
+        isSportKnown: true,
+        isAmbiguous: false,
+        suggestedSportIds: titleMapped.suggestedAlternatives,
+        sportNameHu: titleMapped.sportNameHu
+      };
+    }
+  }
+
+  const isKnown = !mapped.isAmbiguous && mapped.sportId !== "other";
+
+  return {
+    sportId: mapped.sportId,
+    isKnown,
+    isSportKnown: isKnown,
+    isAmbiguous: mapped.isAmbiguous,
+    suggestedSportIds: mapped.suggestedAlternatives,
+    sportNameHu: mapped.sportNameHu
+  };
 }
 
 /**
@@ -195,6 +172,7 @@ function extractGpxTimeSeries(xmlText: string): SessionTimeSeriesPoint[] {
       inner.match(/<hr>(\d+)<\/hr>/i) ||
       inner.match(/<ns3:hr>(\d+)<\/ns3:hr>/i);
     const powerMatch = inner.match(/<power>(\d+)<\/power>/i);
+    const cadMatch = inner.match(/<gpxtpx:cad>(\d+)<\/gpxtpx:cad>/i) || inner.match(/<cad>(\d+)<\/cad>/i);
 
     let timeOffsetSeconds = points.length;
     if (timeMatch) {
@@ -216,6 +194,7 @@ function extractGpxTimeSeries(xmlText: string): SessionTimeSeriesPoint[] {
       elevationMeters: eleMatch ? parseFloat(eleMatch[1]!) : undefined,
       heartRate: hrMatch ? parseInt(hrMatch[1]!, 10) : undefined,
       powerWatts: powerMatch ? parseInt(powerMatch[1]!, 10) : undefined,
+      cadence: cadMatch ? parseInt(cadMatch[1]!, 10) : undefined,
       distanceMeters: Math.round(accumulatedDistance)
     });
   }
@@ -243,6 +222,7 @@ function extractTcxTimeSeries(xmlText: string): SessionTimeSeriesPoint[] {
     const distMatch = inner.match(/<DistanceMeters>([\d.-]+)<\/DistanceMeters>/i);
     const hrMatch = inner.match(/<HeartRateBpm>[\s\S]*?<Value>(\d+)<\/Value>[\s\S]*?<\/HeartRateBpm>/i);
     const wattsMatch = inner.match(/<Watts>(\d+)<\/Watts>/i);
+    const cadMatch = inner.match(/<Cadence>(\d+)<\/Cadence>/i);
 
     let timeOffsetSeconds = points.length;
     if (timeMatch) {
@@ -258,175 +238,9 @@ function extractTcxTimeSeries(xmlText: string): SessionTimeSeriesPoint[] {
       elevationMeters: altMatch ? parseFloat(altMatch[1]!) : undefined,
       distanceMeters: distMatch ? Math.round(parseFloat(distMatch[1]!)) : undefined,
       heartRate: hrMatch ? parseInt(hrMatch[1]!, 10) : undefined,
-      powerWatts: wattsMatch ? parseInt(wattsMatch[1]!, 10) : undefined
+      powerWatts: wattsMatch ? parseInt(wattsMatch[1]!, 10) : undefined,
+      cadence: cadMatch ? parseInt(cadMatch[1]!, 10) : undefined
     });
-  }
-
-  return points;
-}
-
-/**
- * Extracts raw time-series points from a binary FIT file (Global Message 20).
- */
-function extractFitTimeSeries(
-  buffer: ArrayBuffer | Uint8Array,
-  startEpochSeconds?: number
-): SessionTimeSeriesPoint[] {
-  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
-  if (bytes.length < 14) return [];
-
-  const headerSize = bytes[0]!;
-  if (headerSize < 12) return [];
-
-  const dataSize =
-    bytes[4]! | (bytes[5]! << 8) | (bytes[6]! << 16) | (bytes[7]! << 24);
-  const endOffset = Math.min(bytes.length, headerSize + dataSize);
-
-  interface FieldDef {
-    fieldNum: number;
-    size: number;
-    baseType: number;
-  }
-
-  interface DefMsg {
-    globalMsgNum: number;
-    endianness: "little" | "big";
-    fields: FieldDef[];
-  }
-
-  const localDefs = new Map<number, DefMsg>();
-  const points: SessionTimeSeriesPoint[] = [];
-
-  let offset = headerSize;
-  let firstTimestamp: number | null = startEpochSeconds || null;
-
-  while (offset < endOffset) {
-    const recordHeader = bytes[offset]!;
-    offset++;
-
-    // Normal header
-    if ((recordHeader & 0x80) === 0) {
-      const isDefinition = (recordHeader & 0x40) !== 0;
-      const localMsgType = recordHeader & 0x0f;
-
-      if (isDefinition) {
-        offset++; // reserved
-        const arch = bytes[offset]!;
-        const isLE = arch === 0;
-        offset++;
-
-        const globalMsgNum = isLE
-          ? bytes[offset]! | (bytes[offset + 1]! << 8)
-          : (bytes[offset]! << 8) | bytes[offset + 1]!;
-        offset += 2;
-
-        const numFields = bytes[offset]!;
-        offset++;
-
-        const fields: FieldDef[] = [];
-        for (let i = 0; i < numFields; i++) {
-          const fieldNum = bytes[offset]!;
-          const size = bytes[offset + 1]!;
-          const baseType = bytes[offset + 2]!;
-          fields.push({ fieldNum, size, baseType });
-          offset += 3;
-        }
-
-        localDefs.set(localMsgType, {
-          globalMsgNum,
-          endianness: isLE ? "little" : "big",
-          fields
-        });
-        continue;
-      }
-
-      const def = localDefs.get(localMsgType);
-      if (!def) break;
-
-      const isLE = def.endianness === "little";
-      const readUint16 = (pos: number) =>
-        isLE ? bytes[pos]! | (bytes[pos + 1]! << 8) : (bytes[pos]! << 8) | bytes[pos + 1]!;
-      const readUint32 = (pos: number) =>
-        isLE
-          ? (bytes[pos]! | (bytes[pos + 1]! << 8) | (bytes[pos + 2]! << 16) | (bytes[pos + 3]! << 24)) >>> 0
-          : ((bytes[pos]! << 24) | (bytes[pos + 1]! << 16) | (bytes[pos + 2]! << 8) | bytes[pos + 3]!) >>> 0;
-      const readInt32 = (pos: number) => {
-        const u = readUint32(pos);
-        return u > 0x7fffffff ? u - 0x100000000 : u;
-      };
-
-      // Record message (Global Msg Num 20)
-      if (def.globalMsgNum === 20) {
-        let fieldOffset = offset;
-        let ts: number | undefined;
-        let lat: number | undefined;
-        let lon: number | undefined;
-        let alt: number | undefined;
-        let hr: number | undefined;
-        let pwr: number | undefined;
-        let speed: number | undefined;
-        let dist: number | undefined;
-
-        for (const f of def.fields) {
-          if (f.fieldNum === 253 && f.size === 4) {
-            // Timestamp (seconds since FIT epoch)
-            ts = readUint32(fieldOffset);
-          } else if (f.fieldNum === 0 && f.size === 4) {
-            // lat (semicircles -> degrees)
-            const raw = readInt32(fieldOffset);
-            if (raw !== 0x7fffffff) lat = raw * (180 / 2147483648);
-          } else if (f.fieldNum === 1 && f.size === 4) {
-            // lon (semicircles -> degrees)
-            const raw = readInt32(fieldOffset);
-            if (raw !== 0x7fffffff) lon = raw * (180 / 2147483648);
-          } else if (f.fieldNum === 2 && f.size === 2) {
-            // altitude (scale 5, offset 500)
-            const raw = readUint16(fieldOffset);
-            if (raw !== 0xffff) alt = raw / 5 - 500;
-          } else if (f.fieldNum === 3 && f.size === 1) {
-            // heart rate (bpm)
-            const raw = bytes[fieldOffset]!;
-            if (raw > 30 && raw < 250) hr = raw;
-          } else if (f.fieldNum === 5 && f.size === 4) {
-            // distance (scale 100)
-            const raw = readUint32(fieldOffset);
-            if (raw !== 0xffffffff) dist = Math.round(raw / 100);
-          } else if (f.fieldNum === 6 && f.size === 2) {
-            // speed (scale 1000 = m/s)
-            const raw = readUint16(fieldOffset);
-            if (raw !== 0xffff) speed = +(raw / 1000).toFixed(2);
-          } else if (f.fieldNum === 7 && f.size === 2) {
-            // power (watts)
-            const raw = readUint16(fieldOffset);
-            if (raw !== 0xffff) pwr = raw;
-          }
-          fieldOffset += f.size;
-        }
-
-        if (ts !== undefined && firstTimestamp === null) {
-          firstTimestamp = ts;
-        }
-
-        const timeOffsetSeconds = ts && firstTimestamp ? Math.max(0, ts - firstTimestamp) : points.length;
-
-        points.push({
-          timeOffsetSeconds,
-          lat,
-          lon,
-          elevationMeters: alt ? Math.round(alt) : undefined,
-          heartRate: hr,
-          powerWatts: pwr,
-          speedMps: speed,
-          distanceMeters: dist
-        });
-      }
-
-      // Advance
-      for (const f of def.fields) offset += f.size;
-    } else {
-      // Compressed header: advance by 1
-      offset++;
-    }
   }
 
   return points;
@@ -490,7 +304,7 @@ export async function parseWorkoutFile(
         buf = rawContent;
       }
       activity = parseFIT(buf, fileName);
-      rawPoints = extractFitTimeSeries(buf);
+      rawPoints = activity.timeSeries?.points || [];
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -504,20 +318,29 @@ export async function parseWorkoutFile(
     throw new Error("A fájl nem tartalmaz feldolgozható edzésadatot.");
   }
 
-  // 3. Downsample points to max 500
-  const downsampledPoints = downsampleTimeSeries(rawPoints, MAX_TIMESERIES_POINTS);
+  // 3. Clean and validate time-series points
+  const cleaning = cleanTimeSeries(rawPoints);
+  const cleanedPoints = cleaning.cleanedPoints;
+  const report = cleaning.report;
 
-  // 4. Generate SVG route outline if GPS points exist
+  // 4. Downsample points to max 500 using LTTB peak-preserving algorithm
+  const downsampledPoints = downsampleSessionTimeSeries(
+    cleanedPoints.length > 0 ? cleanedPoints : rawPoints,
+    MAX_TIMESERIES_POINTS
+  );
+
+  // 5. Generate SVG route outline if GPS points exist
   const gpsPoints = downsampledPoints
     .filter((p): p is SessionTimeSeriesPoint & { lat: number; lon: number } => typeof p.lat === "number" && typeof p.lon === "number")
     .map((p) => ({ lat: p.lat, lon: p.lon }));
 
   const svgRouteOutline = gpsPoints.length >= 2 ? generateSvgRouteOutline(gpsPoints) : undefined;
 
-  // 5. Sport mapping
-  const { sportId, isKnown } = mapFileSportToCatalog(activity.sport, activity.title);
+  // 6. Sport mapping
+  const mapped = mapFileSportToCatalog(activity.sport, activity.title);
+  const sportId = mapped.sportId;
 
-  // 6. Date and time extraction
+  // 7. Date and time extraction
   const isoDate = activity.startTime || new Date().toISOString();
   const dateObj = new Date(isoDate);
   const dateStr = !isNaN(dateObj.getTime())
@@ -530,17 +353,21 @@ export async function parseWorkoutFile(
   const durationMinutes = Math.max(1, Math.round(activity.durationSeconds / 60));
   const distanceKm = activity.distanceMeters ? +(activity.distanceMeters / 1000).toFixed(2) : undefined;
 
-  // 7. Calculate training load (HR/power based if available)
+  // 8. Calculate training load (HR > Power > RPE > Estimated, never default to 1)
   let computedLoad: number | undefined = activity.trainingLoad;
-  if (!computedLoad && (activity.avgPowerWatts || activity.avgHeartRate)) {
-    computedLoad = calculateSessionLoad({
+  let loadSourceLabelHu: string = activity.loadSourceLabelHu || "becsült";
+
+  if (!computedLoad || computedLoad <= 1) {
+    const detailed = calculateSessionLoadDetailed({
       durationMinutes,
+      avgHeartRate: activity.avgHeartRate || report.cleanedAvgHr,
+      maxHr: activity.maxHeartRate || report.cleanedMaxHr,
       avgPower: activity.avgPowerWatts,
       normalizedPower: activity.normalizedPowerWatts,
-      avgHeartRate: activity.avgHeartRate,
-      ftp: 260,
-      lthr: 168
+      sport: sportId
     });
+    computedLoad = detailed.load;
+    loadSourceLabelHu = detailed.sourceLabelHu;
   }
 
   let avgPace: string | undefined = undefined;
@@ -550,25 +377,43 @@ export async function parseWorkoutFile(
     avgPace = `${mins}:${secs} /km`;
   }
 
+  const channels = {
+    hasHr: report.validHrPoints > 0,
+    hasSpeed: report.hasSpeed,
+    hasPower: report.hasPower,
+    hasCadence: report.hasCadence,
+    hasElevation: report.hasElevation,
+    hasGps: report.hasGps,
+    hasTemperature: cleanedPoints.some((p) => typeof p.temperatureCelsius === "number")
+  };
+
   return {
     fileName,
     fileType: ext,
     fileSizeBytes,
     sportId,
-    isSportKnown: isKnown,
+    isSportKnown: mapped.isKnown,
+    detectedSportNameHu: mapped.sportNameHu,
+    detectedRawSport: activity.sportRawName || mapped.sportNameHu,
+    isSportAmbiguous: mapped.isAmbiguous,
+    suggestedSportIds: mapped.suggestedSportIds,
     date: dateStr,
     startTime: timeStr,
     isoStartTime: isoDate,
     durationMinutes,
     durationSeconds: activity.durationSeconds,
     distanceKm,
-    avgHeartRate: activity.avgHeartRate,
-    maxHeartRate: activity.maxHeartRate,
+    avgHeartRate: activity.avgHeartRate || report.cleanedAvgHr,
+    maxHeartRate: activity.maxHeartRate || report.cleanedMaxHr,
     elevationGainMeters: activity.elevationGainMeters,
     avgPowerWatts: activity.avgPowerWatts,
     avgPace,
     calories: activity.calories,
     computedLoad,
+    loadSourceLabelHu,
+    channels,
+    warningsHu: Array.from(new Set([...(activity.warningsHu || []), ...(report.warningsHu || [])])),
+    cleaningReport: report,
     title: activity.title,
     timeSeries: {
       points: downsampledPoints,
@@ -578,24 +423,55 @@ export async function parseWorkoutFile(
   };
 }
 
+function parseTimestampSafe(val?: string, fallbackDate?: string): number | null {
+  if (!val) return null;
+  if (val.includes("T")) {
+    const t = new Date(val).getTime();
+    if (!isNaN(t)) return t;
+  }
+  if (fallbackDate && /^\d{1,2}:\d{2}/.test(val)) {
+    const t = new Date(`${fallbackDate}T${val}:00`).getTime();
+    if (!isNaN(t)) return t;
+  }
+  const t = new Date(val).getTime();
+  return isNaN(t) ? null : t;
+}
+
 /**
- * Checks if a session with similar start time (+-10 minutes), duration, and sport exists.
+ * Checks if a session with similar start time (+-15 minutes), duration, and sport exists.
  */
 export function findDuplicateSession(
-  candidate: { startTimeIso?: string; isoStartTime?: string; durationMinutes: number; sportId: string },
+  candidate: {
+    startTimeIso?: string;
+    isoStartTime?: string;
+    startTime?: string;
+    date?: string;
+    durationMinutes: number;
+    sportId: string;
+  },
   existingSessions: CompletedSessionDocument[]
 ): DuplicateSessionMatch | null {
-  const startTime = candidate.isoStartTime || candidate.startTimeIso || "";
-  const candidateTime = new Date(startTime).getTime();
-  if (isNaN(candidateTime)) return null;
+  const candidateTime = parseTimestampSafe(
+    candidate.isoStartTime || candidate.startTimeIso || candidate.startTime,
+    candidate.date
+  );
 
   for (const sess of existingSessions) {
-    const sessTime = new Date(sess.startTime).getTime();
-    if (isNaN(sessTime)) continue;
+    const sessTime = parseTimestampSafe(sess.startTime, sess.date);
 
-    const timeDiffMinutes = Math.abs(candidateTime - sessTime) / (60 * 1000);
+    let timeMatches = false;
+    let timeDiffMinutes = 0;
 
-    if (timeDiffMinutes <= 10) {
+    if (candidateTime !== null && sessTime !== null) {
+      timeDiffMinutes = Math.abs(candidateTime - sessTime) / (60 * 1000);
+      timeMatches = timeDiffMinutes <= 15;
+    } else if (candidate.date && sess.date && candidate.date === sess.date) {
+      // Date matches, allow match if duration is very close
+      timeMatches = true;
+      timeDiffMinutes = 0;
+    }
+
+    if (timeMatches) {
       const durDiff = Math.abs(candidate.durationMinutes - sess.durationMinutes);
       const maxDur = Math.max(candidate.durationMinutes, sess.durationMinutes);
       const durRatio = maxDur > 0 ? durDiff / maxDur : 0;
@@ -606,10 +482,12 @@ export function findDuplicateSession(
         candidateSport === sessSport ||
         candidateSport === "other" ||
         sessSport === "other" ||
-        (candidateSport === "running" && sessSport === "trail_running") ||
-        (candidateSport === "cycling" && sessSport === "road_cycling");
+        (candidateSport.includes("run") && sessSport.includes("run")) ||
+        (candidateSport.includes("cycl") && sessSport.includes("cycl")) ||
+        (candidateSport.includes("ski") && sessSport.includes("ski")) ||
+        (candidateSport.includes("paddl") && sessSport.includes("paddl"));
 
-      if ((durDiff <= 10 || durRatio <= 0.15) && sportMatch) {
+      if ((durDiff <= 10 || durRatio <= 0.2) && sportMatch) {
         return {
           existingSession: sess,
           timeDiffMinutes: Math.round(timeDiffMinutes),

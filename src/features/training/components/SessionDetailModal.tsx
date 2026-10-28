@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { BottomSheet, Button, Badge, showToast } from "@shared/ui";
-import { CompletedSessionDocument, SessionTimeSeriesPoint } from "@shared/types/dataModel";
+import { CompletedSessionDocument } from "@shared/types/dataModel";
 import { getSportById } from "@shared/lib/sports";
 import { WorkoutFileDropzone } from "./WorkoutFileDropzone";
 import {
@@ -14,7 +14,6 @@ import { getLocalSessions } from "@shared/lib/offline/offlineStorage";
 import {
   Clock,
   TrendingUp,
-  Heart,
   Zap,
   Edit2,
   FileCheck,
@@ -24,6 +23,7 @@ import {
   Share2
 } from "lucide-react";
 import { SessionShareModal } from "./SessionShareModal";
+import { SessionMultiChannelCharts } from "./charts/SessionMultiChannelCharts";
 
 interface SessionDetailModalProps {
   isOpen: boolean;
@@ -78,43 +78,6 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
       setIsSavingFile(false);
     }
   };
-
-  // Extract series data for pure SVG charts
-  const hrPoints = timeSeries.filter((p): p is SessionTimeSeriesPoint & { heartRate: number } => typeof p.heartRate === "number" && p.heartRate > 0);
-  const pwrPoints = timeSeries.filter((p): p is SessionTimeSeriesPoint & { powerWatts: number } => typeof p.powerWatts === "number" && p.powerWatts > 0);
-  const elePoints = timeSeries.filter((p): p is SessionTimeSeriesPoint & { elevationMeters: number } => typeof p.elevationMeters === "number");
-
-  const buildSvgAreaPath = (
-    pts: Array<{ val: number; offset: number }>,
-    width = 300,
-    height = 90,
-    pad = 8
-  ): { path: string; area: string; minVal: number; maxVal: number } => {
-    if (pts.length < 2) return { path: "", area: "", minVal: 0, maxVal: 0 };
-
-    const minVal = Math.min(...pts.map((p) => p.val));
-    const maxVal = Math.max(...pts.map((p) => p.val));
-    const valRange = Math.max(1, maxVal - minVal);
-    const maxOffset = Math.max(1, pts[pts.length - 1]!.offset);
-
-    const drawW = width - pad * 2;
-    const drawH = height - pad * 2;
-
-    const coords = pts.map((p) => {
-      const x = pad + (p.offset / maxOffset) * drawW;
-      const y = pad + drawH - ((p.val - minVal) / valRange) * drawH;
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    });
-
-    const path = `M ${coords.join(" L ")}`;
-    const area = `${path} L ${(pad + drawW).toFixed(1)},${(pad + drawH).toFixed(1)} L ${pad.toFixed(1)},${(pad + drawH).toFixed(1)} Z`;
-
-    return { path, area, minVal, maxVal };
-  };
-
-  const hrChart = buildSvgAreaPath(hrPoints.map((p) => ({ val: p.heartRate, offset: p.timeOffsetSeconds })));
-  const pwrChart = buildSvgAreaPath(pwrPoints.map((p) => ({ val: p.powerWatts, offset: p.timeOffsetSeconds })));
-  const eleChart = buildSvgAreaPath(elePoints.map((p) => ({ val: p.elevationMeters, offset: p.timeOffsetSeconds })));
 
   return (
     <BottomSheet
@@ -295,67 +258,19 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
           </div>
         )}
 
-        {/* Heart Rate Chart (Pure SVG) */}
-        {hrChart.path && (
-          <div className="p-3.5 rounded-xl bg-bg-surface border border-border-hairline space-y-1.5">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-semibold text-rose-300 flex items-center gap-1">
-                <Heart className="w-3.5 h-3.5 text-rose-400" />
-                Pulzusgörbe
-              </span>
-              <span className="text-[11px] text-text-secondary font-mono">
-                {hrChart.minVal} – {hrChart.maxVal} bpm
-              </span>
-            </div>
-            <div className="bg-neutral-950 rounded-lg p-1 border border-white/5">
-              <svg viewBox="0 0 300 90" className="w-full h-20 overflow-visible">
-                <path d={hrChart.area} fill="rgba(244, 63, 94, 0.15)" />
-                <path d={hrChart.path} fill="none" stroke="#F43F5E" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-            </div>
-          </div>
-        )}
-
-        {/* Power Chart (Pure SVG) */}
-        {pwrChart.path && (
-          <div className="p-3.5 rounded-xl bg-bg-surface border border-border-hairline space-y-1.5">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-semibold text-amber-300 flex items-center gap-1">
-                <Zap className="w-3.5 h-3.5 text-amber-400" />
-                Teljesítménygörbe
-              </span>
-              <span className="text-[11px] text-text-secondary font-mono">
-                max: {pwrChart.maxVal} W
-              </span>
-            </div>
-            <div className="bg-neutral-950 rounded-lg p-1 border border-white/5">
-              <svg viewBox="0 0 300 90" className="w-full h-20 overflow-visible">
-                <path d={pwrChart.area} fill="rgba(245, 158, 11, 0.15)" />
-                <path d={pwrChart.path} fill="none" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-            </div>
-          </div>
-        )}
-
-        {/* Elevation Profile Chart (Pure SVG) */}
-        {eleChart.path && (
-          <div className="p-3.5 rounded-xl bg-bg-surface border border-border-hairline space-y-1.5">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-semibold text-emerald-300 flex items-center gap-1">
-                <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
-                Szintprofil
-              </span>
-              <span className="text-[11px] text-text-secondary font-mono">
-                {eleChart.minVal} – {eleChart.maxVal} m
-              </span>
-            </div>
-            <div className="bg-neutral-950 rounded-lg p-1 border border-white/5">
-              <svg viewBox="0 0 300 90" className="w-full h-20 overflow-visible">
-                <path d={eleChart.area} fill="rgba(16, 185, 129, 0.15)" />
-                <path d={eleChart.path} fill="none" stroke="#10B981" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-            </div>
-          </div>
+        {/* Generic Multi-Channel Charts (HR with zones, Speed/Pace, Power, Cadence, Elevation, Temp) */}
+        {timeSeries.length > 0 && (
+          <SessionMultiChannelCharts
+            sessionId={session.sessionId}
+            sportId={session.sport}
+            points={timeSeries}
+            avgHeartRate={session.metrics?.avgHeartRate}
+            maxHeartRate={session.metrics?.maxHeartRate}
+            avgPowerWatts={session.metrics?.avgPowerWatts || session.metrics?.avgPower}
+            avgPace={session.metrics?.avgPace}
+            elevationGainMeters={session.metrics?.elevationGainMeters}
+            distanceMeters={session.metrics?.distanceMeters}
+          />
         )}
 
         {/* Notes */}

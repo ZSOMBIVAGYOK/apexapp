@@ -29,9 +29,10 @@ ui-debug.log*
 .env.*
 !.env.example
 
-# Test reports
+# Test reports & private fixtures
 playwright-report/
 test-results/
+test-fixtures/private/
 
 # Logs
 *.log

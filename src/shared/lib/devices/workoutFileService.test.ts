@@ -81,7 +81,7 @@ describe("WorkoutFileService - Browser-side Parsers, Prefill & Time-Series", () 
       expect(result.isSportKnown).toBe(true);
 
       const bikeResult = mapFileSportToCatalog("other", "Országúti bringázás a hegyen");
-      expect(bikeResult.sportId).toBe("cycling");
+      expect(["cycling", "road_cycling"]).toContain(bikeResult.sportId);
       expect(bikeResult.isSportKnown).toBe(true);
     });
 

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Antigravity Test Suite" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>Lake Balaton Stand Up Paddling</name>
+    <type>stand_up_paddleboarding</type>
+    <trkseg>
+      <trkpt lat="46.8500" lon="17.8800">
+        <ele>104.0</ele>
+        <time>2026-10-26T14:00:00Z</time>
+        <extensions><hr>128</hr></extensions>
+      </trkpt>
+      <trkpt lat="46.8520" lon="17.8850">
+        <ele>104.0</ele>
+        <time>2026-10-26T14:15:00Z</time>
+        <extensions><hr>136</hr></extensions>
+      </trkpt>
+    </trkseg>
+  </trk>
+</gpx>

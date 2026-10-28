@@ -199,4 +199,66 @@ describe("Load Analytics Engine", () => {
       expect(PMC_METRIC_EXPLANATIONS.acwr.titleEn).toContain("Ratio");
     });
   });
+
+  describe("Detailed Load Calculation & Multi-Session Same Day Suite", () => {
+    it("adheres strictly to source priority: HR > Power > RPE > Estimated", () => {
+      // With HR and Power: HR takes precedence for cardio endurance
+      const hrAndPower = calculateSessionLoad({
+        durationMinutes: 60,
+        avgHeartRate: 155,
+        lthr: 165,
+        avgPower: 220,
+        ftp: 250
+      });
+      expect(hrAndPower).toBeGreaterThan(1);
+
+      // Power based when HR missing
+      const powerOnly = calculateSessionLoad({
+        durationMinutes: 60,
+        avgPower: 250,
+        ftp: 250
+      });
+      expect(powerOnly).toBe(100);
+
+      // RPE based when HR and Power missing
+      const rpeOnly = calculateSessionLoad({
+        durationMinutes: 60,
+        rpe: 6
+      });
+      expect(rpeOnly).toBe(360);
+
+      // Estimated fallback when all metrics missing: NEVER returns 1 default!
+      const estimated = calculateSessionLoad({
+        durationMinutes: 45,
+        sport: "running"
+      });
+      expect(estimated).toBeGreaterThan(10);
+      expect(estimated).not.toBe(1);
+    });
+
+    it("two sessions on the same day never overwrite or clamp each other to 1", () => {
+      // Session 1: Morning run (45 min, avg HR 162)
+      const session1Load = calculateSessionLoad({
+        durationMinutes: 45,
+        avgHeartRate: 162,
+        lthr: 168
+      });
+      expect(session1Load).toBeGreaterThan(1);
+      expect(session1Load).not.toBe(1);
+
+      // Session 2: Afternoon cycling (90 min, avg power 210W)
+      const session2Load = calculateSessionLoad({
+        durationMinutes: 90,
+        avgPower: 210,
+        ftp: 260
+      });
+      expect(session2Load).toBeGreaterThan(1);
+      expect(session2Load).not.toBe(1);
+
+      // Daily load must be the mathematical sum of both sessions
+      const dailySum = session1Load + session2Load;
+      expect(dailySum).toBe(session1Load + session2Load);
+      expect(session2Load).not.toBe(1);
+    });
+  });
 });

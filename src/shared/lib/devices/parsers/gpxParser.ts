@@ -4,6 +4,7 @@
  */
 
 import { NormalizedActivity, StandardSport } from "@shared/types/devices";
+import { mapActivityNameToSport } from "@shared/lib/sports/sportMapping";
 
 function haversineDistance(
   lat1: number,
@@ -26,9 +27,11 @@ function haversineDistance(
 }
 
 export function parseGPX(xmlText: string, fileName = "workout.gpx"): NormalizedActivity {
-  // Extract track name
+  // Extract track name and type
   const nameMatch = xmlText.match(/<name>(.*?)<\/name>/i);
+  const typeMatch = xmlText.match(/<type>(.*?)<\/type>/i);
   const title = nameMatch ? nameMatch[1]!.trim() : fileName.replace(/\.gpx$/i, "");
+  const rawType = typeMatch ? typeMatch[1]!.trim() : undefined;
 
   // Extract trackpoints
   const trkptRegex = /<trkpt\s+lat=["']([^"']+)["']\s+lon=["']([^"']+)["']>([\s\S]*?)<\/trkpt>/gi;
@@ -131,15 +134,21 @@ export function parseGPX(xmlText: string, fileName = "workout.gpx"): NormalizedA
     avgPaceSecondsPerKm = Math.round(totalDurationSeconds / (totalDistanceMeters / 1000));
   }
 
-  // Detect sport by speed / power / title
+  // Detect sport by explicit type tag, or speed/power/title
   let sport: StandardSport = "running";
-  const titleLower = title.toLowerCase();
-  const speedMps = totalDurationSeconds > 0 ? totalDistanceMeters / totalDurationSeconds : 0;
+  if (rawType) {
+    sport = mapActivityNameToSport(rawType).sportId as StandardSport;
+  } else {
+    const titleLower = title.toLowerCase();
+    const speedMps = totalDurationSeconds > 0 ? totalDistanceMeters / totalDurationSeconds : 0;
 
-  if (titleLower.includes("bike") || titleLower.includes("cycle") || titleLower.includes("ride") || speedMps > 6.5) {
-    sport = "cycling";
-  } else if (titleLower.includes("swim") || speedMps < 1.0) {
-    sport = titleLower.includes("swim") ? "swimming" : "running";
+    if (titleLower.includes("bike") || titleLower.includes("cycle") || titleLower.includes("ride") || speedMps > 6.5) {
+      sport = "cycling";
+    } else if (titleLower.includes("swim") || speedMps < 1.0) {
+      sport = titleLower.includes("swim") ? "swimming" : "running";
+    } else {
+      sport = mapActivityNameToSport(title).sportId as StandardSport;
+    }
   }
 
   return {

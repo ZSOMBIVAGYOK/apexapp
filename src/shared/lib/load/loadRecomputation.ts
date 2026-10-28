@@ -10,7 +10,7 @@
  */
 
 import { CompletedSessionDocument } from "@shared/types";
-import { calculatePMCSeries } from "./loadCalculator";
+import { calculatePMCSeries, calculateSessionLoad } from "./loadCalculator";
 import { calculateReadiness, bandToStatus } from "@shared/lib/readiness";
 import {
   getLocalDaily,
@@ -43,12 +43,25 @@ export interface RecomputationResult {
 
 /**
  * Builds the daily load map from all completed sessions.
+ * Multiple sessions on the same date are summed properly.
+ * Never allows a stored load of 1 as a hidden default!
  */
 export function buildDailyLoadsMap(sessions: CompletedSessionDocument[]): Record<string, number> {
   const map: Record<string, number> = {};
   for (const s of sessions) {
     if (s.completed !== false) {
-      const load = s.trainingLoad ?? Math.round(s.durationMinutes * (s.rpe || 5));
+      let load: number;
+      if (typeof s.trainingLoad === "number" && s.trainingLoad > 1) {
+        load = s.trainingLoad;
+      } else {
+        load = calculateSessionLoad({
+          durationMinutes: s.durationMinutes,
+          rpe: s.rpe,
+          avgHeartRate: s.metrics?.avgHeartRate,
+          avgPower: s.metrics?.avgPowerWatts || s.metrics?.avgPower,
+          sport: s.sport
+        });
+      }
       map[s.date] = (map[s.date] || 0) + load;
     }
   }

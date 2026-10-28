@@ -27,47 +27,169 @@ export interface SessionLoadInput {
   ftp?: number; // Functional Threshold Power (Watts)
   avgHeartRate?: number; // bpm
   maxHr?: number; // bpm
+  restingHr?: number; // bpm
   lthr?: number; // Lactate Threshold Heart Rate (bpm)
+  age?: number; // years
+  sport?: string;
+  sourcePreference?: "hr" | "power" | "rpe" | "auto";
+}
+
+export type LoadSourceType = "hr" | "power" | "rpe" | "estimated";
+
+export interface SessionLoadDetailedResult {
+  load: number;
+  source: LoadSourceType;
+  sourceLabelHu: string;
+  sourceLabelEn: string;
+  isEstimated: boolean;
+  needsUserRpe: boolean;
 }
 
 /**
- * Calculates session training load (TSS-equivalent or Foster AU)
+ * Calculates session training load with full source priority attribution:
+ * Priority:
+ * 1. Heart-rate based (TRIMP / hrTSS using athlete's max/threshold HR; if missing, estimated from age)
+ * 2. Power-based (Coggan TSS using FTP and NP/avgPower)
+ * 3. Session-RPE (Foster: duration x RPE)
+ * 4. Duration & sport estimate (with prompt for user RPE)
+ *
+ * Never allows a stored load of 1 as a hidden default!
  */
-export function calculateSessionLoad(input: SessionLoadInput): number {
+export function calculateSessionLoadDetailed(input: SessionLoadInput): SessionLoadDetailedResult {
   const {
     durationMinutes,
-    rpe = 5,
+    rpe,
     avgPower,
     normalizedPower,
     ftp,
     avgHeartRate,
-    lthr
+    maxHr,
+    restingHr: _restingHr = 60,
+    lthr,
+    age,
+    sport = "running",
+    sourcePreference = "auto"
   } = input;
 
-  if (durationMinutes <= 0) return 0;
+  if (durationMinutes <= 0) {
+    return {
+      load: 0,
+      source: "estimated",
+      sourceLabelHu: "becsült",
+      sourceLabelEn: "estimated",
+      isEstimated: true,
+      needsUserRpe: false
+    };
+  }
+
   const durationSeconds = durationMinutes * 60;
   const durationHours = durationMinutes / 60;
 
-  // 1. Power-based TSS (Coggan method)
-  const power = normalizedPower || avgPower;
-  if (power && ftp && ftp > 0 && power > 0) {
-    const intensityFactor = power / ftp;
-    // TSS = (sec x NP x IF) / (FTP x 3600) x 100
-    const tss = ((durationSeconds * power * intensityFactor) / (ftp * 3600)) * 100;
-    return Math.max(1, Math.round(tss));
-  }
+  // 1. HEART-RATE BASED (TRIMP / hrTSS)
+  const canUseHr = avgHeartRate && avgHeartRate > 35 && avgHeartRate < 240;
+  if (canUseHr && (sourcePreference === "auto" || sourcePreference === "hr" || !avgPower)) {
+    let effectiveMaxHr = maxHr;
+    let isEstimatedMax = false;
 
-  // 2. Heart-rate based TSS (hrTSS approximation based on LTHR)
-  if (avgHeartRate && lthr && lthr > 0 && avgHeartRate > 0) {
-    const hrIf = avgHeartRate / lthr;
-    // hrTSS = durationHours x hrIF^2 x 100
+    if (!effectiveMaxHr || effectiveMaxHr <= 100) {
+      isEstimatedMax = true;
+      if (age && age > 10 && age < 100) {
+        effectiveMaxHr = Math.round(208 - 0.7 * age);
+      } else {
+        effectiveMaxHr = 185;
+      }
+    }
+
+    const effectiveLthr = lthr && lthr > 100 ? lthr : Math.round(effectiveMaxHr * 0.85);
+
+    // hrTSS calculation
+    const hrIf = avgHeartRate / effectiveLthr;
     const hrTss = durationHours * Math.pow(hrIf, 2) * 100;
-    return Math.max(1, Math.round(hrTss));
+
+    // Minimum meaningful load for a completed workout is 5 (never 1!)
+    const finalLoad = Math.max(5, Math.round(hrTss));
+
+    return {
+      load: finalLoad,
+      source: "hr",
+      sourceLabelHu: isEstimatedMax ? "becsült (pulzus)" : "pulzus alapú",
+      sourceLabelEn: isEstimatedMax ? "estimated (HR)" : "heart rate based",
+      isEstimated: isEstimatedMax,
+      needsUserRpe: false
+    };
   }
 
-  // 3. Foster Session-RPE (AU = minutes x RPE)
-  const clampedRpe = Math.max(1, Math.min(10, rpe));
-  return Math.round(durationMinutes * clampedRpe);
+  // 2. POWER-BASED TSS (Coggan method)
+  const power = normalizedPower || avgPower;
+  const canUsePower = power && ftp && ftp > 0 && power > 0;
+  if (canUsePower && (sourcePreference === "auto" || sourcePreference === "power")) {
+    const intensityFactor = power / ftp;
+    const tss = ((durationSeconds * power * intensityFactor) / (ftp * 3600)) * 100;
+    const finalLoad = Math.max(5, Math.round(tss));
+
+    return {
+      load: finalLoad,
+      source: "power",
+      sourceLabelHu: "watt alapú",
+      sourceLabelEn: "power based",
+      isEstimated: false,
+      needsUserRpe: false
+    };
+  }
+
+  // 3. FOSTER SESSION-RPE (duration x RPE)
+  if (typeof rpe === "number" && !isNaN(rpe)) {
+    const clampedRpe = Math.max(1, Math.min(10, rpe));
+    const sRpeLoad = Math.max(1, Math.round(durationMinutes * clampedRpe));
+
+    return {
+      load: sRpeLoad,
+      source: "rpe",
+      sourceLabelHu: "RPE alapú",
+      sourceLabelEn: "RPE based",
+      isEstimated: false,
+      needsUserRpe: false
+    };
+  }
+
+  // 4. SPORT & DURATION ESTIMATE (with prompt for user RPE)
+  const sportDefaultRpe: Record<string, number> = {
+    running: 6,
+    trail_running: 7,
+    cycling: 5,
+    road_cycling: 5,
+    mountain_biking: 6,
+    swimming: 6,
+    stand_up_paddling: 5,
+    rowing: 6,
+    kayak: 5,
+    canoe: 5,
+    hiking: 4,
+    walking_hiking: 3,
+    strength: 6,
+    crossfit: 8,
+    triathlon: 7,
+    cross_country_skiing: 6
+  };
+
+  const defaultRpe = sportDefaultRpe[sport.toLowerCase()] || 5;
+  const estimatedLoad = Math.max(5, Math.round(durationMinutes * defaultRpe));
+
+  return {
+    load: estimatedLoad,
+    source: "estimated",
+    sourceLabelHu: "becsült",
+    sourceLabelEn: "estimated",
+    isEstimated: true,
+    needsUserRpe: true
+  };
+}
+
+/**
+ * Calculates session training load (returns numerical load for backward compatibility)
+ */
+export function calculateSessionLoad(input: SessionLoadInput): number {
+  return calculateSessionLoadDetailed(input).load;
 }
 
 /**

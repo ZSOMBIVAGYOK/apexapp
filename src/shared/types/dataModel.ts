@@ -202,6 +202,8 @@ export interface SessionTimeSeriesPoint {
   powerWatts?: number;
   speedMps?: number;
   paceSecondsPerKm?: number;
+  cadence?: number;
+  temperatureCelsius?: number;
   elevationMeters?: number;
   distanceMeters?: number;
   lat?: number;

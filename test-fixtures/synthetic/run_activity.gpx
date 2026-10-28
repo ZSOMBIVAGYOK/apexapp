@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Antigravity Test Suite" xmlns="http://www.topografix.com/GPX/1/1" xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v1">
+  <trk>
+    <name>Synthetic Morning Trail Run</name>
+    <type>running</type>
+    <trkseg>
+      <trkpt lat="47.5000" lon="19.0000">
+        <ele>150.0</ele>
+        <time>2026-10-26T07:00:00Z</time>
+        <extensions>
+          <gpxtpx:TrackPointExtension>
+            <gpxtpx:hr>142</gpxtpx:hr>
+            <gpxtpx:cad>168</gpxtpx:cad>
+          </gpxtpx:TrackPointExtension>
+          <power>220</power>
+        </extensions>
+      </trkpt>
+      <trkpt lat="47.5050" lon="19.0050">
+        <ele>165.0</ele>
+        <time>2026-10-26T07:10:00Z</time>
+        <extensions>
+          <gpxtpx:TrackPointExtension>
+            <gpxtpx:hr>158</gpxtpx:hr>
+            <gpxtpx:cad>174</gpxtpx:cad>
+          </gpxtpx:TrackPointExtension>
+          <power>255</power>
+        </extensions>
+      </trkpt>
+      <trkpt lat="47.5100" lon="19.0100">
+        <ele>180.0</ele>
+        <time>2026-10-26T07:20:00Z</time>
+        <extensions>
+          <gpxtpx:TrackPointExtension>
+            <gpxtpx:hr>164</gpxtpx:hr>
+            <gpxtpx:cad>178</gpxtpx:cad>
+          </gpxtpx:TrackPointExtension>
+          <power>270</power>
+        </extensions>
+      </trkpt>
+    </trkseg>
+  </trk>
+</gpx>
