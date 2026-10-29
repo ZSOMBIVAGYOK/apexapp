@@ -273,11 +273,11 @@ export const TodayPage: React.FC = () => {
       </div>
 
       {/* 4 Large Capsule Quick Action Buttons */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 gap-2.5">
         <button
           type="button"
           onClick={() => navigate("/checkin")}
-          className="touch-target min-h-[44px] px-3.5 py-2.5 rounded-full bg-bg-surface-solid dark:bg-white/[0.05] border border-border/60 hover:bg-bg-elevated text-text-primary flex items-center justify-center gap-2 text-12 sm:text-13 font-semibold shadow-glass-sm transition-all active:scale-[0.98]"
+          className="touch-target min-w-0 min-h-[44px] px-3.5 py-2.5 rounded-full bg-bg-surface-solid dark:bg-white/[0.05] border border-border/60 hover:bg-bg-elevated text-text-primary flex items-center justify-center gap-2 text-12 sm:text-13 font-semibold shadow-glass-sm transition-all active:scale-[0.98]"
         >
           <Activity className="h-4 w-4 text-brand shrink-0" />
           <span className="truncate">{hasCheckedInToday ? (isHu ? "Check-in adatok" : "Check-in data") : (isHu ? "Reggeli Check-in" : "Morning check-in")}</span>
@@ -286,7 +286,7 @@ export const TodayPage: React.FC = () => {
         <button
           type="button"
           onClick={() => setIsLogModalOpen(true)}
-          className="touch-target min-h-[44px] px-3.5 py-2.5 rounded-full bg-bg-surface-solid dark:bg-white/[0.05] border border-border/60 hover:bg-bg-elevated text-text-primary flex items-center justify-center gap-2 text-12 sm:text-13 font-semibold shadow-glass-sm transition-all active:scale-[0.98]"
+          className="touch-target min-w-0 min-h-[44px] px-3.5 py-2.5 rounded-full bg-bg-surface-solid dark:bg-white/[0.05] border border-border/60 hover:bg-bg-elevated text-text-primary flex items-center justify-center gap-2 text-12 sm:text-13 font-semibold shadow-glass-sm transition-all active:scale-[0.98]"
         >
           <Dumbbell className="h-4 w-4 text-brand shrink-0" />
           <span className="truncate">{isHu ? "Edzés rögzítése" : "Log workout"}</span>
@@ -295,7 +295,7 @@ export const TodayPage: React.FC = () => {
         <button
           type="button"
           onClick={() => navigate("/nutrition")}
-          className="touch-target min-h-[44px] px-3.5 py-2.5 rounded-full bg-bg-surface-solid dark:bg-white/[0.05] border border-border/60 hover:bg-bg-elevated text-text-primary flex items-center justify-center gap-2 text-12 sm:text-13 font-semibold shadow-glass-sm transition-all active:scale-[0.98]"
+          className="touch-target min-w-0 min-h-[44px] px-3.5 py-2.5 rounded-full bg-bg-surface-solid dark:bg-white/[0.05] border border-border/60 hover:bg-bg-elevated text-text-primary flex items-center justify-center gap-2 text-12 sm:text-13 font-semibold shadow-glass-sm transition-all active:scale-[0.98]"
         >
           <Plus className="h-4 w-4 text-brand shrink-0" />
           <span className="truncate">{isHu ? "Étkezés naplózása" : "Log meal"}</span>
@@ -304,7 +304,7 @@ export const TodayPage: React.FC = () => {
         <button
           type="button"
           onClick={() => handleAddWater(250)}
-          className="touch-target min-h-[44px] px-3.5 py-2.5 rounded-full bg-bg-surface-solid dark:bg-white/[0.05] border border-border/60 hover:bg-bg-elevated text-text-primary flex items-center justify-center gap-2 text-12 sm:text-13 font-semibold shadow-glass-sm transition-all active:scale-[0.98]"
+          className="touch-target min-w-0 min-h-[44px] px-3.5 py-2.5 rounded-full bg-bg-surface-solid dark:bg-white/[0.05] border border-border/60 hover:bg-bg-elevated text-text-primary flex items-center justify-center gap-2 text-12 sm:text-13 font-semibold shadow-glass-sm transition-all active:scale-[0.98]"
         >
           <Droplets className="h-4 w-4 text-status-ready shrink-0" />
           <span className="truncate">{isHu ? "Vízivás (+250ml)" : "Water (+250ml)"}</span>
@@ -678,7 +678,7 @@ export const TodayPage: React.FC = () => {
           </Card>
 
           {/* 4 Key Biometrics Cockpit Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
             <StatTile
               label={t("today.hrvMetric", "HRV (rMSSD)")}
               value={todayHrv !== null ? todayHrv : "--"}
@@ -705,21 +705,23 @@ export const TodayPage: React.FC = () => {
               onClick={() => setActiveDetailSheet("sleep")}
             />
             <StatTile
-              label={t("nutrition.hydration", "Folyadékbevitel")}
+              label={t("nutrition.hydration", "Folyadék")}
               value={waterLiters}
               unit="/ 3.5 l"
               status={waterLiters >= 3.0 ? "ready" : "caution"}
-              subtext={`${Math.round((waterLiters / 3.5) * 100)}% cél elérve`}
+              subtext={`${Math.round((waterLiters / 3.5) * 100)}%`}
               topRight={
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => handleAddWater(250)}
-                    className="rounded-8 bg-brand/10 px-2 py-0.5 text-11 font-bold text-brand hover:bg-brand/20 transition-colors"
-                  >
-                    +250ml
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleAddWater(250);
+                  }}
+                  aria-label="250 ml víz hozzáadása"
+                  className="rounded-8 bg-brand/10 px-1.5 py-0.5 text-10 font-bold text-brand hover:bg-brand/20 transition-colors shrink-0"
+                >
+                  +250ml
+                </button>
               }
             />
           </div>

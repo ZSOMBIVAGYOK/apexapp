@@ -17,7 +17,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
 }) => {
   return (
     <div className={`flex flex-col sm:flex-row sm:items-end justify-between gap-2 mb-4 select-none ${className}`}>
-      <div>
+      <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <h2 className="text-20 font-bold tracking-tight text-text-primary">
             {title}

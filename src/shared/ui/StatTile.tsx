@@ -55,7 +55,7 @@ export const StatTile: React.FC<StatTileProps> = ({
           onClick?.(e as unknown as React.MouseEvent<HTMLDivElement>);
         }
       }}
-      className={`rounded-card border border-border/60 bg-bg-surface-solid dark:bg-bg-surface p-4 sm:p-5 transition-all duration-160 ease-spring shadow-sm flex flex-col justify-between ${
+      className={`rounded-card border border-border/60 bg-bg-surface-solid dark:bg-bg-surface p-3 sm:p-4 transition-all duration-160 ease-spring shadow-sm flex flex-col justify-between overflow-hidden min-w-0 ${
         isClickable
           ? "cursor-pointer hover:bg-bg-elevated hover:border-border active:scale-[0.985] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
           : ""
@@ -63,22 +63,22 @@ export const StatTile: React.FC<StatTileProps> = ({
       {...props}
     >
       {/* Top Header */}
-      <div className="flex items-center justify-between gap-2 mb-2">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-1.5 mb-2 min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0 flex-1">
           {status !== "neutral" && (
             <span
               className={`h-2 w-2 rounded-full shrink-0 ${statusDot[status]}`}
               aria-hidden="true"
             />
           )}
-          <span className="text-12 font-medium text-text-secondary uppercase tracking-wider truncate">
+          <span className="text-11 sm:text-12 font-medium text-text-secondary uppercase tracking-wider truncate">
             {label}
           </span>
         </div>
         {topRight ? (
-          <div>{topRight}</div>
+          <div className="shrink-0">{topRight}</div>
         ) : icon ? (
-          <div className="text-text-secondary">{icon}</div>
+          <div className="text-text-secondary shrink-0">{icon}</div>
         ) : null}
       </div>
 

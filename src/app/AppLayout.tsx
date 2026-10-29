@@ -347,17 +347,17 @@ export const AppLayout: React.FC = () => {
       <header className="hidden lg:block sticky top-0 z-40 border-b border-border/60 glass-thin">
         <div className="mx-auto flex h-16 max-w-[1280px] items-center justify-between px-6">
           {/* Quick Search Bar with ⌘K */}
-          <div className="flex items-center gap-3 w-80">
+          <div className="flex items-center gap-3 w-52 lg:w-60 xl:w-80 min-w-0 shrink">
             <button
               type="button"
               onClick={() => setShowSearchModal(true)}
-              className="flex w-full items-center justify-between rounded-control border border-border/60 bg-bg-surface-solid dark:bg-white/[0.04] px-3.5 py-2 text-13 text-text-secondary hover:border-border hover:text-text-primary transition-all duration-160 ease-spring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand shadow-inner"
+              className="flex w-full items-center justify-between rounded-control border border-border/60 bg-bg-surface-solid dark:bg-white/[0.04] px-3.5 py-2 text-13 text-text-secondary hover:border-border hover:text-text-primary transition-all duration-160 ease-spring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand shadow-inner min-w-0"
             >
-              <div className="flex items-center gap-2">
-                <Search className="h-4 w-4 text-text-tertiary" aria-hidden="true" />
-                <span>Keresés (edzés, étrend, mutató)...</span>
+              <div className="flex items-center gap-2 min-w-0">
+                <Search className="h-4 w-4 text-text-tertiary shrink-0" aria-hidden="true" />
+                <span className="truncate">Keresés (edzés, étrend, mutató)...</span>
               </div>
-              <kbd className="inline-flex items-center gap-0.5 rounded-8 bg-bg-surface px-1.5 py-0.5 text-[10px] font-mono border border-border/60 text-text-tertiary shadow-sm">
+              <kbd className="inline-flex items-center gap-0.5 rounded-8 bg-bg-surface px-1.5 py-0.5 text-[10px] font-mono border border-border/60 text-text-tertiary shadow-sm shrink-0">
                 <Command className="h-3 w-3" aria-hidden="true" />K
               </kbd>
             </button>
@@ -365,13 +365,18 @@ export const AppLayout: React.FC = () => {
 
           {/* Top Actions: Sync, Role, Language, Theme, Shortcuts, Notifications, User */}
           <div className="flex items-center gap-2.5">
-            <SyncStatusBadge />
+            <div className="hidden xl:block">
+              <SyncStatusBadge />
+            </div>
+            <div className="xl:hidden">
+              <SyncStatusBadge showText={false} />
+            </div>
 
             {/* Quick Role Switcher */}
             <button
               type="button"
               onClick={toggleRoleMode}
-              className="touch-target text-12 font-medium px-3 py-1.5 rounded-full border border-border/60 bg-bg-surface-solid dark:bg-white/[0.05] hover:bg-bg-elevated text-text-secondary hover:text-text-primary transition-colors"
+              className="hidden xl:flex touch-target text-12 font-medium px-3 py-1.5 rounded-full border border-border/60 bg-bg-surface-solid dark:bg-white/[0.05] hover:bg-bg-elevated text-text-secondary hover:text-text-primary transition-colors"
               title="Váltás Sportoló és Edzői nézet között"
             >
               Szerep:{" "}

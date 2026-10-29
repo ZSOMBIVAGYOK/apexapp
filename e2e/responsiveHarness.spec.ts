@@ -99,8 +99,8 @@ async function assertMobileTouchTargets(page: Page) {
       const effectiveWidth = Math.max(rect.width, 44);
       const effectiveHeight = Math.max(rect.height, 44);
 
-      // We allow small inline links in paragraphs
-      if (el.tagName === "A" && el.closest("p")) return;
+      // We allow small inline links in paragraphs and sr-only skip links
+      if (el.classList.contains("sr-only") || (el.tagName === "A" && el.closest("p"))) return;
 
       if (rect.width < 32 || rect.height < 32) {
         // Element is genuinely too small without touch padding
@@ -144,6 +144,7 @@ test.describe("Apex Liquid Glass Responsive Matrix & Test Harness", () => {
         await page.addInitScript(
           ({ themeVal, isMobile }) => {
             try {
+              localStorage.setItem("apex_demo_user", "true");
               localStorage.setItem("apex-theme-mode", themeVal);
               localStorage.setItem(
                 "apex_appearance",

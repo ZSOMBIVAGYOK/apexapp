@@ -333,7 +333,7 @@ export const SettingsPage: React.FC = () => {
         title={t("settings.title")}
         description={t("settings.subtitle")}
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Link to="/privacy">
               <Button
                 variant="tertiary"
