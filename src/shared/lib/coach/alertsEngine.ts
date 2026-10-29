@@ -31,6 +31,11 @@ export interface AthleteDataSnapshot {
     date: string;
     readinessScore?: number;
     readinessZone?: "ready" | "caution" | "rest";
+    recoveryScore?: number;
+    recoveryBand?: "green" | "amber" | "red";
+    strainScore?: number;
+    strainTargetHigh?: number;
+    sleepScore?: number;
     sleep?: { durationMinutes?: number };
     restingHR?: number;
     hrv?: number;
@@ -336,6 +341,65 @@ export function evaluateAthleteAlerts(snapshot: AthleteDataSnapshot): AthleteAle
         severity: "critical",
         title: "Alacsony Energiahasznosulás (LEA) gyanú",
         message: `A sportoló energiabevitele 3 egymást követő napon a cél 60%-a alatt maradt magas edzésterhelés mellett. Dietetikusi egyeztetés javasolt.`,
+        createdAt: now,
+        status: "active"
+      });
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // 9. Sustained High Strain (strain exceeds target for 3+ consecutive days)
+  // ---------------------------------------------------------------------------
+  const highStrainDays = thresholds.sustainedHighStrainDays ?? 3;
+  if (sortedDays.length >= highStrainDays) {
+    const lastDays = sortedDays.slice(-highStrainDays);
+    const sustainedHigh = lastDays.every((d) => {
+      if (d.strainScore === undefined) return false;
+      if (d.strainTargetHigh !== undefined) {
+        return d.strainScore > d.strainTargetHigh + 5;
+      }
+      return d.strainScore >= 75;
+    });
+
+    if (sustainedHigh) {
+      alerts.push({
+        id: `alert_sustained_strain_${athleteId}_${now.split("T")[0]}`,
+        athleteId,
+        athleteName,
+        type: "sustained_high_strain",
+        module: "training",
+        severity: "caution",
+        title: "Tartósan túllépett terhelési célsáv",
+        message: `${highStrainDays} egymást követő napon a napi terhelés (Strain) meghaladta az ajánlott célsávot. Túlterhelés vagy elégtelen regeneráció kockázata.`,
+        createdAt: now,
+        status: "active"
+      });
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // 10. Consecutive Low Sleep Score (<60 for 3+ consecutive nights)
+  // ---------------------------------------------------------------------------
+  const lowSleepNights = thresholds.lowSleepScoreNights ?? 3;
+  if (sortedDays.length >= lowSleepNights) {
+    const lastDays = sortedDays.slice(-lowSleepNights);
+    const lowSleepStreak = lastDays.every((d) => d.sleepScore !== undefined && d.sleepScore < 60);
+
+    if (lowSleepStreak) {
+      const avgSleepScore = Math.round(
+        lastDays.reduce((acc, d) => acc + (d.sleepScore || 0), 0) / lowSleepNights
+      );
+      alerts.push({
+        id: `alert_consecutive_low_sleep_${athleteId}_${now.split("T")[0]}`,
+        athleteId,
+        athleteName,
+        type: "consecutive_low_sleep",
+        module: "recovery",
+        severity: "caution",
+        title: "Tartósan alacsony alváspontszám",
+        message: `${lowSleepNights} egymást követő éjszaka az alváspontszám 60 alatt maradt (átlag: ${avgSleepScore}/100).`,
+        metricValue: `${avgSleepScore}/100`,
+        thresholdValue: "< 60",
         createdAt: now,
         status: "active"
       });

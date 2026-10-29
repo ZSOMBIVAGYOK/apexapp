@@ -381,24 +381,59 @@ export const RosterDashboard: React.FC<RosterDashboardProps> = ({
                       </div>
                     </div>
 
-                    {/* Readiness Dot & Score */}
-                    {!isRevoked && athlete.readinessScore !== undefined ? (
-                      <div className="text-right shrink-0">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <span
-                            className={`h-2.5 w-2.5 rounded-full ${
-                              athlete.readinessZone === "ready"
-                                ? "bg-ready"
-                                : athlete.readinessZone === "caution"
-                                ? "bg-caution"
-                                : "bg-rest"
-                            }`}
-                          />
-                          <span className="text-16 font-mono font-bold text-text-primary">
-                            {athlete.readinessScore}
+                    {/* Three Scores Mini Badges/Dots */}
+                    {!isRevoked ? (
+                      <div className="flex items-center gap-2 shrink-0">
+                        {/* Recovery mini badge */}
+                        {athlete.permissions?.recovery !== "none" ? (
+                          <div className="text-right" title="Regeneráció">
+                            <div className="flex items-center justify-end gap-1">
+                              <span
+                                className={`h-2 w-2 rounded-full ${
+                                  (athlete.recoveryBand || athlete.readinessZone) === "ready" || (athlete.recoveryScore || athlete.readinessScore || 0) >= 67
+                                    ? "bg-ready"
+                                    : (athlete.recoveryBand || athlete.readinessZone) === "caution" || (athlete.recoveryScore || athlete.readinessScore || 0) >= 34
+                                    ? "bg-caution"
+                                    : "bg-rest"
+                                }`}
+                              />
+                              <span className="text-13 font-mono font-bold text-text-primary">
+                                {athlete.recoveryScore ?? athlete.readinessScore ?? "--"}
+                              </span>
+                            </div>
+                            <span className="text-[9px] text-text-tertiary block">Regen</span>
+                          </div>
+                        ) : (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-surface-elevated text-text-tertiary border border-border-hairline">
+                            Nincs megosztva
                           </span>
-                        </div>
-                        <span className="text-10 text-text-tertiary">Readiness</span>
+                        )}
+
+                        {/* Strain mini badge */}
+                        {athlete.permissions?.training !== "none" && (
+                          <div className="text-right pl-1.5 border-l border-border-hairline" title="Terhelés">
+                            <div className="flex items-center justify-end gap-1">
+                              <span className="h-2 w-2 rounded-full bg-brand" />
+                              <span className="text-13 font-mono font-bold text-text-primary">
+                                {athlete.strainScore ?? (athlete.formTsb > 0 ? `+${athlete.formTsb}` : athlete.formTsb)}
+                              </span>
+                            </div>
+                            <span className="text-[9px] text-text-tertiary block">Strain</span>
+                          </div>
+                        )}
+
+                        {/* Sleep mini badge */}
+                        {athlete.permissions?.recovery !== "none" && athlete.sleepScore !== undefined && (
+                          <div className="text-right pl-1.5 border-l border-border-hairline" title="Alvás">
+                            <div className="flex items-center justify-end gap-1">
+                              <span className="h-2 w-2 rounded-full bg-indigo-400" />
+                              <span className="text-13 font-mono font-bold text-text-primary">
+                                {athlete.sleepScore}
+                              </span>
+                            </div>
+                            <span className="text-[9px] text-text-tertiary block">Alvás</span>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <span className="text-11 text-text-tertiary font-mono">--</span>

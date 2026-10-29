@@ -185,6 +185,18 @@ export interface DailyAggregateDocument extends StandardRecordMetadata {
   readinessStatus: "ready" | "caution" | "rest";
   readinessConfidence?: number; // 0-100
   readinessDrivers?: ReadinessDriver[];
+  // Three Scores Engine canonical daily fields:
+  recoveryScore?: number; // 0-100
+  recoveryBand?: "green" | "amber" | "red";
+  recoveryConfidence?: number; // 0-100
+  strainScore?: number; // 0-100
+  strainTargetLow?: number;
+  strainTargetHigh?: number;
+  strainTargetSource?: "plan" | "recovery";
+  sleepScore?: number; // 0-100
+  sleepNeedMinutes?: number;
+  sleepDebtMinutes?: number;
+  sleepConfidence?: number;
   isCalibrating?: boolean;
   calibrationDays?: number;
   sourceFlags?: {

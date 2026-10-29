@@ -14,7 +14,9 @@ export type AlertType =
   | "reported_illness"
   | "reported_injury"
   | "low_compliance"
-  | "low_energy_availability";
+  | "low_energy_availability"
+  | "sustained_high_strain"
+  | "consecutive_low_sleep";
 
 export type AlertSeverity = "info" | "caution" | "critical";
 
@@ -54,6 +56,8 @@ export interface AthleteAlertThresholds {
   rapidWeightShiftPercent: number; // default: 2.0
   minWeeklyCompliancePercent: number; // default: 60
   lowEnergyAvailabilityDeficitPercent: number; // default: 40
+  sustainedHighStrainDays?: number; // default: 3
+  lowSleepScoreNights?: number; // default: 3
 }
 
 export const DEFAULT_ALERT_THRESHOLDS: AthleteAlertThresholds = {
@@ -63,7 +67,9 @@ export const DEFAULT_ALERT_THRESHOLDS: AthleteAlertThresholds = {
   minSleepDurationHours: 6.0,
   rapidWeightShiftPercent: 2.0,
   minWeeklyCompliancePercent: 60,
-  lowEnergyAvailabilityDeficitPercent: 40
+  lowEnergyAvailabilityDeficitPercent: 40,
+  sustainedHighStrainDays: 3,
+  lowSleepScoreNights: 3
 };
 
 export interface CoachAthleteRosterItem {
@@ -75,6 +81,12 @@ export interface CoachAthleteRosterItem {
   readinessScore?: number; // 0-100
   readinessZone?: "ready" | "caution" | "rest";
   readinessConfidence?: number; // 0-1
+  // Three Scores fields:
+  recoveryScore?: number;
+  recoveryBand?: "green" | "amber" | "red";
+  strainScore?: number;
+  strainTargetStatus?: "below" | "in_range" | "above";
+  sleepScore?: number;
   lastCheckInTime?: string; // ISO 8601 or relative
   sevenDayLoadTrend: "increasing" | "stable" | "decreasing";
   formTsb: number; // Training Stress Balance

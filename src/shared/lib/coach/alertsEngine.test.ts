@@ -147,6 +147,42 @@ describe("Athlete Alerts Engine & Permission-Gated Routing", () => {
       expect(leaAlert?.module).toBe("nutrition");
       expect(leaAlert?.severity).toBe("critical");
     });
+
+    it("triggers sustained_high_strain alert when strain exceeds target for 3 consecutive days", () => {
+      const snapshot: AthleteDataSnapshot = {
+        ...baseSnapshot,
+        dailyRecords: [
+          { date: "2026-10-23", strainScore: 78, strainTargetHigh: 60, checkInCompleted: true },
+          { date: "2026-10-24", strainScore: 82, strainTargetHigh: 65, checkInCompleted: true },
+          { date: "2026-10-25", strainScore: 75, strainTargetHigh: 60, checkInCompleted: true }
+        ]
+      };
+
+      const alerts = evaluateAthleteAlerts(snapshot);
+      const strainAlert = alerts.find((a) => a.type === "sustained_high_strain");
+
+      expect(strainAlert).toBeDefined();
+      expect(strainAlert?.module).toBe("training");
+      expect(strainAlert?.severity).toBe("caution");
+    });
+
+    it("triggers consecutive_low_sleep alert when sleep score is below 60 for 3 consecutive nights", () => {
+      const snapshot: AthleteDataSnapshot = {
+        ...baseSnapshot,
+        dailyRecords: [
+          { date: "2026-10-23", sleepScore: 52, checkInCompleted: true },
+          { date: "2026-10-24", sleepScore: 48, checkInCompleted: true },
+          { date: "2026-10-25", sleepScore: 55, checkInCompleted: true }
+        ]
+      };
+
+      const alerts = evaluateAthleteAlerts(snapshot);
+      const sleepScoreAlert = alerts.find((a) => a.type === "consecutive_low_sleep");
+
+      expect(sleepScoreAlert).toBeDefined();
+      expect(sleepScoreAlert?.module).toBe("recovery");
+      expect(sleepScoreAlert?.severity).toBe("caution");
+    });
   });
 
   describe("2. Strict Permission-Gated Routing", () => {

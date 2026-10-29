@@ -1167,3 +1167,27 @@ All nutrition constants and formulas are documented in `src/shared/lib/nutrition
 - **Public Styleguide Route:** Direct access to `/design` (`DesignSystemPage`) for isolated component and token auditing.
 - **Automated Responsive Matrix:** 25 Playwright tests passing across 11 viewports (320px to 1920px) in both dark and light modes, verifying zero horizontal scroll, >=44px mobile touch targets, safe area compliance, and visual snapshots (`docs/DESIGN_QA.md`).
 
+---
+
+## 16. Three Scores System (Recovery, Strain, Sleep) & Scoring Engines
+
+### A. Scoring Engines (`src/shared/lib/scores/`)
+- **Central Configuration (`config.ts`):** Single source of truth for sports science tuning, athlete level capacities ($k$), strain diminishing-returns coefficients, and sleep weights.
+- **Recovery (Regeneráció):** Reuses the existing readiness engine (0–100, green $\ge 67$, amber 34–66, red $< 34$), returning score, status band, confidence index, and top 3 drivers.
+- **Strain (Terhelés):** Computes daily load via diminishing-returns exponential curve: $\text{Strain} = 100 \times (1 - \exp(-\text{dailyLoad} / k))$. Computes session breakdowns and target strain range ("célsáv") based on planned workout load or recovery score + TSB recommendation.
+- **Sleep (Alvás):** Calculates sleep need (baseline + strain extra + 7-day debt repayment - naps), evaluates device/manual sleep performance (0–100), and computes optimal bedtime.
+- **Daily Rhythm State Machine (`dailyRhythm.ts`):** 5 stages (morning pending, morning ready, daytime training, post-training recovery, evening wind-down) driving contextual prompts and next-step actions.
+- **Weekly Summary ("Heti kör"):** 7-day retrospective score analysis, best/worst day metrics, target compliance rate, and shareable/copyable summary overlay.
+- **Data Persistence:** Unified daily score record stored in `athletes/{id}/days/{date}` with idempotent updates on session/check-in changes.
+- **Documentation:** Full methodology, inputs, and disclaimer documented in `docs/SCORES.md`.
+
+### B. Today Cockpit & Detail Sheets
+- **Three Scores Hero Card (`ThreeScoresHeroCard.tsx`):** Three SVG rings side-by-side with fluid `clamp()` sizing, target range arc on strain ring, and zero layout thrash.
+- **Stability & Performance (React #185 Loop Prevention):** Pure SVG `stroke-dashoffset` CSS transitions, memoized selectors, zero per-frame React state updates. Render count settled in $\le 3$ renders (`TodayPage.renderCount.test.tsx`).
+- **Detail Sheets:** `RecoveryDetailSheet`, `StrainDetailSheet`, and `SleepDetailSheet` providing 14-day trends, driver breakdowns, and direct action triggers.
+
+### C. Coach Workspace & Multi-Domain Alerts
+- Roster cards display 3 mini score dots with strict permission gating (`Nincs megosztva` fallback when locked).
+- Alerts engine checks for `sustained_high_strain` (strain exceeding target for 3+ consecutive days) and `consecutive_low_sleep` (sleep score $< 60$ for 3+ consecutive nights).
+
+

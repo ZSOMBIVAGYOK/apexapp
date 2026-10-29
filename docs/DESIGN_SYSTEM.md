@@ -137,3 +137,18 @@ A Playwright tesztmátrix automatikusan ellenőrzi a felületet **11 nézetmére
 - **Túlcsordulás detektor:** Elemek bounding box vizsgálata a szülőkhöz képest.
 - **Érintési célméret:** Mobilon legalább 44x44px hatásos terület.
 - **Vizuális pillanatképek:** `test-results/screenshots/` mappába mentve (gitignored).
+
+---
+
+## 6. Három Pontszám Gyűrű (Three Score Rings) — Ma Képernyő
+
+A Ma képernyő vezérlőkártyája (Hero Card) három harmonikus gyűrű köré épül:
+1. **Regeneráció (Recovery):** 0–100 skála, színkódolt zónákkal (zöld $\ge 67$, borostyán 34–66, vörös $< 34$), megbízhatósági százalékkal és a 3 legfontosabb befolyásoló tényezővel.
+2. **Terhelés (Strain):** 0–100 skála exponenciális telítődési görbével ($\text{Strain} = 100 \times (1 - \exp(-\text{Load} / k))$). A gyűrűn áttetsző célsáv ív jelenik meg a napi terv vagy a regenerációs ajánlás alapján.
+3. **Alvás (Sleep):** 0–100 alvásteljesítmény, dinamikus alvásszükséglet számítással (alap + terhelési többlet + 7 napos adósságtörlesztés - szundikálások).
+
+### Stabilitási Alapszabályok (React #185 védelem):
+- **SVG / CSS animációk:** A gyűrűk kizárólag natív SVG `stroke-dashoffset` és CSS `transition` réteget használnak; nincs képkockánkénti (`requestAnimationFrame` vagy `setInterval`) React `setState` frissítés.
+- **Memoizált szelektorok:** Minden származtatott érték tiszta függvényekből (`src/shared/lib/scores/`) és memoizált szelektorokból származik.
+- **Reszponzivitás:** Flexibilis konténer és `clamp()` méretezés a 320px-es telefontól a 4K-s monitorig vízszintes túlcsordulás nélkül.
+

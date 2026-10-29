@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuthStore } from "@features/auth/authStore";
@@ -6,7 +6,6 @@ import { useAppMode } from "@shared/hooks/useAppMode";
 import {
   Card,
   StatTile,
-  ProgressRing,
   Button,
   Badge,
   SourceBadge,
@@ -28,23 +27,32 @@ import {
   MessageSquare,
   Sparkles,
   Info,
-  Check,
-  Wrench
+  Wrench,
+  Moon
 } from "lucide-react";
 import {
   getLocalDaily,
-  getAllLocalDailies
+  getAllLocalDailies,
+  getLocalSessions
 } from "@shared/lib/offline/offlineStorage";
 import {
-  calculateReadiness,
-  ReadinessResult,
-  bandToStatus
-} from "@shared/lib/readiness";
+  getOrComputeDailyScores,
+  calculateWeeklyScoreSummary,
+  DayScoreSummary,
+  DailyScoresRecord
+} from "@shared/lib/scores";
+import { DailyAggregateDocument, CompletedSessionDocument } from "@shared/types";
+import { PlannedWorkout } from "@shared/types/training";
 import { ManualSessionModal } from "@features/training/components/ManualSessionModal";
 import { HydrationTrackerCard } from "@features/nutrition/components/HydrationTrackerCard";
 import { getEquipmentList, hasDueMaintenance } from "@shared/lib/equipment";
 import { getRecoveryLogs } from "@shared/lib/recovery";
 import { RecoveryActivityLog } from "@shared/types/recovery";
+import { ThreeScoresHeroCard } from "../components/ThreeScoresHeroCard";
+import { RecoveryDetailSheet } from "../components/sheets/RecoveryDetailSheet";
+import { StrainDetailSheet } from "../components/sheets/StrainDetailSheet";
+import { SleepDetailSheet } from "../components/sheets/SleepDetailSheet";
+import { WeeklyScoreCard } from "../components/WeeklyScoreCard";
 
 export const TodayPage: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -54,19 +62,32 @@ export const TodayPage: React.FC = () => {
   const isHu = i18n.language.startsWith("hu");
 
   const athleteId = user?.uid || "demo-athlete-001";
-  const todayStr = new Date().toISOString().split("T")[0] as string;
+  const todayStr = useMemo(() => new Date().toISOString().split("T")[0] as string, []);
+  const isSunday = useMemo(() => new Date().getDay() === 0, []);
+
+  // Primary data states
+  const [todayDoc] = useState<DailyAggregateDocument | null>(() =>
+    getLocalDaily(athleteId, todayStr)
+  );
+  const [allSessions] = useState<CompletedSessionDocument[]>(() =>
+    getLocalSessions(athleteId)
+  );
+  const [allDailies] = useState<DailyAggregateDocument[]>(() =>
+    getAllLocalDailies(athleteId)
+  );
+  const [plannedWorkouts] = useState<PlannedWorkout[]>(() => {
+    try {
+      const raw = localStorage.getItem(`apex_planned_workouts_${athleteId}`);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
 
   const [waterLiters, setWaterLiters] = useState(0);
   const [workoutStarted, setWorkoutStarted] = useState(false);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
-
-  // Check-in & Readiness state
-  const [hasCheckedInToday, setHasCheckedInToday] = useState(false);
-  const [readinessResult, setReadinessResult] = useState<ReadinessResult | null>(null);
-  const [todaySleepDurationHours, setTodaySleepDurationHours] = useState<string>("--");
-  const [todayRestingHr, setTodayRestingHr] = useState<number | null>(null);
-  const [todayHrv, setTodayHrv] = useState<number | null>(null);
-  const [historicalDaysCount, setHistoricalDaysCount] = useState(0);
+  const [activeDetailSheet, setActiveDetailSheet] = useState<"recovery" | "strain" | "sleep" | null>(null);
 
   // Recovery activities for today
   const [todayRecoveryLogs, setTodayRecoveryLogs] = useState<RecoveryActivityLog[]>([]);
@@ -78,68 +99,97 @@ export const TodayPage: React.FC = () => {
     dueSoonCount: number;
   }>({ hasDue: false, overdueCount: 0, dueSoonCount: 0 });
 
-  // Workout adaptive suggestion state (when readiness is amber/red)
+  // Workout adaptive suggestion state (when recovery is amber/red)
   const [suggestionState, setSuggestionState] = useState<"pending" | "applied" | "dismissed">("pending");
 
   // Mode resolution
   const supportModes = user?.supportMode || ["solo"];
-  const isSoloMode = supportModes.includes("solo");
   const isCoachMode = supportModes.includes("coach") || supportModes.includes("specialist");
 
+  // Load secondary background activities once
   useEffect(() => {
-    const todayDoc = getLocalDaily(athleteId, todayStr);
-    const allDailies = getAllLocalDailies(athleteId);
-    setHistoricalDaysCount(allDailies.length);
-
-    if (todayDoc) {
-      setHasCheckedInToday(true);
-      setTodaySleepDurationHours((todayDoc.sleep.durationMinutes / 60).toFixed(1));
-      if (todayDoc.restingHeartRate) setTodayRestingHr(todayDoc.restingHeartRate);
-      if (todayDoc.hrv?.rmssd) setTodayHrv(todayDoc.hrv.rmssd);
-
-      const res = calculateReadiness({
-        date: todayDoc.date,
-        sleep: {
-          durationMinutes: todayDoc.sleep.durationMinutes,
-          qualityScore: todayDoc.sleep.qualityScore
-        },
-        wellness: {
-          fatigue: todayDoc.subjective.fatigue || 2,
-          soreness: todayDoc.subjective.soreness,
-          stress: todayDoc.subjective.stress,
-          mood: todayDoc.subjective.mood || 4,
-          motivation: todayDoc.subjective.motivation || 4,
-          illness: todayDoc.subjective.illness,
-          soreAreas: todayDoc.subjective.soreAreas
-        },
-        biometrics: {
-          hrvRmssd: todayDoc.hrv?.rmssd,
-          restingHr: todayDoc.restingHeartRate,
-          baselineHrvMean: 76,
-          baselineHrvSd: 8,
-          baselineRhrMean: 50
-        },
-        historicalDaysCount: allDailies.length
-      });
-      setReadinessResult(res);
-    } else {
-      setHasCheckedInToday(false);
-      setTodaySleepDurationHours("--");
-      setTodayRestingHr(null);
-      setTodayHrv(null);
-      setReadinessResult(null);
-    }
-
-    // Load today's recovery activities
     getRecoveryLogs(athleteId).then((logs) => {
       setTodayRecoveryLogs(logs.filter((l) => l.date === todayStr));
     });
-
-    // Check equipment maintenance status
     getEquipmentList(athleteId).then((items) => {
       setDueMaintenanceInfo(hasDueMaintenance(items));
     });
   }, [athleteId, todayStr]);
+
+  // Unified Three Scores Calculation (Pure & Memoized)
+  const scoresRecord: DailyScoresRecord = useMemo(() => {
+    return getOrComputeDailyScores({
+      athleteId,
+      date: todayStr,
+      dailyDoc: todayDoc,
+      sessions: allSessions,
+      plannedWorkouts,
+      athleteLevel: user?.level
+    });
+  }, [athleteId, todayStr, todayDoc, allSessions, plannedWorkouts, user?.level]);
+
+  // Historical 7-day records for sparklines
+  const last7DaysRecords: DailyScoresRecord[] = useMemo(() => {
+    const list: DailyScoresRecord[] = [];
+    const baseDate = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(baseDate);
+      d.setDate(d.getDate() - i);
+      const dStr = d.toISOString().split("T")[0]!;
+      const r = getOrComputeDailyScores({
+        athleteId,
+        date: dStr,
+        sessions: allSessions,
+        plannedWorkouts,
+        athleteLevel: user?.level
+      });
+      list.push(r);
+    }
+    return list;
+  }, [athleteId, allSessions, plannedWorkouts, user?.level]);
+
+  // Weekly score summary (for Sundays and Weekly review)
+  const weeklySummary = useMemo(() => {
+    const summaryDays: DayScoreSummary[] = last7DaysRecords.map((r) => ({
+      date: r.date,
+      dayNameHu: "",
+      recoveryScore: r.recoveryScore,
+      recoveryBand: r.recoveryBand,
+      strainScore: r.strainScore,
+      strainTargetLow: r.strainTargetLow,
+      strainTargetHigh: r.strainTargetHigh,
+      sleepScore: r.sleepScore,
+      sleepDurationMinutes: r.sleep.durationMinutes
+    }));
+    return calculateWeeklyScoreSummary(summaryDays);
+  }, [last7DaysRecords]);
+
+  // 14-day trends for detail sheets
+  const recoveryTrend14d = useMemo(() => {
+    return allDailies.slice(0, 14).reverse().map((d) => ({
+      date: d.date,
+      score: d.recoveryScore || d.readinessScore || 70,
+      hrv: d.hrv?.rmssd,
+      rhr: d.restingHeartRate
+    }));
+  }, [allDailies]);
+
+  const strainTrend14d = useMemo(() => {
+    return last7DaysRecords.map((r) => ({
+      date: r.date,
+      strain: r.strainScore,
+      targetLow: r.strainTargetLow,
+      targetHigh: r.strainTargetHigh
+    }));
+  }, [last7DaysRecords]);
+
+  const sleepTrend14d = useMemo(() => {
+    return allDailies.slice(0, 14).reverse().map((d) => ({
+      date: d.date,
+      durationMinutes: d.sleep?.durationMinutes || 480,
+      score: d.sleepScore || 80
+    }));
+  }, [allDailies]);
 
   const handleAddWater = (amountMl = 250) => {
     const addedL = +(amountMl / 1000).toFixed(2);
@@ -165,40 +215,12 @@ export const TodayPage: React.FC = () => {
     });
   };
 
-  // Plain language primary driver sentence
-  const getDriverSentence = () => {
-    if (!readinessResult) return "";
-    const isReady = readinessResult.band === "green";
-    const isCaution = readinessResult.band === "amber";
-
-    if (readinessResult.drivers && readinessResult.drivers.length > 0) {
-      const topDriver = readinessResult.drivers[0]!;
-      const driverLabel = isHu ? topDriver.labelHu : topDriver.labelEn;
-      if (topDriver.impact === "positive") {
-        return isHu
-          ? `A magas autonóm idegrendszeri nyugalmi állapot és a(z) ${driverLabel.toLowerCase()} optimálisan támogatja a mai kulcsterhelést.`
-          : `High parasympathetic tone and ${driverLabel.toLowerCase()} strongly support high-intensity training today.`;
-      } else {
-        return isHu
-          ? `A(z) ${driverLabel.toLowerCase()} mérsékli a regenerációt; kontrollált intenzitás vagy könnyebb volumen indokolt.`
-          : `${driverLabel} is currently dampening recovery; controlled intensity or volume reduction is advised.`;
-      }
-    }
-
-    if (isReady) {
-      return isHu
-        ? "Minden élettani mutató a személyes bázistartományban van, ideális nap a minőségi edzésmunkához."
-        : "All biometrics are within your personal baseline zone; prime condition for key training.";
-    } else if (isCaution) {
-      return isHu
-        ? "Mérsékelt idegrendszeri fáradtság érzékelhető, a szubmaximális aerob munka javasolt."
-        : "Mild autonomic fatigue detected; submaximal aerobic load is recommended.";
-    } else {
-      return isHu
-        ? "Jelentős fáradtság vagy izomfájdalom áll fenn; a mai napon az aktív regeneráció élvez elsőbbséget."
-        : "Elevated physiological strain detected; active recovery or rest takes priority today.";
-    }
-  };
+  const hasCheckedInToday = scoresRecord.hasCheckIn;
+  const todaySleepDurationHours = scoresRecord.hasSleepData
+    ? (scoresRecord.sleep.durationMinutes / 60).toFixed(1)
+    : "--";
+  const todayRestingHr = todayDoc?.restingHeartRate ?? null;
+  const todayHrv = todayDoc?.hrv?.rmssd ?? null;
 
   return (
     <div className="space-y-6 pb-20">
@@ -244,11 +266,10 @@ export const TodayPage: React.FC = () => {
           </h1>
           <p className="text-13 text-text-secondary mt-0.5">
             {hasCheckedInToday
-              ? (isHu ? "A mai reggeli check-in rögzítve • Minden mutató friss" : "Morning check-in logged • All biometrics fresh")
-              : (isHu ? "Töltsd ki a mai check-int az edzés előtt a pontos készenléthez" : "Complete today's check-in before training for accurate readiness")}
+              ? (isHu ? "A mai reggeli check-in rögzítve • Minden pontszám friss" : "Morning check-in logged • All scores fresh")
+              : (isHu ? "Töltsd ki a mai check-int a pontos regenerációhoz és célsávhoz" : "Complete today's check-in for exact recovery and strain target")}
           </p>
         </div>
-
       </div>
 
       {/* 4 Large Capsule Quick Action Buttons */}
@@ -325,7 +346,7 @@ export const TodayPage: React.FC = () => {
       )}
 
       {/* First-Day Experience Banner if fresh user with 0 historical check-ins */}
-      {historicalDaysCount === 0 && !hasCheckedInToday && (
+      {allDailies.length === 0 && !hasCheckedInToday && (
         <Card
           variant="elevated"
           radius="20"
@@ -428,160 +449,84 @@ export const TodayPage: React.FC = () => {
         </Card>
       )}
 
-      {isSoloMode && (
-        <div className="flex items-center gap-3 p-3.5 rounded-16 border border-border-hairline bg-surface text-12 text-text-secondary flex-wrap">
-          <Sparkles className="h-4 w-4 text-brand shrink-0" />
-          <span>
-            {user?.targetCompetition ? (
-              user.targetCompetitionDate ? (
-                (() => {
-                  const diffDays = Math.ceil((new Date(user.targetCompetitionDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                  const diffWeeks = Math.max(0, Math.ceil(diffDays / 7));
-                  return isHu
-                    ? `Célverseny: ${user.targetCompetition} (${diffWeeks > 0 ? `${diffWeeks} hét van hátra` : `${Math.max(0, diffDays)} nap van hátra`}).`
-                    : `Target race: ${user.targetCompetition} (${diffWeeks > 0 ? `${diffWeeks} weeks left` : `${Math.max(0, diffDays)} days left`}).`;
-                })()
-              ) : (
-                isHu
-                  ? `Célverseny: ${user.targetCompetition}.`
-                  : `Target race: ${user.targetCompetition}.`
-              )
-            ) : (
-              isHu
-                ? "Még nem adtál meg célversenyt. Állíts be egyet a profilodban vagy az edzéstervben!"
-                : "No target race set yet. Add one in your profile or training plan!"
-            )}
-          </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate(user?.targetCompetition ? "/training" : "/profile")}
-            className="ml-auto text-11 h-7"
-          >
-            {user?.targetCompetition
-              ? (isHu ? "Terv megnyitása" : "Open plan")
-              : (isHu ? "Célverseny megadása" : "Set target race")}
-          </Button>
-        </div>
-      )}
-
       {/* Responsive Cockpit Layout: 2/3 Main on laptop, 1/3 Side */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main 2/3 Column: Readiness + Workout + Biometrics */}
+        {/* Main 2/3 Column: Three Rings Hero + Rhythm-aware Cards + Planned Workout */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Hero Readiness Overview Card */}
-          <Card variant="surface" radius="28" className="p-6 sm:p-8">
-            {hasCheckedInToday && readinessResult ? (
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-6">
-                  <ProgressRing
-                    value={readinessResult.score}
-                    label={isHu ? "Készenlét" : "Readiness"}
-                    unit=""
-                    size={135}
-                    strokeWidth={10}
-                    status={bandToStatus(readinessResult.band)}
-                  />
-                  <div className="space-y-1.5 max-w-xl">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant={bandToStatus(readinessResult.band)} dot size="sm">
-                        {readinessResult.band === "green"
-                          ? (isHu ? "KIVÁLÓ ÁLLAPOT (READY)" : "OPTIMAL READY")
-                          : readinessResult.band === "amber"
-                            ? (isHu ? "MÉRSÉKELT (CAUTION)" : "MODERATE LOAD")
-                            : (isHu ? "PIHENŐ (REST REQUIRED)" : "RECOVERY REQUIRED")}
-                      </Badge>
-                      <ConfidenceMeter confidence={readinessResult.confidence || 90} size="sm" />
-                      <span className="text-11 text-status-ready font-medium flex items-center gap-1">
-                        <Check className="h-3 w-3" />
-                        {isHu ? "Mai check-in alapján" : "From today's check-in"}
-                      </span>
-                    </div>
+          {/* THREE SCORES HERO CARD (WHOOP-INSPIRED APEX COCKPIT) */}
+          <ThreeScoresHeroCard
+            scoresRecord={scoresRecord}
+            historicalRecords={last7DaysRecords}
+            onOpenDetail={(type) => setActiveDetailSheet(type)}
+            onOpenCheckIn={() => navigate("/checkin")}
+          />
 
-                    <h2 className="text-20 sm:text-24 font-bold tracking-tight text-text-primary">
-                      {readinessResult.band === "green"
-                        ? (isHu ? "Készen állsz a magas intenzitású kulcsedzésre" : "Ready for High-Intensity Key Training")
-                        : readinessResult.band === "amber"
-                          ? (isHu ? "Mérsékelt terhelhetőség • Kontrollált aerob munka javasolt" : "Moderate Capacity • Controlled Aerobic Load")
-                          : (isHu ? "Alacsony regeneráció • Aktív pihenés javasolt" : "Low Recovery • Active Rest Recommended")}
-                    </h2>
-
-                    <p className="text-13 text-text-secondary leading-relaxed pt-1">
-                      {getDriverSentence()}
-                    </p>
-
-                    {readinessResult.drivers && readinessResult.drivers.length > 0 && (
-                      <div className="flex items-center gap-2 pt-2 flex-wrap">
-                        {readinessResult.drivers.slice(0, 3).map((driver, idx) => (
-                          <div
-                            key={idx}
-                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-8 text-11 font-medium border ${
-                              driver.impact === "positive"
-                                ? "bg-status-ready/10 text-status-ready border-status-ready/20"
-                                : "bg-status-rest/10 text-status-rest border-status-rest/20"
-                            }`}
-                          >
-                            <span>{driver.impact === "positive" ? "▲" : "▼"}</span>
-                            <span>{isHu ? driver.labelHu : driver.labelEn}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+          {/* RHYTHM-AWARE POST-TRAINING RECOVERY PROMPT */}
+          {scoresRecord.rhythm.showRecoveryPrompt && (
+            <Card
+              variant="elevated"
+              radius="28"
+              className="p-5 border border-ready/30 bg-ready/5 flex items-start justify-between gap-4"
+            >
+              <div className="flex items-start gap-3">
+                <div className="p-2.5 rounded-16 bg-ready/20 text-ready shrink-0 mt-0.5">
+                  <CheckCircle2 className="h-5 w-5" />
                 </div>
-
-                <div className="flex sm:flex-col gap-2 shrink-0 border-t lg:border-t-0 lg:border-l border-border-hairline pt-4 lg:pt-0 lg:pl-6">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => navigate("/checkin")}
-                  >
-                    {isHu ? "Mérési részletek" : "Check-in Details"}
-                  </Button>
-                  <Button
-                    variant="tertiary"
-                    size="sm"
-                    onClick={() => navigate("/insights")}
-                  >
-                    {isHu ? "Regeneráció Görbe" : "Recovery Curve"}
-                  </Button>
+                <div className="space-y-1 text-xs">
+                  <h4 className="text-14 font-bold text-text-primary">
+                    Edzés Utáni Regenerációs Ablak Aktív
+                  </h4>
+                  <p className="text-text-secondary leading-relaxed">
+                    A terhelési célsáv elérve! Most a levezetés, a +500 ml folyadék és a minőségi fehérjebevitel a legfontosabb az izomrostok regenerációjához.
+                  </p>
                 </div>
               </div>
-            ) : (
-              <div className="flex flex-col md:flex-row items-center justify-between gap-6 py-2">
-                <div className="flex items-center gap-5">
-                  <div className="w-16 h-16 rounded-24 bg-brand/10 text-brand flex items-center justify-center shrink-0 border border-brand/20">
-                    <Activity className="w-8 h-8" />
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="neutral" size="sm">
-                        {isHu ? "Még nincs mai adat" : "No data today"}
-                      </Badge>
-                    </div>
-                    <h2 className="text-20 sm:text-22 font-bold tracking-tight text-text-primary">
-                      {isHu ? "Kezdd a napot az első check-innel" : "Start your day with morning check-in"}
-                    </h2>
-                    <p className="text-13 text-text-secondary">
-                      {isHu
-                        ? "Rögzítsd a mai alvásidőt, jólléti állapotot és pulzust a személyre szabott edzéskészenlét kiszámításához."
-                        : "Log sleep, wellness, and biometrics to compute your personalized training readiness."}
-                    </p>
-                  </div>
-                </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => navigate("/insights?tab=recovery")}
+                className="shrink-0 text-xs"
+              >
+                Regeneráció &rarr;
+              </Button>
+            </Card>
+          )}
 
-                <Button
-                  variant="primary"
-                  size="md"
-                  leftIcon={<Activity className="h-4 w-4" />}
-                  onClick={() => navigate("/checkin")}
-                  className="shrink-0"
-                >
-                  {isHu ? "Napi Check-in kitöltése (~30 mp)" : "Complete Check-in (~30s)"}
-                </Button>
+          {/* RHYTHM-AWARE EVENING BEDTIME CARD */}
+          {scoresRecord.rhythm.showBedtimeCard && (
+            <Card
+              variant="elevated"
+              radius="28"
+              className="p-5 border border-indigo-500/30 bg-indigo-500/5 flex items-center justify-between gap-4"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-16 bg-indigo-500/20 text-indigo-400 shrink-0">
+                  <Moon className="h-5 w-5" />
+                </div>
+                <div className="text-xs">
+                  <span className="font-bold text-text-primary block text-14">
+                    Esti Felkészülés az Alvásra
+                  </span>
+                  <span className="text-text-secondary">
+                    {scoresRecord.sleep.bedtimeRecommendation.textHu}
+                  </span>
+                </div>
               </div>
-            )}
-          </Card>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setActiveDetailSheet("sleep")}
+                className="shrink-0 text-xs bg-indigo-600 hover:bg-indigo-500"
+              >
+                Alvásrészletek
+              </Button>
+            </Card>
+          )}
+
+          {/* WEEKLY SCORE CARD (SUNDAYS) */}
+          {isSunday && (
+            <WeeklyScoreCard summary={weeklySummary} />
+          )}
 
           {/* Planned Workout Card */}
           <Card variant="surface" radius="28" className="p-6 flex flex-col justify-between space-y-4">
@@ -593,13 +538,18 @@ export const TodayPage: React.FC = () => {
                     {t("today.plannedSession", "Napi Fő Edzés")}
                   </h3>
                 </div>
-                <Badge variant="neutral" size="sm">
-                  10:00 - 11:30
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="brand" size="sm">
+                    {scoresRecord.strain.targetRange.roomRemaining > 0
+                      ? scoresRecord.strain.targetRange.roomDescriptionHu
+                      : "Célsávban vagy"}
+                  </Badge>
+                  <span className="text-11 text-text-tertiary font-mono">10:00 - 11:30</span>
+                </div>
               </div>
 
               {/* Adaptive Workout Adjustment Suggestion */}
-              {(readinessResult?.band === "amber" || readinessResult?.band === "red") &&
+              {(scoresRecord.recovery.band === "amber" || scoresRecord.recovery.band === "red") &&
                 suggestionState !== "dismissed" && (
                   <div
                     className={`p-4 rounded-16 border space-y-2.5 transition-all ${
@@ -619,7 +569,7 @@ export const TodayPage: React.FC = () => {
                           <span className="text-13 font-bold text-text-primary">
                             {suggestionState === "applied"
                               ? (isHu ? "Apex Javaslat alkalmazva: Z2 Aerob Állóképesség" : "Suggestion applied: Z2 Aerobic Volume")
-                              : (isHu ? "Apex Terhelési Javaslat (Mérsékelt Készenlét)" : "Apex Load Suggestion (Caution Readiness)")}
+                              : (isHu ? "Apex Terhelési Javaslat (Mérsékelt Regeneráció)" : "Apex Load Suggestion (Caution Recovery)")}
                           </span>
                           <Badge variant={suggestionState === "applied" ? "ready" : "caution"} size="sm">
                             {suggestionState === "applied" ? "Alkalmazva" : "Javasolt"}
@@ -633,9 +583,6 @@ export const TodayPage: React.FC = () => {
                             : (isHu
                                 ? "Az autonóm idegrendszeri terhelés és izomláz alapján javasoljuk az intenzitás csökkentését 1 szinttel (Z4 küszöb helyett Z2 aerob alap, 60 perc), vagy a volumen 30%-os visszavételét."
                                 : "Based on autonomic fatigue, we suggest reducing intensity by one level (Z2 aerobic instead of Z4 threshold, 60m) or trimming volume by 30%.")}
-                        </p>
-                        <p className="text-10 text-text-tertiary italic">
-                          *Az Apex soha nem módosítja önhatalmúan az edzői tervet; a döntést a sportoló vagy az edző hagyja jóvá.
                         </p>
                       </div>
                     </div>
@@ -755,7 +702,7 @@ export const TodayPage: React.FC = () => {
               status={todaySleepDurationHours !== "--" ? (+todaySleepDurationHours >= 7.5 ? "ready" : "caution") : "neutral"}
               subtext={todaySleepDurationHours !== "--" ? (isHu ? "Kattints az elemzéshez" : "Click for sleep chart") : (isHu ? "Még nincs mai adat" : "No data yet")}
               topRight={<ConfidenceMeter confidence={todaySleepDurationHours !== "--" ? 92 : 0} size="sm" />}
-              onClick={() => navigate("/insights?tab=sleep")}
+              onClick={() => setActiveDetailSheet("sleep")}
             />
             <StatTile
               label={t("nutrition.hydration", "Folyadékbevitel")}
@@ -778,7 +725,7 @@ export const TodayPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Side 1/3 Column: Countdown + Fuel + Recovery + Hydration */}
+        {/* Side 1/3 Column: Countdown + Weekly Card + Fuel + Recovery + Hydration */}
         <div className="lg:col-span-1 space-y-6">
           {/* Target Race Countdown Card */}
           {user?.targetCompetition && (
@@ -809,6 +756,18 @@ export const TodayPage: React.FC = () => {
               </div>
             </Card>
           )}
+
+          {/* WEEKLY SCORE CARD ("HETI KÖR") */}
+          <WeeklyScoreCard
+            summary={weeklySummary}
+            onShare={() => {
+              showToast({
+                title: "Heti kör megosztása",
+                message: "A megosztási kép előkészítése folyamatban.",
+                type: "info"
+              });
+            }}
+          />
 
           {/* Nutrition & Fuel Card */}
           <Card variant="surface" radius="28" className="p-6 flex flex-col justify-between space-y-4">
@@ -939,6 +898,30 @@ export const TodayPage: React.FC = () => {
           />
         </div>
       </div>
+
+      {/* DETAIL SHEETS */}
+      <RecoveryDetailSheet
+        isOpen={activeDetailSheet === "recovery"}
+        onClose={() => setActiveDetailSheet(null)}
+        recovery={scoresRecord.recovery}
+        onNavigateToCheckIn={() => navigate("/checkin")}
+        historicalTrend={recoveryTrend14d}
+      />
+
+      <StrainDetailSheet
+        isOpen={activeDetailSheet === "strain"}
+        onClose={() => setActiveDetailSheet(null)}
+        strain={scoresRecord.strain}
+        historicalTrend={strainTrend14d}
+        weeklyTotalStrain={weeklySummary.totalStrain}
+      />
+
+      <SleepDetailSheet
+        isOpen={activeDetailSheet === "sleep"}
+        onClose={() => setActiveDetailSheet(null)}
+        sleep={scoresRecord.sleep}
+        historicalTrend={sleepTrend14d}
+      />
 
       {/* Manual Session Quick Modal */}
       <ManualSessionModal

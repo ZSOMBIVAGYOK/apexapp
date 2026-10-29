@@ -125,6 +125,18 @@ Daily physiological and wellness summary:
   - `sleepQuality`: Number (1-10)
 - `readinessScore`: Number (0-100)
 - `readinessStatus`: `'ready' | 'caution' | 'rest'`
+- `recoveryScore`: Number (0-100, WHOOP-inspired Regeneráció ring)
+- `recoveryBand`: `'green' | 'amber' | 'red'`
+- `recoveryConfidence`: Number (0-100%)
+- `strainScore`: Number (0-100, Terhelés ring derived from daily load diminishing returns)
+- `strainTargetLow`: Number (Target range low)
+- `strainTargetHigh`: Number (Target range high)
+- `strainTargetSource`: `'terv' | 'ajánlás' | 'egyéni'`
+- `sleepScore`: Number (0-100, Alvás ring performance)
+- `sleepNeedMinutes`: Number (Baseline + strain extra + debt repayment - naps)
+- `sleepDebtMinutes`: Number (Rolling 7-day sleep debt)
+- `sleepConfidence`: Number (0-100%)
+- `schemaVersion`: Number (1)
 - `sourceFlags`: `{ sleepSource, hrvSource, rhrSource }`
 - `notes`: String
 - Standard metadata: `source`, `confidence`, `createdAt`, `updatedAt`, `updatedBy`
